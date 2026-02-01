@@ -1,0 +1,507 @@
+"""
+Mail processing service for fetching and forwarding emails.
+Supports both POP3 and IMAP protocols with secure connections.
+"""
+import asyncio
+import poplib
+import smtplib
+import ssl
+from email import parser
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formatdate, make_msgid
+from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
+import logging
+from aioimaplib import aioimaplib
+
+from app.models.database_models import MailAccount, MailProtocol
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class MailConnectionError(Exception):
+    """Raised when unable to connect to mail server"""
+    pass
+
+
+class MailAuthenticationError(Exception):
+    """Raised when authentication fails"""
+    pass
+
+
+class MailFetchError(Exception):
+    """Raised when fetching emails fails"""
+    pass
+
+
+class MailForwardError(Exception):
+    """Raised when forwarding email fails"""
+    pass
+
+
+class MailProcessor:
+    """Handles mail fetching and forwarding operations"""
+    
+    def __init__(self, account: MailAccount, decrypted_password: str):
+        self.account = account
+        self.password = decrypted_password
+    
+    async def test_connection(self) -> Tuple[bool, str]:
+        """
+        Test connection to mail server.
+        Returns (success, message)
+        """
+        try:
+            if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
+                return await self._test_pop3_connection()
+            else:
+                return await self._test_imap_connection()
+        except Exception as e:
+            logger.error(f"Connection test failed: {e}")
+            return False, str(e)
+    
+    async def _test_pop3_connection(self) -> Tuple[bool, str]:
+        """Test POP3 connection"""
+        try:
+            loop = asyncio.get_event_loop()
+            
+            # Run blocking POP3 operations in thread pool
+            def connect_pop3():
+                if self.account.protocol == MailProtocol.POP3_SSL:
+                    context = ssl.create_default_context()
+                    pop_conn = poplib.POP3_SSL(
+                        self.account.host,
+                        self.account.port,
+                        context=context,
+                        timeout=10
+                    )
+                else:
+                    pop_conn = poplib.POP3(
+                        self.account.host,
+                        self.account.port,
+                        timeout=10
+                    )
+                
+                # Try authentication
+                pop_conn.user(self.account.username)
+                pop_conn.pass_(self.password)
+                
+                # Get mailbox stats
+                message_count, mailbox_size = pop_conn.stat()
+                
+                pop_conn.quit()
+                return message_count, mailbox_size
+            
+            message_count, mailbox_size = await loop.run_in_executor(None, connect_pop3)
+            
+            return True, f"Connection successful. {message_count} messages in mailbox."
+            
+        except poplib.error_proto as e:
+            error_msg = str(e)
+            if "authentication" in error_msg.lower() or "auth" in error_msg.lower():
+                return False, f"Authentication failed: {error_msg}"
+            return False, f"POP3 protocol error: {error_msg}"
+        except Exception as e:
+            return False, f"Connection failed: {str(e)}"
+    
+    async def _test_imap_connection(self) -> Tuple[bool, str]:
+        """Test IMAP connection"""
+        try:
+            # Create IMAP client
+            if self.account.protocol == MailProtocol.IMAP_SSL:
+                imap_client = aioimaplib.IMAP4_SSL(
+                    host=self.account.host,
+                    port=self.account.port,
+                    timeout=10
+                )
+            else:
+                imap_client = aioimaplib.IMAP4(
+                    host=self.account.host,
+                    port=self.account.port,
+                    timeout=10
+                )
+            
+            await imap_client.wait_hello_from_server()
+            
+            # Authenticate
+            response = await imap_client.login(self.account.username, self.password)
+            
+            if response.result != 'OK':
+                return False, f"Authentication failed: {response.lines}"
+            
+            # Select inbox
+            await imap_client.select('INBOX')
+            
+            # Get message count
+            response = await imap_client.search('ALL')
+            message_ids = response.lines[0].split()
+            message_count = len(message_ids)
+            
+            await imap_client.logout()
+            
+            return True, f"Connection successful. {message_count} messages in mailbox."
+            
+        except Exception as e:
+            return False, f"IMAP connection failed: {str(e)}"
+    
+    async def fetch_emails(self, max_count: Optional[int] = None) -> List[bytes]:
+        """
+        Fetch emails from the mail server.
+        Returns list of raw email data.
+        """
+        max_count = max_count or self.account.max_emails_per_check
+        
+        if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
+            return await self._fetch_pop3_emails(max_count)
+        else:
+            return await self._fetch_imap_emails(max_count)
+    
+    async def _fetch_pop3_emails(self, max_count: int) -> List[bytes]:
+        """Fetch emails via POP3"""
+        emails = []
+        
+        try:
+            loop = asyncio.get_event_loop()
+            
+            def fetch_pop3():
+                # Connect
+                if self.account.protocol == MailProtocol.POP3_SSL:
+                    context = ssl.create_default_context()
+                    pop_conn = poplib.POP3_SSL(
+                        self.account.host,
+                        self.account.port,
+                        context=context,
+                        timeout=30
+                    )
+                else:
+                    pop_conn = poplib.POP3(
+                        self.account.host,
+                        self.account.port,
+                        timeout=30
+                    )
+                
+                # Authenticate
+                pop_conn.user(self.account.username)
+                pop_conn.pass_(self.password)
+                
+                # Get message count
+                num_messages = len(pop_conn.list()[1])
+                logger.info(f"Found {num_messages} messages for account {self.account.id}")
+                
+                fetched_emails = []
+                messages_to_delete = []
+                
+                # Fetch emails (limited by max_count)
+                for i in range(1, min(num_messages + 1, max_count + 1)):
+                    try:
+                        response, lines, octets = pop_conn.retr(i)
+                        email_data = b'\r\n'.join(lines)
+                        fetched_emails.append(email_data)
+                        messages_to_delete.append(i)
+                        logger.info(f"Retrieved message {i} from account {self.account.id}")
+                    except Exception as e:
+                        logger.error(f"Error retrieving message {i}: {e}")
+                
+                # Delete messages if configured
+                if self.account.delete_after_forward:
+                    for msg_id in messages_to_delete:
+                        try:
+                            pop_conn.dele(msg_id)
+                        except Exception as e:
+                            logger.error(f"Error deleting message {msg_id}: {e}")
+                
+                pop_conn.quit()
+                return fetched_emails
+            
+            emails = await loop.run_in_executor(None, fetch_pop3)
+            
+        except Exception as e:
+            logger.error(f"Error fetching POP3 emails: {e}")
+            raise MailFetchError(f"POP3 fetch error: {str(e)}")
+        
+        return emails
+    
+    async def _fetch_imap_emails(self, max_count: int) -> List[bytes]:
+        """Fetch emails via IMAP"""
+        emails = []
+        
+        try:
+            # Create IMAP client
+            if self.account.protocol == MailProtocol.IMAP_SSL:
+                imap_client = aioimaplib.IMAP4_SSL(
+                    host=self.account.host,
+                    port=self.account.port,
+                    timeout=30
+                )
+            else:
+                imap_client = aioimaplib.IMAP4(
+                    host=self.account.host,
+                    port=self.account.port,
+                    timeout=30
+                )
+            
+            await imap_client.wait_hello_from_server()
+            await imap_client.login(self.account.username, self.password)
+            await imap_client.select('INBOX')
+            
+            # Search for all messages
+            response = await imap_client.search('UNSEEN')  # Only fetch unread
+            message_ids = response.lines[0].split()
+            
+            # Limit to max_count
+            message_ids = message_ids[:max_count]
+            
+            logger.info(f"Found {len(message_ids)} unread messages for account {self.account.id}")
+            
+            # Fetch each message
+            for msg_id in message_ids:
+                try:
+                    response = await imap_client.fetch(msg_id, '(RFC822)')
+                    
+                    # Extract email data from response
+                    email_data = None
+                    for line in response.lines:
+                        if isinstance(line, bytes) and b'RFC822' in line:
+                            # Find the email content
+                            start_idx = line.find(b'{')
+                            if start_idx != -1:
+                                # Email data is in the next parts
+                                continue
+                        elif isinstance(line, bytes) and not line.startswith(b'*'):
+                            email_data = line
+                            break
+                    
+                    if email_data:
+                        emails.append(email_data)
+                        
+                        # Mark as seen if deleting after forward
+                        if self.account.delete_after_forward:
+                            await imap_client.store(msg_id, '+FLAGS', '\\Deleted')
+                    
+                except Exception as e:
+                    logger.error(f"Error fetching message {msg_id}: {e}")
+            
+            # Expunge deleted messages
+            if self.account.delete_after_forward:
+                await imap_client.expunge()
+            
+            await imap_client.logout()
+            
+        except Exception as e:
+            logger.error(f"Error fetching IMAP emails: {e}")
+            raise MailFetchError(f"IMAP fetch error: {str(e)}")
+        
+        return emails
+    
+    @staticmethod
+    async def forward_email(
+        email_data: bytes,
+        source_account_name: str,
+        destination: str,
+        smtp_config: Dict[str, Any]
+    ) -> bool:
+        """
+        Forward an email to the destination address.
+        
+        Args:
+            email_data: Raw email bytes
+            source_account_name: Name of source account for labeling
+            destination: Destination email address
+            smtp_config: SMTP configuration dict with keys:
+                - host: SMTP host
+                - port: SMTP port
+                - username: SMTP username
+                - password: SMTP password
+                - use_tls: Whether to use STARTTLS
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            
+            def send_email():
+                # Parse the email
+                msg = parser.BytesParser().parsebytes(email_data)
+                
+                # Create forwarding message
+                forward_msg = MIMEMultipart('mixed')
+                forward_msg['From'] = smtp_config['username']
+                forward_msg['To'] = destination
+                forward_msg['Date'] = formatdate(localtime=True)
+                forward_msg['Message-ID'] = make_msgid()
+                
+                # Preserve original subject with prefix
+                original_subject = msg.get('Subject', 'No Subject')
+                forward_msg['Subject'] = f"[Fwd from {source_account_name}] {original_subject}"
+                
+                # Add original headers
+                header_info = f"Originally from: {msg.get('From', 'Unknown')}\n"
+                header_info += f"Original Date: {msg.get('Date', 'Unknown')}\n"
+                header_info += f"Original Subject: {original_subject}\n"
+                header_info += f"Source Account: {source_account_name}\n"
+                header_info += "-" * 50 + "\n\n"
+                
+                # Get email body
+                body = ""
+                if msg.is_multipart():
+                    for part in msg.walk():
+                        if part.get_content_type() == "text/plain":
+                            body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
+                            break
+                else:
+                    payload = msg.get_payload(decode=True)
+                    if payload:
+                        body = payload.decode('utf-8', errors='ignore')
+                
+                # Combine header and body
+                full_body = header_info + body
+                forward_msg.attach(MIMEText(full_body, 'plain', 'utf-8'))
+                
+                # Send via SMTP
+                if smtp_config.get('use_tls', True):
+                    server = smtplib.SMTP(smtp_config['host'], smtp_config['port'], timeout=30)
+                    server.starttls()
+                else:
+                    server = smtplib.SMTP_SSL(smtp_config['host'], smtp_config['port'], timeout=30)
+                
+                try:
+                    server.login(smtp_config['username'], smtp_config['password'])
+                    server.send_message(forward_msg)
+                    logger.info(f"Successfully forwarded email to {destination}")
+                    return True
+                finally:
+                    try:
+                        server.quit()
+                    except:
+                        pass
+            
+            return await loop.run_in_executor(None, send_email)
+            
+        except Exception as e:
+            logger.error(f"Error forwarding email: {e}")
+            raise MailForwardError(f"Forward error: {str(e)}")
+
+
+class MailServerAutoDetect:
+    """Auto-detect mail server settings based on email domain"""
+    
+    # Common mail server configurations
+    KNOWN_PROVIDERS = {
+        "gmail.com": {
+            "name": "Gmail",
+            "pop3_ssl": {"host": "pop.gmail.com", "port": 995},
+            "imap_ssl": {"host": "imap.gmail.com", "port": 993},
+        },
+        "outlook.com": {
+            "name": "Outlook.com",
+            "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
+            "imap_ssl": {"host": "outlook.office365.com", "port": 993},
+        },
+        "hotmail.com": {
+            "name": "Hotmail",
+            "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
+            "imap_ssl": {"host": "outlook.office365.com", "port": 993},
+        },
+        "gmx.com": {
+            "name": "GMX",
+            "pop3_ssl": {"host": "pop.gmx.com", "port": 995},
+            "imap_ssl": {"host": "imap.gmx.com", "port": 993},
+        },
+        "gmx.de": {
+            "name": "GMX",
+            "pop3_ssl": {"host": "pop.gmx.net", "port": 995},
+            "imap_ssl": {"host": "imap.gmx.net", "port": 993},
+        },
+        "web.de": {
+            "name": "WEB.DE",
+            "pop3_ssl": {"host": "pop3.web.de", "port": 995},
+            "imap_ssl": {"host": "imap.web.de", "port": 993},
+        },
+        "t-online.de": {
+            "name": "T-Online",
+            "pop3_ssl": {"host": "pop.t-online.de", "port": 995},
+            "imap_ssl": {"host": "imap.t-online.de", "port": 993},
+        },
+        "yahoo.com": {
+            "name": "Yahoo",
+            "pop3_ssl": {"host": "pop.mail.yahoo.com", "port": 995},
+            "imap_ssl": {"host": "imap.mail.yahoo.com", "port": 993},
+        },
+    }
+    
+    @classmethod
+    def detect(cls, email_address: str) -> List[Dict[str, Any]]:
+        """
+        Detect mail server settings for an email address.
+        Returns list of possible configurations.
+        """
+        domain = email_address.split('@')[-1].lower()
+        
+        suggestions = []
+        
+        # Check if we have a known provider
+        if domain in cls.KNOWN_PROVIDERS:
+            provider = cls.KNOWN_PROVIDERS[domain]
+            
+            # Add POP3 SSL suggestion
+            if "pop3_ssl" in provider:
+                suggestions.append({
+                    "protocol": "pop3_ssl",
+                    "provider_name": provider["name"],
+                    "host": provider["pop3_ssl"]["host"],
+                    "port": provider["pop3_ssl"]["port"],
+                    "use_ssl": True,
+                    "use_tls": False,
+                })
+            
+            # Add IMAP SSL suggestion
+            if "imap_ssl" in provider:
+                suggestions.append({
+                    "protocol": "imap_ssl",
+                    "provider_name": provider["name"],
+                    "host": provider["imap_ssl"]["host"],
+                    "port": provider["imap_ssl"]["port"],
+                    "use_ssl": True,
+                    "use_tls": False,
+                })
+        else:
+            # Generic suggestions based on common patterns
+            suggestions.extend([
+                {
+                    "protocol": "pop3_ssl",
+                    "provider_name": "Generic",
+                    "host": f"pop.{domain}",
+                    "port": 995,
+                    "use_ssl": True,
+                    "use_tls": False,
+                },
+                {
+                    "protocol": "pop3_ssl",
+                    "provider_name": "Generic",
+                    "host": f"pop3.{domain}",
+                    "port": 995,
+                    "use_ssl": True,
+                    "use_tls": False,
+                },
+                {
+                    "protocol": "imap_ssl",
+                    "provider_name": "Generic",
+                    "host": f"imap.{domain}",
+                    "port": 993,
+                    "use_ssl": True,
+                    "use_tls": False,
+                },
+                {
+                    "protocol": "imap_ssl",
+                    "provider_name": "Generic",
+                    "host": f"mail.{domain}",
+                    "port": 993,
+                    "use_ssl": True,
+                    "use_tls": False,
+                },
+            ])
+        
+        return suggestions
