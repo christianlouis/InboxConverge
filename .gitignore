@@ -52,3 +52,27 @@ htmlcov/
 # Temporary files
 /tmp/
 *.tmp
+
+# Backend specific
+backend/.env
+backend/alembic/versions/*_*.py
+backend/*.db
+backend/*.sqlite
+
+# Frontend specific (when implemented)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env.local
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Database
+*.sql
+*.dump
+
+# Redis
+dump.rdb
