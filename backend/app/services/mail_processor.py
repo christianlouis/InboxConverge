@@ -375,8 +375,8 @@ class MailProcessor:
                 finally:
                     try:
                         server.quit()
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Error closing SMTP connection: {e}")
             
             return await loop.run_in_executor(None, send_email)
             

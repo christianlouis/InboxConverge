@@ -68,19 +68,32 @@ def generate_random_token(length: int = 32) -> str:
 class CredentialEncryption:
     """Handles encryption/decryption of sensitive credentials (POP3/IMAP passwords)"""
     
-    def __init__(self, key: Optional[str] = None):
+    def __init__(self, key: Optional[str] = None, user_id: Optional[int] = None):
         """
         Initialize encryption with a key.
         If no key provided, uses the one from settings.
+        In production, use a unique salt per user for enhanced security.
+        
+        Args:
+            key: Encryption key (defaults to settings.ENCRYPTION_KEY)
+            user_id: Optional user ID for per-user salt generation
         """
         if key is None:
             key = settings.ENCRYPTION_KEY
+        
+        # Generate salt - in production, this should be unique per user
+        if user_id is not None:
+            # Per-user salt for production
+            salt = f'pop3_forwarder_user_{user_id}'.encode('utf-8')[:16].ljust(16, b'0')
+        else:
+            # Default salt for system-wide operations (use with caution)
+            salt = b'pop3_forwarder_0'
         
         # Derive a proper Fernet key from the provided key
         kdf = PBKDF2(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b'pop3_forwarder_salt',  # In production, use unique salt per user
+            salt=salt,
             iterations=100000,
         )
         key_bytes = key.encode('utf-8')

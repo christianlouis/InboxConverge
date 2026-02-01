@@ -2,6 +2,7 @@
 Celery tasks for background email processing.
 """
 import asyncio
+import os
 from datetime import datetime, timedelta
 from typing import List
 from celery import Task
@@ -23,8 +24,8 @@ class AsyncTask(Task):
     
     def __call__(self, *args, **kwargs):
         """Run async task in event loop"""
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.run(*args, **kwargs))
+        # Use asyncio.run() for better event loop management
+        return asyncio.run(self.run(*args, **kwargs))
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.process_mail_account")
@@ -72,14 +73,22 @@ async def process_mail_account(account_id: int):
             emails_forwarded = 0
             emails_failed = 0
             
-            # TODO: Get SMTP config from user settings or environment
+            # Get SMTP config from environment or user settings
+            # TODO: Make this configurable per user in the database
             smtp_config = {
-                "host": "smtp.gmail.com",
-                "port": 587,
-                "username": "smtp_user@gmail.com",  # Should come from config
-                "password": "smtp_password",  # Should come from config
-                "use_tls": True
+                "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+                "port": int(os.getenv("SMTP_PORT", "587")),
+                "username": os.getenv("SMTP_USER", ""),
+                "password": os.getenv("SMTP_PASSWORD", ""),
+                "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true"
             }
+            
+            if not smtp_config["username"] or not smtp_config["password"]:
+                logger.error(f"SMTP credentials not configured for account {account.id}")
+                run.status = "failed"
+                run.error_message = "SMTP credentials not configured"
+                await db.commit()
+                return
             
             for email_data in emails:
                 try:
