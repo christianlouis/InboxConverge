@@ -22,7 +22,39 @@ A Docker-based solution that automatically fetches emails from POP3 mailboxes an
 - POP3 account credentials
 - (Optional) Postmarkapp account for error notifications
 
-### Setup
+### Option 1: Using Pre-built Docker Image (Recommended)
+
+The Docker images are automatically built and published to GitHub Container Registry.
+
+1. **Create configuration file**
+   ```bash
+   # Download the docker-compose.yml and .env.example
+   curl -O https://raw.githubusercontent.com/christianlouis/pop_puller_to_gmail/main/docker-compose.yml
+   curl -o .env https://raw.githubusercontent.com/christianlouis/pop_puller_to_gmail/main/.env.example
+   
+   # Edit .env with your credentials
+   nano .env
+   ```
+
+2. **Update docker-compose.yml to use the pre-built image**
+   ```yaml
+   version: '3.8'
+   
+   services:
+     pop3-forwarder:
+       image: ghcr.io/christianlouis/pop_puller_to_gmail:latest
+       container_name: pop3-gmail-forwarder
+       restart: unless-stopped
+       env_file:
+         - .env
+   ```
+
+3. **Run the container**
+   ```bash
+   docker-compose up -d
+   ```
+
+### Option 2: Building from Source
 
 1. **Clone the repository**
    ```bash
@@ -68,6 +100,30 @@ A Docker-based solution that automatically fetches emails from POP3 mailboxes an
    ```bash
    docker-compose logs -f
    ```
+
+## Using Pre-built Docker Images
+
+Docker images are automatically built and published to GitHub Container Registry for every release and commit to the main branch.
+
+### Available Image Tags
+
+- `ghcr.io/christianlouis/pop_puller_to_gmail:latest` - Latest build from main branch
+- `ghcr.io/christianlouis/pop_puller_to_gmail:v1.0.0` - Specific version tags
+- `ghcr.io/christianlouis/pop_puller_to_gmail:main` - Main branch builds
+
+### Pull and Run
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/christianlouis/pop_puller_to_gmail:latest
+
+# Run directly with Docker
+docker run -d \
+  --name pop3-forwarder \
+  --env-file .env \
+  --restart unless-stopped \
+  ghcr.io/christianlouis/pop_puller_to_gmail:latest
+```
 
 ## Configuration
 
