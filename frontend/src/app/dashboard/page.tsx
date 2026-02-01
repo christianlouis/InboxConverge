@@ -83,7 +83,6 @@ export default function DashboardPage() {
               value={stats.emailsToday}
               icon={Send}
               iconColor="bg-green-500"
-              trend="+12% from yesterday"
             />
             <StatCard
               title="Active Accounts"
