@@ -2,7 +2,11 @@ version: '3.8'
 
 services:
   pop3-forwarder:
+    # Option 1: Build from source (default)
     build: .
+    # Option 2: Use pre-built image from GitHub Container Registry
+    # Uncomment the line below and comment out 'build: .' to use pre-built image
+    # image: ghcr.io/christianlouis/pop_puller_to_gmail:latest
     container_name: pop3-gmail-forwarder
     restart: unless-stopped
     env_file:
