@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  pop3-forwarder:
+    build: .
+    container_name: pop3-gmail-forwarder
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-5}
+      - MAX_EMAILS_PER_RUN=${MAX_EMAILS_PER_RUN:-50}
+      - THROTTLE_EMAILS_PER_MINUTE=${THROTTLE_EMAILS_PER_MINUTE:-10}
+    volumes:
+      # Optional: mount for logs if you want persistent logging
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
