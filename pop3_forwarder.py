@@ -202,18 +202,25 @@ class EmailForwarder:
             # Send via SMTP
             self.throttle.wait_if_needed()
             
-            if self.smtp_use_tls:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
-                server.starttls()
-            else:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
-            
-            server.login(self.smtp_user, self.smtp_password)
-            server.send_message(forward_msg)
-            server.quit()
-            
-            logger.info(f"Successfully forwarded email to {self.gmail_destination}")
-            return True
+            server = None
+            try:
+                if self.smtp_use_tls:
+                    server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                    server.starttls()
+                else:
+                    server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(forward_msg)
+                
+                logger.info(f"Successfully forwarded email to {self.gmail_destination}")
+                return True
+            finally:
+                if server:
+                    try:
+                        server.quit()
+                    except Exception:
+                        pass  # Ignore errors during cleanup
             
         except Exception as e:
             logger.error(f"Error forwarding email: {e}")
@@ -228,7 +235,6 @@ class EmailForwarder:
         
         try:
             import http.client
-            import json
             
             conn = http.client.HTTPSConnection("api.postmarkapp.com")
             
