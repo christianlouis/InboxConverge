@@ -92,6 +92,50 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [i.strip() for i in v.split(",")]
         return v
+    
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Validate that SECRET_KEY is changed from default and is secure"""
+        default_keys = [
+            "change-this-to-a-secure-random-secret-key-in-production",
+            "secret",
+            "secret-key",
+            "secretkey",
+        ]
+        if v.lower() in default_keys:
+            raise ValueError(
+                "SECRET_KEY must be changed from default value! "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"SECRET_KEY must be at least 32 characters long (current: {len(v)}). "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        return v
+    
+    @field_validator("ENCRYPTION_KEY")
+    @classmethod
+    def validate_encryption_key(cls, v: str) -> str:
+        """Validate that ENCRYPTION_KEY is changed from default and is secure"""
+        default_keys = [
+            "change-this-to-a-secure-encryption-key",
+            "encryption",
+            "encryption-key",
+            "encryptionkey",
+        ]
+        if v.lower() in default_keys:
+            raise ValueError(
+                "ENCRYPTION_KEY must be changed from default value! "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"ENCRYPTION_KEY must be at least 32 characters long (current: {len(v)}). "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        return v
 
 
 # Global settings instance
