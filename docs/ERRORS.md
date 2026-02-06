@@ -292,7 +292,7 @@ class ErrorResponse(BaseModel):
     code: str  # e.g., "MAIL_100"
     message: str  # Human-readable message
     details: dict = {}  # Additional context
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     request_id: str = ""  # For tracing
 ```
 

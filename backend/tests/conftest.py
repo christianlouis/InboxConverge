@@ -18,12 +18,8 @@ from app.core.security import get_password_hash, create_access_token
 TEST_DATABASE_URL = settings.DATABASE_URL.replace("/pop3_forwarder", "/pop3_forwarder_test")
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create event loop for async tests"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Note: event_loop fixture removed - pytest-asyncio provides this automatically
+# when asyncio_mode = auto is set in pytest.ini
 
 
 @pytest.fixture(scope="function")

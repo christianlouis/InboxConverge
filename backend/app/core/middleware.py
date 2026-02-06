@@ -24,7 +24,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         
         # Strict Transport Security (HTTPS only)
         # Note: Only enable in production with HTTPS
-        if not request.url.hostname in ["localhost", "127.0.0.1"]:
+        if request.url.hostname not in ["localhost", "127.0.0.1"]:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         
         # Content Security Policy (adjust based on frontend needs)
