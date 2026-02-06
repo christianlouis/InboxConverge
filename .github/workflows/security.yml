@@ -12,6 +12,11 @@ jobs:
   security:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: read
+      security-events: write  # For CodeQL
+      actions: read
+    
     steps:
     - uses: actions/checkout@v4
     
