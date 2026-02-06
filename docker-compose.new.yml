@@ -87,20 +87,19 @@ services:
     command: celery -A app.workers.celery_app beat --loglevel=info
     restart: unless-stopped
 
-  # Frontend (React/Next.js) - to be implemented
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: pop3-frontend
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - backend
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   restart: unless-stopped
+  # Frontend (React/Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pop3-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:
