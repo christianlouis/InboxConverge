@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import settings
+from app.core.middleware import SecurityHeadersMiddleware, CSRFProtectionMiddleware
 from app.api.v1.api import api_router
 
 # Configure logging
@@ -30,6 +31,10 @@ def create_application() -> FastAPI:
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json"
     )
+    
+    # Security middleware (add before CORS)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CSRFProtectionMiddleware)
     
     # CORS middleware
     app.add_middleware(
