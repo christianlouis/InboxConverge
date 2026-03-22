@@ -6,8 +6,7 @@ from app.core.security import (
     get_password_hash,
     verify_password,
     create_access_token,
-    encrypt_password,
-    decrypt_password,
+    CredentialEncryption,
 )
 
 
@@ -60,7 +59,8 @@ class TestEncryption:
         password = "mailpassword123"
         user_id = 1
         
-        encrypted = encrypt_password(password, user_id)
+        encryptor = CredentialEncryption(user_id=user_id)
+        encrypted = encryptor.encrypt(password)
         
         assert encrypted != password
         assert len(encrypted) > 50
@@ -70,8 +70,9 @@ class TestEncryption:
         password = "mailpassword123"
         user_id = 1
         
-        encrypted = encrypt_password(password, user_id)
-        decrypted = decrypt_password(encrypted, user_id)
+        encryptor = CredentialEncryption(user_id=user_id)
+        encrypted = encryptor.encrypt(password)
+        decrypted = encryptor.decrypt(encrypted)
         
         assert decrypted == password
     
@@ -81,15 +82,18 @@ class TestEncryption:
         user_id_1 = 1
         user_id_2 = 2
         
-        encrypted_1 = encrypt_password(password, user_id_1)
-        encrypted_2 = encrypt_password(password, user_id_2)
+        encryptor_1 = CredentialEncryption(user_id=user_id_1)
+        encryptor_2 = CredentialEncryption(user_id=user_id_2)
+        
+        encrypted_1 = encryptor_1.encrypt(password)
+        encrypted_2 = encryptor_2.encrypt(password)
         
         # Different users should produce different encrypted values
         assert encrypted_1 != encrypted_2
         
         # But decryption should work correctly for each
-        assert decrypt_password(encrypted_1, user_id_1) == password
-        assert decrypt_password(encrypted_2, user_id_2) == password
+        assert encryptor_1.decrypt(encrypted_1) == password
+        assert encryptor_2.decrypt(encrypted_2) == password
     
     def test_decrypt_with_wrong_user_id_fails(self):
         """Test that decryption fails with wrong user ID"""
@@ -97,7 +101,10 @@ class TestEncryption:
         user_id = 1
         wrong_user_id = 2
         
-        encrypted = encrypt_password(password, user_id)
+        encryptor = CredentialEncryption(user_id=user_id)
+        wrong_encryptor = CredentialEncryption(user_id=wrong_user_id)
+        
+        encrypted = encryptor.encrypt(password)
         
         with pytest.raises(Exception):
-            decrypt_password(encrypted, wrong_user_id)
+            wrong_encryptor.decrypt(encrypted)

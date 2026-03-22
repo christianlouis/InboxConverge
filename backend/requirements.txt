@@ -56,6 +56,3 @@ faker==22.6.0
 python-dotenv==1.0.0
 schedule==1.2.0
 tenacity==8.2.3
-
-# Legacy support (for migration)
-poplib3==0.0.4

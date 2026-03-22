@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 
 from app.core.config import settings
@@ -84,13 +84,13 @@ class CredentialEncryption:
         # Generate salt - in production, this should be unique per user
         if user_id is not None:
             # Per-user salt for production
-            salt = f'pop3_forwarder_user_{user_id}'.encode('utf-8')[:16].ljust(16, b'0')
+            salt = f'pop3fwd_usr_{user_id}'.encode('utf-8')[:16].ljust(16, b'\x00')
         else:
             # Default salt for system-wide operations (use with caution)
             salt = b'pop3_forwarder_0'
         
         # Derive a proper Fernet key from the provided key
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
