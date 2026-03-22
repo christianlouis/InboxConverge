@@ -312,10 +312,11 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                     </div>
                   </div>
 
-                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                    <p className="text-sm text-green-800">
-                      <strong>Gmail API Injection:</strong> Emails will be injected directly into your Gmail
-                      account via the Gmail API. Make sure you have configured your Gmail credentials in Settings.
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Delivery:</strong> Emails will be delivered to your Gmail account.
+                      Configure your Gmail API credentials in Settings for direct injection (recommended),
+                      or they will be forwarded via SMTP.
                     </p>
                   </div>
 

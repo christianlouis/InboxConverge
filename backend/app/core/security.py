@@ -1,6 +1,7 @@
 """
 Security utilities for encryption, hashing, and token generation.
 """
+import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -81,10 +82,9 @@ class CredentialEncryption:
         if key is None:
             key = settings.ENCRYPTION_KEY
         
-        # Generate salt - in production, this should be unique per user
+        # Generate salt - unique per user for enhanced security
         if user_id is not None:
-            # Per-user salt for production
-            salt = f'pop3fwd_usr_{user_id}'.encode('utf-8')[:16].ljust(16, b'\x00')
+            salt = hashlib.sha256(f'pop3fwd_usr_{user_id}'.encode()).digest()[:16]
         else:
             # Default salt for system-wide operations (use with caution)
             salt = b'pop3_forwarder_0'

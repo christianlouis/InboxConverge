@@ -5,6 +5,7 @@ Uses the Gmail API's users.messages.insert() method to inject emails
 into a user's Gmail account, preserving original headers and metadata.
 This is preferred over SMTP forwarding as it doesn't modify the email.
 """
+import asyncio
 import base64
 import logging
 from typing import Optional, Dict, Any
@@ -94,8 +95,6 @@ class GmailService:
         Raises:
             GmailInjectionError: If injection fails
         """
-        import asyncio
-
         if label_ids is None:
             label_ids = ["INBOX"]
 
@@ -145,8 +144,6 @@ class GmailService:
         Returns:
             True if credentials are valid and can access Gmail
         """
-        import asyncio
-
         loop = asyncio.get_event_loop()
 
         try:
@@ -170,8 +167,6 @@ class GmailService:
         Returns:
             Email address string or None if unavailable
         """
-        import asyncio
-
         loop = asyncio.get_event_loop()
 
         try:
