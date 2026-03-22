@@ -29,6 +29,11 @@ class AccountStatus(str, Enum):
     TESTING = "testing"
 
 
+class DeliveryMethod(str, Enum):
+    SMTP = "smtp"
+    GMAIL_API = "gmail_api"
+
+
 class NotificationChannel(str, Enum):
     EMAIL = "email"
     TELEGRAM = "telegram"
@@ -103,6 +108,7 @@ class MailAccountBase(BaseModel):
     use_tls: bool = False
     username: str = Field(..., max_length=255)
     forward_to: EmailStr
+    delivery_method: DeliveryMethod = DeliveryMethod.GMAIL_API
     is_enabled: bool = True
     check_interval_minutes: int = Field(default=5, gt=0, le=1440)
     max_emails_per_check: int = Field(default=50, gt=0, le=1000)
@@ -117,6 +123,7 @@ class MailAccountUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = None
     forward_to: Optional[EmailStr] = None
+    delivery_method: Optional[DeliveryMethod] = None
     is_enabled: Optional[bool] = None
     check_interval_minutes: Optional[int] = Field(None, gt=0, le=1440)
     max_emails_per_check: Optional[int] = Field(None, gt=0, le=1000)
@@ -127,6 +134,7 @@ class MailAccountResponse(MailAccountBase):
     id: int
     user_id: int
     status: AccountStatus
+    delivery_method: DeliveryMethod
     provider_name: Optional[str] = None
     auto_detected: bool
     total_emails_processed: int
@@ -302,3 +310,38 @@ class MailServerPresetResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# Gmail Credential Schemas
+class GmailCredentialCreate(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    gmail_email: EmailStr
+
+
+class GmailCredentialResponse(BaseModel):
+    id: int
+    user_id: int
+    gmail_email: str
+    is_valid: bool
+    last_verified_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Provider Wizard Schemas
+class ProviderPreset(BaseModel):
+    id: str
+    name: str
+    icon: Optional[str] = None
+    domains: List[str]
+    imap_ssl: Optional[Dict[str, Any]] = None
+    pop3_ssl: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+
+class ProviderListResponse(BaseModel):
+    providers: List[ProviderPreset]

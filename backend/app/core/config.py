@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:3000/auth/callback/google"
     
+    # Gmail API (for direct email injection)
+    GMAIL_API_ENABLED: bool = True
+    GMAIL_INJECT_LABEL_IDS: List[str] = ["INBOX"]
+    
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     

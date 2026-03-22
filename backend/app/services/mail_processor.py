@@ -395,6 +395,11 @@ class MailServerAutoDetect:
             "pop3_ssl": {"host": "pop.gmail.com", "port": 995},
             "imap_ssl": {"host": "imap.gmail.com", "port": 993},
         },
+        "googlemail.com": {
+            "name": "Gmail",
+            "pop3_ssl": {"host": "pop.gmail.com", "port": 995},
+            "imap_ssl": {"host": "imap.gmail.com", "port": 993},
+        },
         "outlook.com": {
             "name": "Outlook.com",
             "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
@@ -402,6 +407,21 @@ class MailServerAutoDetect:
         },
         "hotmail.com": {
             "name": "Hotmail",
+            "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
+            "imap_ssl": {"host": "outlook.office365.com", "port": 993},
+        },
+        "live.com": {
+            "name": "Live",
+            "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
+            "imap_ssl": {"host": "outlook.office365.com", "port": 993},
+        },
+        "msn.com": {
+            "name": "MSN",
+            "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
+            "imap_ssl": {"host": "outlook.office365.com", "port": 993},
+        },
+        "outlook.de": {
+            "name": "Outlook.de",
             "pop3_ssl": {"host": "outlook.office365.com", "port": 995},
             "imap_ssl": {"host": "outlook.office365.com", "port": 993},
         },
@@ -415,6 +435,21 @@ class MailServerAutoDetect:
             "pop3_ssl": {"host": "pop.gmx.net", "port": 995},
             "imap_ssl": {"host": "imap.gmx.net", "port": 993},
         },
+        "gmx.net": {
+            "name": "GMX",
+            "pop3_ssl": {"host": "pop.gmx.net", "port": 995},
+            "imap_ssl": {"host": "imap.gmx.net", "port": 993},
+        },
+        "gmx.at": {
+            "name": "GMX",
+            "pop3_ssl": {"host": "pop.gmx.net", "port": 995},
+            "imap_ssl": {"host": "imap.gmx.net", "port": 993},
+        },
+        "gmx.ch": {
+            "name": "GMX",
+            "pop3_ssl": {"host": "pop.gmx.net", "port": 995},
+            "imap_ssl": {"host": "imap.gmx.net", "port": 993},
+        },
         "web.de": {
             "name": "WEB.DE",
             "pop3_ssl": {"host": "pop3.web.de", "port": 995},
@@ -422,13 +457,83 @@ class MailServerAutoDetect:
         },
         "t-online.de": {
             "name": "T-Online",
-            "pop3_ssl": {"host": "pop.t-online.de", "port": 995},
-            "imap_ssl": {"host": "imap.t-online.de", "port": 993},
+            "pop3_ssl": {"host": "securepop.t-online.de", "port": 995},
+            "imap_ssl": {"host": "secureimap.t-online.de", "port": 993},
         },
         "yahoo.com": {
             "name": "Yahoo",
             "pop3_ssl": {"host": "pop.mail.yahoo.com", "port": 995},
             "imap_ssl": {"host": "imap.mail.yahoo.com", "port": 993},
+        },
+        "yahoo.de": {
+            "name": "Yahoo",
+            "pop3_ssl": {"host": "pop.mail.yahoo.com", "port": 995},
+            "imap_ssl": {"host": "imap.mail.yahoo.com", "port": 993},
+        },
+        "yahoo.co.uk": {
+            "name": "Yahoo",
+            "pop3_ssl": {"host": "pop.mail.yahoo.com", "port": 995},
+            "imap_ssl": {"host": "imap.mail.yahoo.com", "port": 993},
+        },
+        "ymail.com": {
+            "name": "Yahoo",
+            "pop3_ssl": {"host": "pop.mail.yahoo.com", "port": 995},
+            "imap_ssl": {"host": "imap.mail.yahoo.com", "port": 993},
+        },
+        "aol.com": {
+            "name": "AOL",
+            "pop3_ssl": {"host": "pop.aol.com", "port": 995},
+            "imap_ssl": {"host": "imap.aol.com", "port": 993},
+        },
+        "aim.com": {
+            "name": "AOL",
+            "pop3_ssl": {"host": "pop.aol.com", "port": 995},
+            "imap_ssl": {"host": "imap.aol.com", "port": 993},
+        },
+        "online.de": {
+            "name": "1&1 / IONOS",
+            "pop3_ssl": {"host": "pop.ionos.de", "port": 995},
+            "imap_ssl": {"host": "imap.ionos.de", "port": 993},
+        },
+        "onlinehome.de": {
+            "name": "1&1 / IONOS",
+            "pop3_ssl": {"host": "pop.ionos.de", "port": 995},
+            "imap_ssl": {"host": "imap.ionos.de", "port": 993},
+        },
+        "1und1.de": {
+            "name": "1&1 / IONOS",
+            "pop3_ssl": {"host": "pop.ionos.de", "port": 995},
+            "imap_ssl": {"host": "imap.ionos.de", "port": 993},
+        },
+        "freenet.de": {
+            "name": "Freenet",
+            "pop3_ssl": {"host": "mx.freenet.de", "port": 995},
+            "imap_ssl": {"host": "mx.freenet.de", "port": 993},
+        },
+        "posteo.de": {
+            "name": "Posteo",
+            "imap_ssl": {"host": "posteo.de", "port": 993},
+        },
+        "posteo.net": {
+            "name": "Posteo",
+            "imap_ssl": {"host": "posteo.de", "port": 993},
+        },
+        "icloud.com": {
+            "name": "iCloud",
+            "imap_ssl": {"host": "imap.mail.me.com", "port": 993},
+        },
+        "me.com": {
+            "name": "iCloud",
+            "imap_ssl": {"host": "imap.mail.me.com", "port": 993},
+        },
+        "mac.com": {
+            "name": "iCloud",
+            "imap_ssl": {"host": "imap.mail.me.com", "port": 993},
+        },
+        "mail.de": {
+            "name": "mail.de",
+            "pop3_ssl": {"host": "pop.mail.de", "port": 995},
+            "imap_ssl": {"host": "imap.mail.de", "port": 993},
         },
     }
     

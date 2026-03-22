@@ -64,6 +64,7 @@ async def create_mail_account(
         username=account_in.username,
         encrypted_password=encrypted_password,
         forward_to=account_in.forward_to,
+        delivery_method=account_in.delivery_method,
         is_enabled=account_in.is_enabled,
         check_interval_minutes=account_in.check_interval_minutes,
         max_emails_per_check=account_in.max_emails_per_check,

@@ -29,6 +29,12 @@ class MailProtocol(str, enum.Enum):
     IMAP_SSL = "imap_ssl"
 
 
+class DeliveryMethod(str, enum.Enum):
+    """How emails are delivered to Gmail"""
+    SMTP = "smtp"           # Forward via SMTP (legacy)
+    GMAIL_API = "gmail_api" # Inject via Gmail API (preferred)
+
+
 class AccountStatus(str, enum.Enum):
     """Mail account status"""
     ACTIVE = "active"
@@ -103,6 +109,9 @@ class MailAccount(Base):
     
     # Forwarding destination
     forward_to = Column(String(255), nullable=False)
+    
+    # Delivery method
+    delivery_method = Column(SQLEnum(DeliveryMethod), default=DeliveryMethod.GMAIL_API)
     
     # Status and settings
     status = Column(SQLEnum(AccountStatus), default=AccountStatus.ACTIVE)
@@ -326,3 +335,33 @@ class AuditLog(Base):
         Index('idx_user_action', 'user_id', 'action'),
         Index('idx_timestamp_action', 'timestamp', 'action'),
     )
+
+
+class GmailCredential(Base):
+    """Stores OAuth2 credentials for Gmail API access (per-user)"""
+    __tablename__ = "gmail_credentials"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    # Gmail account email
+    gmail_email = Column(String(255), nullable=False)
+    
+    # OAuth2 tokens (encrypted)
+    encrypted_access_token = Column(Text, nullable=False)
+    encrypted_refresh_token = Column(Text, nullable=True)
+    
+    # Token metadata
+    token_expiry = Column(DateTime, nullable=True)
+    scopes = Column(JSON, nullable=True)
+    
+    # Status
+    is_valid = Column(Boolean, default=True)
+    last_verified_at = Column(DateTime, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = relationship("User", backref="gmail_credential")

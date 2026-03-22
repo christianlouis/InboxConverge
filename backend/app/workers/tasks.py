@@ -11,8 +11,13 @@ import logging
 from app.workers.celery_app import celery_app
 from app.core.database import async_session_maker
 from app.core.security import decrypt_credential
-from app.models.database_models import MailAccount, ProcessingRun, ProcessingLog, AccountStatus
+from app.models.database_models import (
+    MailAccount, ProcessingRun, ProcessingLog, AccountStatus,
+    DeliveryMethod, GmailCredential,
+)
 from app.services.mail_processor import MailProcessor
+from app.services.gmail_service import GmailService, GmailInjectionError
+from app.core.config import settings
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,39 +78,86 @@ async def process_mail_account(account_id: int):
             emails_forwarded = 0
             emails_failed = 0
             
-            # Get SMTP config from environment or user settings
-            # TODO: Make this configurable per user in the database
-            smtp_config = {
-                "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
-                "port": int(os.getenv("SMTP_PORT", "587")),
-                "username": os.getenv("SMTP_USER", ""),
-                "password": os.getenv("SMTP_PASSWORD", ""),
-                "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true"
-            }
+            # Determine delivery method
+            use_gmail_api = (
+                account.delivery_method == DeliveryMethod.GMAIL_API
+            )
             
-            if not smtp_config["username"] or not smtp_config["password"]:
-                logger.error(f"SMTP credentials not configured for account {account.id}")
-                run.status = "failed"
-                run.error_message = "SMTP credentials not configured"
-                await db.commit()
-                return
+            gmail_service = None
+            smtp_config = None
+            
+            if use_gmail_api:
+                # Get user's Gmail credentials
+                gmail_cred_result = await db.execute(
+                    select(GmailCredential).where(
+                        GmailCredential.user_id == account.user_id,
+                        GmailCredential.is_valid == True,
+                    )
+                )
+                gmail_cred = gmail_cred_result.scalar_one_or_none()
+                
+                if gmail_cred:
+                    access_token = decrypt_credential(gmail_cred.encrypted_access_token)
+                    refresh_token = (
+                        decrypt_credential(gmail_cred.encrypted_refresh_token)
+                        if gmail_cred.encrypted_refresh_token
+                        else None
+                    )
+                    gmail_service = GmailService(
+                        access_token=access_token,
+                        refresh_token=refresh_token,
+                        client_id=settings.GOOGLE_CLIENT_ID,
+                        client_secret=settings.GOOGLE_CLIENT_SECRET,
+                    )
+                else:
+                    logger.warning(
+                        f"Gmail API credentials not found for user {account.user_id}, "
+                        f"falling back to SMTP for account {account.id}"
+                    )
+                    use_gmail_api = False
+            
+            if not use_gmail_api:
+                # Fall back to SMTP
+                smtp_config = {
+                    "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+                    "port": int(os.getenv("SMTP_PORT", "587")),
+                    "username": os.getenv("SMTP_USER", ""),
+                    "password": os.getenv("SMTP_PASSWORD", ""),
+                    "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+                }
+                
+                if not smtp_config["username"] or not smtp_config["password"]:
+                    logger.error(f"SMTP credentials not configured for account {account.id}")
+                    run.status = "failed"
+                    run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"
+                    await db.commit()
+                    return
             
             for email_data in emails:
                 try:
-                    success = await MailProcessor.forward_email(
-                        email_data,
-                        account.name,
-                        account.forward_to,
-                        smtp_config
-                    )
-                    
-                    if success:
+                    if use_gmail_api and gmail_service:
+                        # Inject via Gmail API (preferred)
+                        await gmail_service.inject_email(
+                            raw_email=email_data,
+                            label_ids=["INBOX"],
+                            source_account_name=account.name,
+                        )
                         emails_forwarded += 1
                     else:
-                        emails_failed += 1
+                        # Forward via SMTP (fallback)
+                        success = await MailProcessor.forward_email(
+                            email_data,
+                            account.name,
+                            account.forward_to,
+                            smtp_config
+                        )
+                        if success:
+                            emails_forwarded += 1
+                        else:
+                            emails_failed += 1
                         
-                except Exception as e:
-                    logger.error(f"Error forwarding email: {e}")
+                except (GmailInjectionError, Exception) as e:
+                    logger.error(f"Error delivering email: {e}")
                     emails_failed += 1
             
             # Update run

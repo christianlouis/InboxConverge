@@ -4,17 +4,21 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount, MailAccountCreate } from '@/lib/api';
 import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { ProviderWizard } from './ProviderWizard';
 
 interface AddMailAccountModalProps {
   account?: MailAccount | null;
   onClose: () => void;
 }
 
+type WizardStep = 'provider' | 'form';
+
 export function AddMailAccountModal({ account, onClose }: AddMailAccountModalProps) {
   const queryClient = useQueryClient();
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const [autoDetecting, setAutoDetecting] = useState(false);
+  const [wizardStep, setWizardStep] = useState<WizardStep>(account ? 'form' : 'provider');
 
   const [formData, setFormData] = useState<MailAccountCreate>({
     name: account?.name || '',
@@ -44,6 +48,18 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
               type === 'number' ? Number(value) : value,
     }));
+  };
+
+  const handleProviderSelect = (config: { name: string; protocol: string; host: string; port: number; use_ssl: boolean }) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: config.name,
+      protocol: config.protocol,
+      host: config.host,
+      port: config.port,
+      use_ssl: config.use_ssl,
+    }));
+    setWizardStep('form');
   };
 
   const handleAutoDetect = async () => {
@@ -131,208 +147,236 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Account Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="My Email Account"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address / Username
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      required
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="user@example.com"
-                    />
+              {wizardStep === 'provider' && !account ? (
+                <ProviderWizard
+                  onSelect={handleProviderSelect}
+                  onManual={() => setWizardStep('form')}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {!account && (
                     <button
                       type="button"
-                      onClick={handleAutoDetect}
-                      disabled={autoDetecting}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                      onClick={() => setWizardStep('provider')}
+                      className="text-sm text-blue-600 hover:text-blue-800 mb-2"
                     >
-                      {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+                      ← Back to provider selection
                     </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required={!account}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={account ? 'Leave blank to keep current password' : 'Password'}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Protocol
-                    </label>
-                    <select
-                      name="protocol"
-                      value={formData.protocol}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pop3">POP3</option>
-                      <option value="imap">IMAP</option>
-                    </select>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Host
+                      Account Name
                     </label>
                     <input
                       type="text"
-                      name="host"
-                      value={formData.host}
+                      name="name"
+                      value={formData.name}
                       onChange={handleChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="pop.gmail.com"
+                      placeholder="My Email Account"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Port
+                      Email Address / Username
                     </label>
-                    <input
-                      type="number"
-                      name="port"
-                      value={formData.port}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="use_ssl"
-                    id="use_ssl"
-                    checked={formData.use_ssl}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
-                    Use SSL/TLS
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Check Interval (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      name="check_interval_minutes"
-                      value={formData.check_interval_minutes}
-                      onChange={handleChange}
-                      required
-                      min="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleChange}
+                        required
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="user@example.com"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAutoDetect}
+                        disabled={autoDetecting}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Max Emails Per Check
+                      Password
                     </label>
                     <input
-                      type="number"
-                      name="max_emails_per_check"
-                      value={formData.max_emails_per_check}
+                      type="password"
+                      name="password"
+                      value={formData.password}
                       onChange={handleChange}
-                      min="1"
+                      required={!account}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={account ? 'Leave blank to keep current password' : 'Password'}
                     />
                   </div>
-                </div>
 
-                {testStatus !== 'idle' && (
-                  <div
-                    className={`p-3 rounded-md flex items-start ${
-                      testStatus === 'success'
-                        ? 'bg-green-50 border border-green-200'
-                        : testStatus === 'error'
-                        ? 'bg-red-50 border border-red-200'
-                        : 'bg-blue-50 border border-blue-200'
-                    }`}
-                  >
-                    {testStatus === 'testing' && <Loader2 className="h-5 w-5 text-blue-500 animate-spin mr-2" />}
-                    {testStatus === 'success' && <CheckCircle className="h-5 w-5 text-green-500 mr-2" />}
-                    {testStatus === 'error' && <XCircle className="h-5 w-5 text-red-500 mr-2" />}
-                    <span
-                      className={`text-sm ${
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Protocol
+                      </label>
+                      <select
+                        name="protocol"
+                        value={formData.protocol}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="pop3">POP3</option>
+                        <option value="pop3_ssl">POP3 (SSL)</option>
+                        <option value="imap">IMAP</option>
+                        <option value="imap_ssl">IMAP (SSL)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Host
+                      </label>
+                      <input
+                        type="text"
+                        name="host"
+                        value={formData.host}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="pop.gmail.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Port
+                      </label>
+                      <input
+                        type="number"
+                        name="port"
+                        value={formData.port}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="use_ssl"
+                      id="use_ssl"
+                      checked={formData.use_ssl}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
+                      Use SSL/TLS
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Check Interval (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        name="check_interval_minutes"
+                        value={formData.check_interval_minutes}
+                        onChange={handleChange}
+                        required
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Max Emails Per Check
+                      </label>
+                      <input
+                        type="number"
+                        name="max_emails_per_check"
+                        value={formData.max_emails_per_check}
+                        onChange={handleChange}
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <p className="text-sm text-green-800">
+                      <strong>Gmail API Injection:</strong> Emails will be injected directly into your Gmail
+                      account via the Gmail API. Make sure you have configured your Gmail credentials in Settings.
+                    </p>
+                  </div>
+
+                  {testStatus !== 'idle' && (
+                    <div
+                      className={`p-3 rounded-md flex items-start ${
                         testStatus === 'success'
-                          ? 'text-green-700'
+                          ? 'bg-green-50 border border-green-200'
                           : testStatus === 'error'
-                          ? 'text-red-700'
-                          : 'text-blue-700'
+                          ? 'bg-red-50 border border-red-200'
+                          : 'bg-blue-50 border border-blue-200'
                       }`}
                     >
-                      {testStatus === 'testing' ? 'Testing connection...' : testMessage}
-                    </span>
-                  </div>
-                )}
-              </div>
+                      {testStatus === 'testing' && <Loader2 className="h-5 w-5 text-blue-500 animate-spin mr-2" />}
+                      {testStatus === 'success' && <CheckCircle className="h-5 w-5 text-green-500 mr-2" />}
+                      {testStatus === 'error' && <XCircle className="h-5 w-5 text-red-500 mr-2" />}
+                      <span
+                        className={`text-sm ${
+                          testStatus === 'success'
+                            ? 'text-green-700'
+                            : testStatus === 'error'
+                            ? 'text-red-700'
+                            : 'text-blue-700'
+                        }`}
+                      >
+                        {testStatus === 'testing' ? 'Testing connection...' : testMessage}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={testStatus === 'testing'}
-                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
-              >
-                Test Connection
-              </button>
-              <div className="flex gap-3">
+            {wizardStep === 'form' && (
+              <div className="bg-gray-50 px-6 py-4 flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  onClick={handleTestConnection}
+                  disabled={testStatus === 'testing'}
+                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  Test Connection
                 </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {createMutation.isPending ? 'Saving...' : 'Save'}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {createMutation.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </form>
         </div>
       </div>
