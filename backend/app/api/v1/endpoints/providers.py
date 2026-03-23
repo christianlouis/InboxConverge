@@ -133,6 +133,9 @@ PROVIDER_PRESETS: List[ProviderPreset] = [
     ),
 ]
 
+# Create a mapping for O(1) provider lookup
+PROVIDER_PRESETS_MAP = {preset.id: preset for preset in PROVIDER_PRESETS}
+
 
 @router.get("/presets", response_model=ProviderListResponse)
 async def list_provider_presets(
@@ -148,9 +151,10 @@ async def get_provider_preset(
     current_user: User = Depends(get_current_active_user),
 ):
     """Get a specific provider preset by ID"""
-    for preset in PROVIDER_PRESETS:
-        if preset.id == provider_id:
-            return preset
+    preset = PROVIDER_PRESETS_MAP.get(provider_id)
+    if preset:
+        return preset
+
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Provider '{provider_id}' not found",
