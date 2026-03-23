@@ -316,9 +316,9 @@ alembic downgrade -1
 ## 📚 Additional Documentation
 
 - [API Documentation](http://localhost:8000/api/docs) - Interactive API docs
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
 - [ROADMAP.md](ROADMAP.md) - Future development plans
-- [SECURITY.md](SECURITY.md) - Security policies
+- [SECURITY.md](../SECURITY.md) - Security policies
 
 ## 🤝 Contributing
 
@@ -331,7 +331,7 @@ Contributions welcome! Please:
 
 ## 📄 License
 
-MIT License - See [LICENSE](LICENSE) file
+MIT License - See [LICENSE](../LICENSE) file
 
 ## 🆘 Support
 

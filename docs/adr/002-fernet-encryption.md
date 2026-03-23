@@ -156,7 +156,7 @@ def get_or_create_user_salt(user_id: int) -> bytes:
 ## Related Decisions
 
 - See ADR-006 for key management in production
-- See SECURITY_REPORT.md for security analysis
+- See ../SECURITY_REPORT.md for security analysis
 
 ## References
 

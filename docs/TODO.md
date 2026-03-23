@@ -43,8 +43,8 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Add `.secrets.baseline` for detect-secrets
 
 ### In Progress 🔨
+- [x] Reorganize documentation into `docs/` directory
 - [ ] Complete ADR documentation (add ADR-003 through ADR-010)
-- [ ] Reorganize documentation into `docs/` directory
 - [ ] Create GitHub Projects board for task management
 
 ### Not Started 📋
@@ -169,9 +169,43 @@ Comprehensive task breakdown for repository improvements and production readines
 - [ ] Add advanced email filtering
 - [ ] Implement OAuth2 for Gmail (instead of App Passwords)
 - [ ] Add attachment handling improvements
-- [ ] Build frontend dashboard (React/Next.js)
 - [ ] Add email archiving feature
 - [ ] Implement webhook support for external integrations
+
+---
+
+## 🖥️ High Priority - Frontend Completion
+
+The Next.js frontend has pages and components implemented but is **not functional**
+because the API client layer is missing.
+
+### Critical Blockers 🔴
+- [ ] Create `frontend/src/lib/api.ts` — API client using axios
+  - Must export: `authApi`, `mailAccountsApi`, `processingRunsApi`, `userApi`
+  - Must export types: `User`, `MailAccount`, `MailAccountCreate`
+  - 8 files import from `@/lib/api` and will fail to compile without it:
+    `AuthGuard.tsx`, `AddMailAccountModal.tsx`, `authStore.ts`,
+    `login/page.tsx`, `register/page.tsx`, `auth/callback/page.tsx`,
+    `dashboard/page.tsx`, `accounts/page.tsx`
+
+### Existing Pages (UI done, need API wiring) 🔨
+- [x] Landing page (`app/page.tsx`)
+- [x] Login page with email/password + Google OAuth
+- [x] Registration page
+- [x] OAuth callback handler
+- [x] Dashboard with stats cards and processing runs table
+- [x] Mail accounts list with CRUD operations
+- [x] Settings page
+- [x] `AddMailAccountModal` component (auto-detect, test connection)
+- [x] `DashboardLayout` with responsive sidebar
+- [x] `AuthGuard` for protected routes
+
+### Not Started 📋
+- [ ] End-to-end testing of frontend against backend API
+- [ ] Error boundary components
+- [ ] Loading skeletons / proper loading states
+- [ ] Notification preferences UI
+- [ ] Subscription management / billing UI
 
 ---
 
@@ -253,31 +287,32 @@ Comprehensive task breakdown for repository improvements and production readines
 | Category | Progress | Status |
 |----------|----------|--------|
 | Security | 60% | 🟡 In Progress |
-| Agentic Infrastructure | 80% | 🟢 Near Complete |
+| Agentic Infrastructure | 90% | 🟢 Near Complete |
 | Testing | 30% | 🔴 Needs Work |
 | CI/CD | 70% | 🟡 In Progress |
 | Code Quality | 40% | 🔴 Needs Work |
 | Production Ready | 20% | 🔴 Needs Work |
 | Observability | 10% | 🔴 Needs Work |
-| Features | 70% | 🟡 In Progress |
+| Backend Features | 80% | 🟢 Near Complete |
+| Frontend | 30% | 🔴 Blocked (missing lib/api.ts) |
 
-**Overall Repository Readiness**: 47% ⚠️
+**Overall Repository Readiness**: 48% ⚠️
 
 ---
 
 ## 🎯 Next Actions (Priority Order)
 
 1. **Immediate** (Today):
+   - [ ] Create `frontend/src/lib/api.ts` (frontend is broken without it)
    - [ ] Fix remaining security issues (bare excepts, datetime, redirect_uri)
    - [ ] Write 10 more unit tests
-   - [ ] Test security validators work correctly
 
 2. **This Week**:
    - [ ] Enable rate limiting
    - [ ] Add audit logging
    - [ ] Reach 50% test coverage
    - [ ] Complete ADR documentation
-   - [ ] Reorganize docs into docs/ directory
+   - [ ] End-to-end test frontend against backend
 
 3. **Next Week**:
    - [ ] Kubernetes manifests
@@ -319,6 +354,6 @@ Must complete before production:
 
 ---
 
-**Last Updated**: 2026-02-06
+**Last Updated**: 2026-03-23
 **Maintained By**: Development Team
 **Review Frequency**: Weekly
