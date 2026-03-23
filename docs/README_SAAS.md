@@ -312,7 +312,7 @@ Helm charts and Kubernetes manifests will be provided for production deployment.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please see [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ### Areas for Contribution
 
@@ -325,7 +325,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## 📜 License
 
-MIT License - See [LICENSE](LICENSE) file for details.
+MIT License - See [LICENSE](../LICENSE) file for details.
 
 ## 🆘 Support
 
@@ -357,16 +357,19 @@ Built with these amazing open-source projects:
 | Background Jobs | ✅ Complete | 100% |
 | Documentation | ✅ Complete | 100% |
 | Stripe Integration | 🚧 In Progress | 60% |
-| Frontend Dashboard | 📋 Planned | 0% |
-| Notification System | 📋 Planned | 40% |
-| Testing Suite | 📋 Planned | 20% |
+| Frontend Dashboard | 🚧 In Progress | 70% |
+| Notification System | 🚧 In Progress | 40% |
+| Testing Suite | 🚧 In Progress | 30% |
+
+> **Note:** The frontend pages and components are implemented but the API client
+> layer (`lib/api.ts`) is not yet wired up, so the dashboard does not function
+> end-to-end yet.
 
 ## 🔮 Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for detailed future plans, including:
 
 - Complete web dashboard
-- Mobile app (iOS/Android)
 - Advanced email filtering
 - Email archiving
 - Multi-destination forwarding
@@ -374,12 +377,6 @@ See [ROADMAP.md](ROADMAP.md) for detailed future plans, including:
 - Kubernetes deployment
 - High availability setup
 
-## ⭐ Star History
-
-If you find this project useful, please consider giving it a star! ⭐
-
 ---
 
-**Version**: 2.0.0 | **Status**: Production Ready (Backend) | **Updated**: 2026-02-01
-
-Made with ❤️ for the community
+**Status**: In Development | **Backend**: Production-ready | **Frontend**: In Progress

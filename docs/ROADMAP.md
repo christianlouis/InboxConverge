@@ -243,7 +243,7 @@ We welcome contributions! Areas where help is needed:
 5. **Performance**: Optimize slow operations
 6. **Security**: Security audits and improvements
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ---
 

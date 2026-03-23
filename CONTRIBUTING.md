@@ -20,7 +20,7 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 ### Suggesting Features
 
-1. Check the [Roadmap](ROADMAP.md) to see if it's already planned
+1. Check the [Roadmap](docs/ROADMAP.md) to see if it's already planned
 2. Open an issue with the "enhancement" label
 3. Describe the feature and its use case
 4. Explain why it would be useful
@@ -40,14 +40,14 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 4. **Test your changes**
    ```bash
-   # Test Python syntax
-   python3 -m py_compile pop3_forwarder.py
-   
+   # Run the test suite
+   make test
+
+   # Or run linting + formatting + tests together
+   make quick-test
+
    # Test Docker build
    docker build -t pop3-test .
-   
-   # Test with your configuration
-   docker-compose up
    ```
 
 5. **Commit your changes**
@@ -80,19 +80,18 @@ Be respectful and inclusive. We welcome contributions from everyone.
 git clone https://github.com/YOUR-USERNAME/pop_puller_to_gmail.git
 cd pop_puller_to_gmail
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Install all development dependencies
+make install-dev
 
 # Copy example config
 cp .env.example .env
 # Edit .env with test credentials
 
-# Run locally
+# Run the legacy forwarder script directly
 python pop3_forwarder.py
+
+# Or start the SaaS backend in dev mode
+make run-dev
 ```
 
 ### Docker Development
@@ -112,23 +111,29 @@ docker run --env-file .env pop3-dev
 - Add docstrings to functions and classes
 - Keep functions focused and small
 - Handle errors gracefully
+- Run `make format` to auto-format with Black and Ruff
 
 ## Testing
 
 Before submitting a PR:
 
-1. **Syntax check**
+1. **Run the test suite**
    ```bash
-   python3 -m py_compile pop3_forwarder.py
+   make test
    ```
 
-2. **Docker build**
+2. **Run linting**
+   ```bash
+   make lint
+   ```
+
+3. **Docker build**
    ```bash
    docker build -t pop3-test .
    ```
 
-3. **Manual testing**
-   - Test with real POP3 account (or mock)
+4. **Manual testing** (if applicable)
+   - Test with a real POP3 account or mock
    - Verify emails are forwarded correctly
    - Check error handling
    - Review logs
@@ -143,9 +148,9 @@ Update documentation when:
 
 Files to update:
 - `README.md` - Main documentation
-- `QUICKSTART.md` - If setup changes
-- `MVP.md` - If MVP scope changes
-- `ROADMAP.md` - If adding future plans
+- `docs/QUICKSTART.md` - If setup changes
+- `docs/MVP.md` - If MVP scope changes
+- `docs/ROADMAP.md` - If adding future plans
 
 ## Security
 
@@ -158,7 +163,7 @@ Files to update:
 
 **Do NOT open public issues for security vulnerabilities.**
 
-Email security concerns to the maintainers privately.
+Please see [SECURITY.md](SECURITY.md) for responsible disclosure instructions.
 
 ## Questions?
 
