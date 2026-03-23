@@ -5,7 +5,7 @@ pydantic==2.12.5
 pydantic-settings==2.13.1
 
 # Database
-sqlalchemy==2.0.25
+sqlalchemy==2.0.48  # Updated: Fixed Python 3.14 incompatibility with TypingOnly assertion (was 2.0.25)
 alembic==1.13.1
 psycopg2-binary==2.9.11
 asyncpg==0.31.0

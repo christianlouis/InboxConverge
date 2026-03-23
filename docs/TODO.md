@@ -96,6 +96,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Set up automatic dependency updates (Dependabot)
 - [x] Merge Dependabot dependency updates (PRs #26–#49)
 - [x] Remove CodeQL checks from CI (was blocking builds)
+- [x] Upgrade SQLAlchemy to 2.0.48 to fix Python 3.14 test failures
 
 ### In Progress 🔨
 - [ ] Configure branch protection rules
