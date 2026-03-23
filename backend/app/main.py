@@ -2,6 +2,8 @@
 Main FastAPI application.
 """
 
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -19,6 +21,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan handler for startup and shutdown events."""
+    # Startup
+    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info("API documentation: /api/docs")
+    yield
+    # Shutdown
+    logger.info("Shutting down application")
+
+
 def create_application() -> FastAPI:
     """Create and configure FastAPI application"""
 
@@ -29,6 +43,7 @@ def create_application() -> FastAPI:
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
+        lifespan=lifespan,
     )
 
     # Security middleware (add before CORS)
@@ -60,18 +75,6 @@ def create_application() -> FastAPI:
     async def health_check():
         """Health check endpoint for container orchestration"""
         return {"status": "healthy"}
-
-    @app.on_event("startup")
-    async def startup_event():
-        """Run on application startup"""
-        logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-        logger.info(f"Debug mode: {settings.DEBUG}")
-        logger.info("API documentation: /api/docs")
-
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Run on application shutdown"""
-        logger.info("Shutting down application")
 
     return app
 

@@ -51,6 +51,38 @@ class TestJWT:
         assert len(token) > 50
         assert token.count(".") == 2  # JWT has 3 parts
 
+    def test_access_token_sub_claim_is_string(self):
+        """Test that sub claim must be passed as a string (python-jose requirement)"""
+        from app.core.security import decode_token
+
+        # sub should be a string (e.g. str(user.id)), not an integer
+        token = create_access_token(data={"sub": "42"})
+        payload = decode_token(token)
+
+        assert payload is not None
+        assert payload["sub"] == "42"
+        assert isinstance(payload["sub"], str)
+
+    def test_access_token_contains_type_claim(self):
+        """Test that access token includes type=access claim"""
+        from app.core.security import decode_token
+
+        token = create_access_token(data={"sub": "1"})
+        payload = decode_token(token)
+
+        assert payload is not None
+        assert payload["type"] == "access"
+
+    def test_refresh_token_contains_type_claim(self):
+        """Test that refresh token includes type=refresh claim"""
+        from app.core.security import create_refresh_token, decode_token
+
+        token = create_refresh_token(data={"sub": "1"})
+        payload = decode_token(token)
+
+        assert payload is not None
+        assert payload["type"] == "refresh"
+
 
 class TestEncryption:
     """Test credential encryption/decryption"""

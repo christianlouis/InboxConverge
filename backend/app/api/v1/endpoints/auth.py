@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from app.core.database import get_db
@@ -86,7 +86,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login_at = datetime.utcnow()  # type: ignore[assignment]
+    user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
     await db.commit()
 
     # Create tokens
@@ -133,7 +133,7 @@ async def google_oauth(
             user.oauth_provider = "google"  # type: ignore[assignment]
 
         # Update last login
-        user.last_login_at = datetime.utcnow()  # type: ignore[assignment]
+        user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
         logger.info(f"Existing user logged in with Google: {user.email}")
     else:
@@ -145,7 +145,7 @@ async def google_oauth(
             oauth_provider="google",
             subscription_tier=SubscriptionTier.FREE,
             is_active=True,
-            last_login_at=datetime.utcnow(),
+            last_login_at=datetime.now(timezone.utc),
         )
         db.add(user)
 

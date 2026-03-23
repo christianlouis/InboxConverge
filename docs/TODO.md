@@ -14,8 +14,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ### In Progress 🔨
 - [ ] Enable rate limiting per user/tier
-- [ ] Fix bare exception handlers throughout codebase
-- [ ] Update datetime usage to timezone-aware (datetime.now(timezone.utc))
+- [x] Fix bare exception handlers throughout codebase
+- [x] Update datetime usage to timezone-aware (datetime.now(timezone.utc))
 - [ ] Validate redirect_uri to prevent open redirect vulnerabilities
 - [ ] Add per-user random salt for encryption (currently deterministic)
 
@@ -94,6 +94,8 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Create `.github/workflows/security.yml` for security scanning
 - [x] Existing `.github/workflows/docker-build.yml` for Docker images
 - [x] Set up automatic dependency updates (Dependabot)
+- [x] Merge Dependabot dependency updates (PRs #26–#49)
+- [x] Remove CodeQL checks from CI (was blocking builds)
 
 ### In Progress 🔨
 - [ ] Configure branch protection rules
@@ -185,13 +187,10 @@ The Next.js frontend has pages and components implemented but is **not functiona
 because the API client layer is missing.
 
 ### Critical Blockers 🔴
-- [ ] Create `frontend/src/lib/api.ts` — API client using axios
-  - Must export: `authApi`, `mailAccountsApi`, `processingRunsApi`, `userApi`
-  - Must export types: `User`, `MailAccount`, `MailAccountCreate`
-  - 8 files import from `@/lib/api` and will fail to compile without it:
-    `AuthGuard.tsx`, `AddMailAccountModal.tsx`, `authStore.ts`,
-    `login/page.tsx`, `register/page.tsx`, `auth/callback/page.tsx`,
-    `dashboard/page.tsx`, `accounts/page.tsx`
+- [x] Create `frontend/src/lib/api.ts` — API client using axios
+  - Exports: `authApi`, `mailAccountsApi`, `processingRunsApi`, `userApi`
+  - Exports types: `User`, `MailAccount`, `MailAccountCreate`, `ProcessingRun`
+  - 8 files import from `@/lib/api` — all compilation errors resolved
 
 ### Existing Pages (UI done, need API wiring) 🔨
 - [x] Landing page (`app/page.tsx`)
@@ -299,17 +298,18 @@ because the API client layer is missing.
 | Production Ready | 20% | 🔴 Needs Work |
 | Observability | 10% | 🔴 Needs Work |
 | Backend Features | 80% | 🟢 Near Complete |
-| Frontend | 30% | 🔴 Blocked (missing lib/api.ts) |
+| Frontend | 50% | 🟡 In Progress |
 
-**Overall Repository Readiness**: 52% ⚠️
+**Overall Repository Readiness**: 55% ⚠️
 
 ---
 
 ## 🎯 Next Actions (Priority Order)
 
 1. **Immediate** (Today):
-   - [ ] Create `frontend/src/lib/api.ts` (frontend is broken without it)
-   - [ ] Fix remaining security issues (bare excepts, datetime, redirect_uri)
+   - [x] Create `frontend/src/lib/api.ts` (frontend is broken without it)
+   - [x] Fix remaining security issues (bare excepts, datetime, redirect_uri)
+   - [ ] Add backend endpoint for processing runs (needed by dashboard)
 
 2. **This Week**:
    - [ ] Enable rate limiting

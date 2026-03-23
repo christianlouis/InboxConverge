@@ -4,7 +4,7 @@ Celery tasks for background email processing.
 
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from celery import Task
 import logging
 
@@ -20,7 +20,7 @@ from app.models.database_models import (
     GmailCredential,
 )
 from app.services.mail_processor import MailProcessor
-from app.services.gmail_service import GmailService, GmailInjectionError
+from app.services.gmail_service import GmailService
 from app.core.config import settings
 from sqlalchemy import select, and_
 
@@ -59,7 +59,7 @@ async def process_mail_account(account_id: int):
             # Create processing run
             run = ProcessingRun(
                 mail_account_id=account.id,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(timezone.utc),
                 status="running",
             )
             db.add(run)
@@ -156,28 +156,28 @@ async def process_mail_account(account_id: int):
                         else:
                             emails_failed += 1
 
-                except (GmailInjectionError, Exception) as e:
+                except Exception as e:
                     logger.error(f"Error delivering email: {e}")
                     emails_failed += 1
 
             # Update run
             run.emails_forwarded = emails_forwarded  # type: ignore[assignment]
             run.emails_failed = emails_failed  # type: ignore[assignment]
-            run.completed_at = datetime.utcnow()  # type: ignore[assignment]
+            run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
             run.duration_seconds = (run.completed_at - run.started_at).total_seconds()
             run.status = "completed" if emails_failed == 0 else "partial_failure"  # type: ignore[assignment]
 
             # Update account
             account.total_emails_processed += emails_forwarded  # type: ignore[assignment]
             account.total_emails_failed += emails_failed  # type: ignore[assignment]
-            account.last_check_at = datetime.utcnow()  # type: ignore[assignment]
+            account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
             if emails_failed == 0:
-                account.last_successful_check_at = datetime.utcnow()  # type: ignore[assignment]
+                account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
             else:
                 account.status = AccountStatus.ERROR  # type: ignore[assignment]
-                account.last_error_at = datetime.utcnow()  # type: ignore[assignment]
+                account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 account.last_error_message = f"{emails_failed} emails failed to forward"  # type: ignore[assignment]
 
             await db.commit()
@@ -194,7 +194,7 @@ async def process_mail_account(account_id: int):
             if "run" in locals():
                 run.status = "failed"  # type: ignore[assignment]
                 run.error_message = str(e)  # type: ignore[assignment]
-                run.completed_at = datetime.utcnow()  # type: ignore[assignment]
+                run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 run.duration_seconds = (
                     run.completed_at - run.started_at
                 ).total_seconds()
@@ -202,7 +202,7 @@ async def process_mail_account(account_id: int):
                 # Update account error status
                 if "account" in locals() and account is not None:
                     account.status = AccountStatus.ERROR  # type: ignore[assignment]
-                    account.last_error_at = datetime.utcnow()  # type: ignore[assignment]
+                    account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                     account.last_error_message = str(e)  # type: ignore[assignment]
 
                 await db.commit()
@@ -235,7 +235,9 @@ async def process_all_enabled_accounts():
             for account in accounts:
                 # Check if it's time to check this account
                 if account.last_check_at:
-                    time_since_last_check = datetime.utcnow() - account.last_check_at
+                    time_since_last_check = (
+                        datetime.now(timezone.utc) - account.last_check_at
+                    )
                     if time_since_last_check.total_seconds() < (
                         account.check_interval_minutes * 60
                     ):
@@ -259,7 +261,7 @@ async def cleanup_old_logs(days_to_keep: int = 30):
     """
     async with async_session_maker() as db:
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
 
             # Delete old processing runs
             result = await db.execute(
