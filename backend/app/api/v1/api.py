@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     subscriptions,
     admin,
     providers,
+    app_settings,
 )
 
 api_router = APIRouter()
@@ -32,3 +33,4 @@ api_router.include_router(
     subscriptions.router, prefix="/subscriptions", tags=["Subscriptions"]
 )
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(app_settings.router, prefix="/settings", tags=["Settings"])

@@ -430,3 +430,30 @@ class GmailCredential(Base):
 
     # Relationships
     user = relationship("User", backref="gmail_credential")
+
+
+class AppSetting(Base):
+    """
+    Application settings stored in the database.
+
+    Provides database-backed configuration that supplements or overrides
+    environment variable settings. Bootstrap settings (DATABASE_URL,
+    SECRET_KEY, ENCRYPTION_KEY) must still come from environment variables,
+    but all other settings can be managed via the database.
+    """
+
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(255), unique=True, nullable=False, index=True)
+    value = Column(Text, nullable=True)
+    value_type = Column(String(50), default="string")  # string, int, float, bool, json
+    description = Column(Text, nullable=True)
+    is_secret = Column(Boolean, default=False)
+    category = Column(String(100), nullable=True, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )

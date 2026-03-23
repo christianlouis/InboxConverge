@@ -1,6 +1,17 @@
 """
 Application configuration using Pydantic settings.
-Supports environment variables and .env files.
+
+Supports a hybrid configuration model:
+  • **Bootstrap settings** (DATABASE_URL, SECRET_KEY, ENCRYPTION_KEY)
+    are always loaded from environment variables or ``.env`` files.
+  • **Application settings** (SMTP, processing, Gmail API, etc.)
+    can be managed in the database via the ``AppSetting`` model and
+    the ``/api/v1/settings`` admin endpoints.  When a setting exists
+    in the database it takes precedence over environment variables.
+
+See ``app.services.config_service.ConfigService`` for the runtime
+lookup logic and ``app.models.database_models.AppSetting`` for the
+database model.
 """
 
 from typing import Optional, List
