@@ -69,7 +69,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write unit tests for middleware (98% coverage)
 - [x] Write unit tests for schemas and validation
 - [x] Write unit tests for application factory and core endpoints
-- [x] Reach 50%+ test coverage (currently 57%)
+- [x] Reach 50%+ test coverage (currently 59%)
 
 ### In Progress 🔨
 - [ ] Write unit tests for authentication (target 80%+ coverage)
@@ -135,10 +135,12 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ### Completed ✅
 - [x] Basic health check endpoint exists
+- [x] Database-backed configuration (`AppSetting` model + `ConfigService`)
+- [x] Admin API for managing settings (`/api/v1/settings`)
+- [x] Default settings seeded on first startup
 
 ### In Progress 🔨
 - [ ] Improve health checks (DB/Redis connectivity)
-- [ ] Add environment variable validation
 
 ### Not Started 📋
 - [ ] Create production docker-compose.yml
@@ -292,12 +294,12 @@ because the API client layer is missing.
 |----------|----------|--------|
 | Security | 60% | 🟡 In Progress |
 | Agentic Infrastructure | 95% | 🟢 Near Complete |
-| Testing | 57% | 🟡 In Progress |
+| Testing | 59% | 🟡 In Progress |
 | CI/CD | 80% | 🟢 Near Complete |
 | Code Quality | 40% | 🔴 Needs Work |
-| Production Ready | 20% | 🔴 Needs Work |
+| Production Ready | 30% | 🔴 Needs Work |
 | Observability | 10% | 🔴 Needs Work |
-| Backend Features | 80% | 🟢 Near Complete |
+| Backend Features | 85% | 🟢 Near Complete |
 | Frontend | 50% | 🟡 In Progress |
 
 **Overall Repository Readiness**: 55% ⚠️

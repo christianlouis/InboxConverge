@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Database-backed configuration**: `AppSetting` model and `ConfigService` for hybrid config (DB-first, env-var fallback)
+- Admin API endpoints for managing settings (`GET/PUT/DELETE /api/v1/settings`)
+- Default settings seeded into database on first startup (SMTP, processing, Gmail API, notifications)
+- Unit tests for `ConfigService` (24 tests covering resolution order, CRUD, SMTP helper, defaults)
+- Gmail API delivery documentation with comparison table (Gmail API vs SMTP forwarding)
 - GitHub issue templates (bug report, feature request, test needed)
 - Pull request template with comprehensive checklist
 - `docs/CODING_PATTERNS.md` with development best practices
@@ -34,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reached 57% test coverage (up from 54%)
 
 ### Changed
+- Configuration system now supports database-backed settings in addition to environment variables
+- Celery tasks (`tasks.py`) use `ConfigService` for SMTP config instead of raw `os.getenv()` calls
+- README updated with hybrid configuration docs, Gmail API vs SMTP comparison, and Apprise notifications
+- Architecture docs updated to reflect Gmail API service, hybrid config, and new API endpoints
 - Reorganized documentation into `docs/` directory
 - Improved error handling with specific exception types
 - Updated datetime usage to timezone-aware

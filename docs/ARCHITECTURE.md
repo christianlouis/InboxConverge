@@ -28,16 +28,18 @@ pop_puller_to_gmail/
 │   │   │       ├── endpoints/ # Individual route modules
 │   │   │       └── api.py     # Router aggregation
 │   │   ├── core/              # Core configuration
-│   │   │   ├── config.py      # Settings management
+│   │   │   ├── config.py      # Bootstrap settings (env / .env)
 │   │   │   ├── database.py    # Database connection
 │   │   │   ├── security.py    # Security utilities
 │   │   │   └── deps.py        # FastAPI dependencies
 │   │   ├── models/            # Data models
-│   │   │   ├── database_models.py  # SQLAlchemy models
+│   │   │   ├── database_models.py  # SQLAlchemy models (incl. AppSetting)
 │   │   │   └── schemas.py     # Pydantic schemas
 │   │   ├── services/          # Business logic
 │   │   │   ├── auth_service.py     # OAuth authentication
-│   │   │   └── mail_processor.py   # Email processing
+│   │   │   ├── config_service.py   # Hybrid config (DB + env)
+│   │   │   ├── gmail_service.py    # Gmail API injection
+│   │   │   └── mail_processor.py   # POP3/IMAP email processing
 │   │   ├── workers/           # Celery background tasks
 │   │   ├── utils/             # Utility functions
 │   │   └── main.py            # FastAPI application
@@ -112,9 +114,30 @@ pop_puller_to_gmail/
 
 - **Background Jobs**: Celery workers for async processing
 - **Scheduled Checks**: Configurable intervals per account
-- **Smart Forwarding**: Preserves metadata, handles MIME types
+- **Dual Delivery**: Gmail API injection (preferred) or SMTP forwarding (fallback)
 - **Error Handling**: Automatic retries with exponential backoff
 - **Statistics**: Track success/failure rates, last check times
+
+### 3a. Gmail API vs SMTP Delivery
+
+The platform supports two methods for delivering fetched emails to Gmail:
+
+| Feature | Gmail API (`gmail_api`) | SMTP Forwarding (`smtp`) |
+|---------|------------------------|--------------------------|
+| **Header preservation** | ✅ All original headers intact | ⚠️ Adds `Received` headers, may rewrite `From` |
+| **Gmail sending quota** | ✅ Does not count against quota | ❌ Counts against 500/day free limit |
+| **Authentication** | OAuth2 tokens (per-user) | App Password (shared) |
+| **Setup complexity** | Requires OAuth2 consent flow | Requires App Password only |
+| **Spam risk** | ✅ Low (email appears native) | ⚠️ Higher (forwarded mail may be flagged) |
+| **Fallback** | Falls back to SMTP if no credentials | Primary legacy method |
+
+**How it works:**
+
+1. Each mail account has a `delivery_method` field (`gmail_api` or `smtp`)
+2. When `gmail_api` is selected, the worker looks up the user's `GmailCredential`
+3. The `GmailService` calls `users.messages.insert()` to inject the raw RFC 2822 email
+4. If no valid Gmail credential is found, the worker falls back to SMTP automatically
+5. SMTP settings are loaded from the database (via `ConfigService`) with env-var fallback
 
 ### 4. Subscription Management
 
@@ -151,6 +174,8 @@ pop_puller_to_gmail/
 - **subscription_plans**: Available subscription tiers
 - **mail_server_presets**: Known provider configurations
 - **audit_logs**: Security and compliance audit trail
+- **gmail_credentials**: Per-user OAuth2 tokens for Gmail API injection
+- **app_settings**: Database-backed application configuration (key-value store)
 
 ## 🔌 API Endpoints
 
@@ -184,9 +209,53 @@ pop_puller_to_gmail/
 ### Admin
 - `GET /api/v1/admin/stats` - System statistics (admin only)
 
+### Settings (Admin)
+- `GET /api/v1/settings` - List all database-backed settings
+- `PUT /api/v1/settings/{key}` - Create or update a setting
+- `DELETE /api/v1/settings/{key}` - Delete a setting
+- `POST /api/v1/settings/seed-defaults` - Seed default settings
+
+### Providers & Gmail
+- `GET /api/v1/providers/presets` - List mail provider presets
+- `GET /api/v1/providers/presets/{id}` - Get a specific preset
+- `POST /api/v1/providers/gmail-credential` - Save Gmail API credentials
+- `GET /api/v1/providers/gmail-credential` - Get Gmail credential status
+- `DELETE /api/v1/providers/gmail-credential` - Remove Gmail credentials
+
 See full API documentation at `/api/docs` when running.
 
 ## 🔧 Configuration
+
+### Hybrid Configuration Model
+
+The application uses a **hybrid configuration model** where settings can come
+from either the database or environment variables:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Setting Lookup Priority                            │
+│                                                     │
+│  1. Database (app_settings table) ← highest         │
+│  2. Environment variable / .env file                │
+│  3. Built-in default             ← lowest           │
+└─────────────────────────────────────────────────────┘
+```
+
+**Bootstrap settings** (`DATABASE_URL`, `SECRET_KEY`, `ENCRYPTION_KEY`)
+always come from environment variables because the database connection
+depends on them.
+
+All other settings (SMTP config, processing intervals, Gmail API options,
+etc.) can be managed via the **Admin Settings API** (`/api/v1/settings`)
+and are stored in PostgreSQL. On first startup the application seeds
+sensible defaults into the `app_settings` table.
+
+**Key components:**
+
+- `app.core.config.Settings` — Pydantic Settings for bootstrap config
+- `app.models.database_models.AppSetting` — SQLAlchemy model for DB-backed settings
+- `app.services.config_service.ConfigService` — Hybrid resolver (DB → env → default)
+- `app.api.v1.endpoints.app_settings` — Admin CRUD endpoints
 
 ### Environment Variables
 
