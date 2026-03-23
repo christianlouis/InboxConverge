@@ -3,7 +3,6 @@ Celery tasks for background email processing.
 """
 
 import asyncio
-import os
 from datetime import datetime, timedelta, timezone
 from celery import Task
 import logging
@@ -21,6 +20,7 @@ from app.models.database_models import (
 )
 from app.services.mail_processor import MailProcessor
 from app.services.gmail_service import GmailService
+from app.services.config_service import ConfigService
 from app.core.config import settings
 from sqlalchemy import select, and_
 
@@ -118,14 +118,8 @@ async def process_mail_account(account_id: int):
                     use_gmail_api = False  # type: ignore[assignment]
 
             if not use_gmail_api:
-                # Fall back to SMTP
-                smtp_config = {
-                    "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
-                    "port": int(os.getenv("SMTP_PORT", "587")),
-                    "username": os.getenv("SMTP_USER", ""),
-                    "password": os.getenv("SMTP_PASSWORD", ""),
-                    "use_tls": os.getenv("SMTP_USE_TLS", "true").lower() == "true",
-                }
+                # Fall back to SMTP – read config from DB with env fallback
+                smtp_config = await ConfigService.get_smtp_config(db=db)
 
                 if not smtp_config["username"] or not smtp_config["password"]:
                     logger.error(

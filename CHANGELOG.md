@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Database-backed configuration**: `AppSetting` model and `ConfigService` for hybrid config (DB-first, env-var fallback)
+- Admin API endpoints for managing settings (`GET/PUT/DELETE /api/v1/settings`)
+- Default settings seeded into database on first startup (SMTP, processing, Gmail API, notifications)
+- Unit tests for `ConfigService` (24 tests covering resolution order, CRUD, SMTP helper, defaults)
+- Gmail API delivery documentation with comparison table (Gmail API vs SMTP forwarding)
 - GitHub issue templates (bug report, feature request, test needed)
 - Pull request template with comprehensive checklist
 - `docs/CODING_PATTERNS.md` with development best practices
@@ -34,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reached 57% test coverage (up from 54%)
 
 ### Changed
+- Configuration system now supports database-backed settings in addition to environment variables
+- Celery tasks (`tasks.py`) use `ConfigService` for SMTP config instead of raw `os.getenv()` calls
+- README updated with hybrid configuration docs, Gmail API vs SMTP comparison, and Apprise notifications
+- Architecture docs updated to reflect Gmail API service, hybrid config, and new API endpoints
 - Reorganized documentation into `docs/` directory
 - Improved error handling with specific exception types
 - Updated datetime usage to timezone-aware
@@ -44,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped GitHub Actions: `actions/setup-python` v5 → v6, `actions/setup-node` v4 → v6, `docker/setup-buildx-action` v3 → v4, `codecov/codecov-action` v3 → v5
 - Bumped backend dependencies: pydantic 2.5.3 → 2.12.5, pydantic-settings 2.1.0 → 2.13.1, psycopg2-binary 2.9.9 → 2.9.11, asyncpg 0.29.0 → 0.31.0, stripe 7.11.0 → 14.4.1, aioimaplib 1.0.1 → 2.0.1, google-auth-httplib2 0.2.0 → 0.3.0, celery 5.3.6 → 5.6.2, redis 5.0.1 → 7.3.0, tenacity 8.2.3 → 9.1.4
 - Bumped frontend dependencies: react 19.2.3 → 19.2.4, @tanstack/react-query ^5.90.20 → ^5.95.0, axios ^1.13.5 → ^1.13.6, zustand ^5.0.11 → ^5.0.12, eslint ^9 → ^10, eslint-config-next 16.1.6 → 16.2.1
+- Synced `frontend/package.json` `eslint-config-next` to `16.2.1` to match `package-lock.json` (resolves `npm ci` EUSAGE failure)
 
 ### Removed
 - Removed CodeQL analysis from CI pipeline (was blocking builds)
