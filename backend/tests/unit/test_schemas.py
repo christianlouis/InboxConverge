@@ -109,8 +109,8 @@ class TestTokenSchemas:
 
     def test_token_payload_schema(self):
         """Test TokenPayload schema"""
-        payload = TokenPayload(sub=42, type="access")
-        assert payload.sub == 42
+        payload = TokenPayload(sub="42", type="access")
+        assert payload.sub == "42"
         assert payload.type == "access"
 
     def test_google_auth_request(self):

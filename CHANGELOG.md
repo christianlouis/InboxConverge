@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for credential encryption edge cases (empty, long, unicode, special chars)
 - Unit tests for FastAPI application factory and core endpoints (root, health, OpenAPI)
 - Unit tests for Pydantic schema validation (users, mail accounts, notifications, subscriptions)
+- Unit tests for JWT `sub` claim string encoding and token type verification
+- Created `frontend/src/lib/api.ts` — API client module (fixes frontend compilation blocker)
 - Reached 57% test coverage (up from 54%)
 
 ### Changed
@@ -47,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed CodeQL analysis from CI pipeline (was blocking builds)
 
 ### Fixed
+- JWT `sub` claim now encoded as string per JWT spec (python-jose rejects integer subjects)
+- `TokenPayload` schema `sub` field type changed from `int` to `str` for consistency
+- Replaced deprecated `datetime.utcnow()` with `datetime.now(timezone.utc)` throughout backend
+- Replaced deprecated FastAPI `@app.on_event()` handlers with modern `lifespan` context manager
+- Replaced deprecated Pydantic `class Config` with `model_config = ConfigDict(...)` in all schemas
+- Replaced deprecated Pydantic `.dict()` with `.model_dump()` in mail account updates
+- Removed overly broad `except (GmailInjectionError, Exception)` in task error handler
 - Bare exception handlers replaced with specific types
 - Open redirect vulnerability in OAuth redirect_uri
 - Default encryption keys security issue

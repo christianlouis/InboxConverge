@@ -143,7 +143,7 @@ async def update_mail_account(
         )
 
     # Update fields
-    update_data = account_update.dict(exclude_unset=True)
+    update_data = account_update.model_dump(exclude_unset=True)
 
     if "password" in update_data:
         update_data["encrypted_password"] = encrypt_credential(

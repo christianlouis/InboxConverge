@@ -4,7 +4,7 @@ Pydantic schemas for API request/response validation.
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from enum import Enum
 
 
@@ -65,8 +65,7 @@ class UserResponse(UserBase):
     subscription_status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserDetailResponse(UserResponse):
@@ -76,8 +75,7 @@ class UserDetailResponse(UserResponse):
     subscription_expires_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Authentication Schemas
@@ -88,7 +86,7 @@ class Token(BaseModel):
 
 
 class TokenPayload(BaseModel):
-    sub: Optional[int] = None
+    sub: Optional[str] = None
     exp: Optional[int] = None
     type: Optional[str] = None
 
@@ -151,8 +149,7 @@ class MailAccountResponse(MailAccountBase):
     password: str = Field(exclude=True, default="")
     username: str = Field(exclude=True, default="")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MailAccountTestRequest(BaseModel):
@@ -197,8 +194,7 @@ class ProcessingRunResponse(BaseModel):
     status: str
     error_message: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Processing Log Schemas
@@ -211,8 +207,7 @@ class ProcessingLogResponse(BaseModel):
     email_from: Optional[str] = None
     success: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Notification Config Schemas
@@ -243,8 +238,7 @@ class NotificationConfigResponse(NotificationConfigBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Subscription Schemas
@@ -262,8 +256,7 @@ class SubscriptionPlanResponse(BaseModel):
     features: Optional[Dict[str, Any]] = None
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SubscriptionCheckoutRequest(BaseModel):
@@ -311,8 +304,7 @@ class MailServerPresetResponse(BaseModel):
     configs: Dict[str, Any]
     is_verified: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Gmail Credential Schemas
@@ -331,8 +323,7 @@ class GmailCredentialResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Provider Wizard Schemas

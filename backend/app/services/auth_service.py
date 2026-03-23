@@ -121,8 +121,8 @@ class OAuthService:
         Returns:
             Dict with access_token, refresh_token, and token_type
         """
-        access_token = create_access_token(data={"sub": user.id})
-        refresh_token = create_refresh_token(data={"sub": user.id})
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         return {
             "access_token": access_token,

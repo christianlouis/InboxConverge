@@ -1,6 +1,6 @@
 """Provider presets and Gmail credential management endpoints"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -205,7 +205,7 @@ async def save_gmail_credential(
         existing.encrypted_access_token = encrypted_access  # type: ignore[assignment]
         existing.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
         existing.is_valid = True  # type: ignore[assignment]
-        existing.last_verified_at = datetime.utcnow()  # type: ignore[assignment]
+        existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
         return existing
@@ -217,7 +217,7 @@ async def save_gmail_credential(
             encrypted_access_token=encrypted_access,
             encrypted_refresh_token=encrypted_refresh,
             is_valid=True,
-            last_verified_at=datetime.utcnow(),
+            last_verified_at=datetime.now(timezone.utc),
         )
         db.add(credential)
         await db.commit()
