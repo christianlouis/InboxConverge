@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fixed TypeScript build error in `frontend/src/app/accounts/page.tsx`: replaced non-existent `account.username` with `account.email_address` (the backend intentionally excludes `username` from API responses for security)
 - Upgraded Node.js base image in `frontend/Dockerfile` from `node:18-alpine` to `node:20-alpine` to satisfy the Node.js >= 20.9.0 requirement for Next.js and fix Docker build failures
 - Removed `actions/attest-build-provenance` step and associated `id-token: write` / `attestations: write` permissions from the CI `build` job — this action is not available for private user-owned repositories and caused every build to fail
 - Downgraded `eslint` from `^10` to `^9` in the frontend to resolve `TypeError: contextOrFilename.getFilename is not a function` caused by ESLint 10 removing the `getFilename()` API used by `eslint-plugin-react` bundled in `eslint-config-next`

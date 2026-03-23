@@ -77,7 +77,7 @@ export default function AccountsPage() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">
                           {account.name}
                         </h3>
-                        <p className="text-sm text-gray-500">{account.username}</p>
+                        <p className="text-sm text-gray-500">{account.email_address}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {account.is_enabled ? (
@@ -113,17 +113,17 @@ export default function AccountsPage() {
                       </div>
                     </div>
 
-                    {account.last_checked_at && (
+                    {account.last_check_at && (
                       <div className="mb-4 text-xs text-gray-500">
-                        Last checked: {new Date(account.last_checked_at).toLocaleString()}
+                        Last checked: {new Date(account.last_check_at).toLocaleString()}
                       </div>
                     )}
 
-                    {account.last_error && (
+                    {account.last_error_message && (
                       <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
                         <div className="flex items-start">
                           <AlertTriangle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                          <p className="text-xs text-red-700">{account.last_error}</p>
+                          <p className="text-xs text-red-700">{account.last_error_message}</p>
                         </div>
                       </div>
                     )}
