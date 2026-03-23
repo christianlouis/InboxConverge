@@ -5,7 +5,7 @@ Supports environment variables and .env files.
 
 from typing import Optional, List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import PostgresDsn, field_validator, ValidationInfo
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):

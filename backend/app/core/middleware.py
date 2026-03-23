@@ -59,7 +59,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     For API-only applications, this is less critical but still good practice.
     """
 
-    def __init__(self, app: ASGIApp, exempt_paths: list = None):
+    def __init__(self, app: ASGIApp, exempt_paths: list | None = None):
         super().__init__(app)
         self.exempt_paths = exempt_paths or [
             "/api/v1/auth/login",

@@ -2,8 +2,7 @@
 OAuth2 authentication service for Google and other providers.
 """
 
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Dict, Any
 import httpx
 from authlib.integrations.starlette_client import OAuth
 from fastapi import HTTPException, status

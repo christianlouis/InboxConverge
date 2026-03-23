@@ -2,7 +2,6 @@
 Unit tests for provider presets and mail server auto-detection.
 """
 
-import pytest
 from app.services.mail_processor import MailServerAutoDetect
 
 

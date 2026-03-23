@@ -17,7 +17,7 @@ from app.core.security import decode_token
 from app.models.database_models import User
 
 # OAuth2 scheme for token authentication
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/api/v1/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 http_bearer = HTTPBearer(auto_error=False)
 
 
