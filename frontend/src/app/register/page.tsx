@@ -47,8 +47,9 @@ export default function RegisterPage() {
       localStorage.setItem('access_token', loginResponse.access_token);
       
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

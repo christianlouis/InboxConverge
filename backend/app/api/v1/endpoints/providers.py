@@ -201,11 +201,11 @@ async def save_gmail_credential(
 
     if existing:
         # Update existing
-        existing.gmail_email = credential_in.gmail_email
-        existing.encrypted_access_token = encrypted_access
-        existing.encrypted_refresh_token = encrypted_refresh
-        existing.is_valid = True
-        existing.last_verified_at = datetime.utcnow()
+        existing.gmail_email = credential_in.gmail_email  # type: ignore[assignment]
+        existing.encrypted_access_token = encrypted_access  # type: ignore[assignment]
+        existing.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
+        existing.is_valid = True  # type: ignore[assignment]
+        existing.last_verified_at = datetime.utcnow()  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
         return existing

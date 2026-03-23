@@ -148,12 +148,12 @@ class MailProcessor:
         Fetch emails from the mail server.
         Returns list of raw email data.
         """
-        max_count = max_count or self.account.max_emails_per_check
+        effective_max: int = max_count if max_count is not None else self.account.max_emails_per_check  # type: ignore[assignment]
 
         if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
-            return await self._fetch_pop3_emails(max_count)
+            return await self._fetch_pop3_emails(effective_max)
         else:
-            return await self._fetch_imap_emails(max_count)
+            return await self._fetch_imap_emails(effective_max)
 
     async def _fetch_pop3_emails(self, max_count: int) -> List[bytes]:
         """Fetch emails via POP3"""
@@ -394,7 +394,7 @@ class MailServerAutoDetect:
     """Auto-detect mail server settings based on email domain"""
 
     # Common mail server configurations
-    KNOWN_PROVIDERS = {
+    KNOWN_PROVIDERS: Dict[str, Dict[str, Any]] = {
         "gmail.com": {
             "name": "Gmail",
             "pop3_ssl": {"host": "pop.gmail.com", "port": 995},

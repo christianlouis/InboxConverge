@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 
 export default function LoginPage() {
   const router = useRouter();
-  const setUser = useAuthStore((state) => state.setUser);
+  const _setUser = useAuthStore((state) => state.setUser);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,8 +25,9 @@ export default function LoginPage() {
       
       // Redirect to dashboard
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -37,7 +38,7 @@ export default function LoginPage() {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const authUrl = await authApi.getGoogleAuthUrl(redirectUri);
       window.location.href = authUrl;
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setError('Failed to initialize Google login');
     }
   };

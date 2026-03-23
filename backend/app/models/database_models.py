@@ -85,7 +85,9 @@ class User(Base):
     oauth_provider = Column(String(50), nullable=True)
 
     # Subscription
-    subscription_tier = Column(SQLEnum(SubscriptionTier), default=SubscriptionTier.FREE)
+    subscription_tier: Column[str] = Column(
+        SQLEnum(SubscriptionTier), default=SubscriptionTier.FREE
+    )
     subscription_status = Column(
         String(50), default="active"
     )  # active, canceled, past_due
@@ -127,7 +129,7 @@ class MailAccount(Base):
     email_address = Column(String(255), nullable=False)
 
     # Server configuration
-    protocol = Column(SQLEnum(MailProtocol), default=MailProtocol.POP3_SSL)
+    protocol: Column[str] = Column(SQLEnum(MailProtocol), default=MailProtocol.POP3_SSL)
     host = Column(String(255), nullable=False)
     port = Column(Integer, nullable=False)
     use_ssl = Column(Boolean, default=True)
@@ -141,10 +143,12 @@ class MailAccount(Base):
     forward_to = Column(String(255), nullable=False)
 
     # Delivery method
-    delivery_method = Column(SQLEnum(DeliveryMethod), default=DeliveryMethod.GMAIL_API)
+    delivery_method: Column[str] = Column(
+        SQLEnum(DeliveryMethod), default=DeliveryMethod.GMAIL_API
+    )
 
     # Status and settings
-    status = Column(SQLEnum(AccountStatus), default=AccountStatus.ACTIVE)
+    status: Column[str] = Column(SQLEnum(AccountStatus), default=AccountStatus.ACTIVE)
     is_enabled = Column(Boolean, default=True)
     check_interval_minutes = Column(Integer, default=5)
     max_emails_per_check = Column(Integer, default=50)
@@ -263,7 +267,7 @@ class NotificationConfig(Base):
     )
 
     # Channel details
-    channel = Column(SQLEnum(NotificationChannel), nullable=False)
+    channel: Column[str] = Column(SQLEnum(NotificationChannel), nullable=False)
     is_enabled = Column(Boolean, default=True)
 
     # Channel-specific configuration (stored as JSON)
@@ -329,7 +333,7 @@ class SubscriptionPlan(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Plan details
-    tier = Column(SQLEnum(SubscriptionTier), unique=True, nullable=False)
+    tier: Column[str] = Column(SQLEnum(SubscriptionTier), unique=True, nullable=False)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
 

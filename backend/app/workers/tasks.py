@@ -67,15 +67,15 @@ async def process_mail_account(account_id: int):
             await db.refresh(run)
 
             # Decrypt password
-            password = decrypt_credential(account.encrypted_password)
+            password = decrypt_credential(account.encrypted_password)  # type: ignore[arg-type]
 
             # Create processor
             processor = MailProcessor(account, password)
 
             # Fetch emails
-            emails = await processor.fetch_emails(account.max_emails_per_check)
+            emails = await processor.fetch_emails(account.max_emails_per_check)  # type: ignore[arg-type]
 
-            run.emails_fetched = len(emails)
+            run.emails_fetched = len(emails)  # type: ignore[assignment]
 
             # Forward emails
             emails_forwarded = 0
@@ -98,9 +98,9 @@ async def process_mail_account(account_id: int):
                 gmail_cred = gmail_cred_result.scalar_one_or_none()
 
                 if gmail_cred:
-                    access_token = decrypt_credential(gmail_cred.encrypted_access_token)
+                    access_token = decrypt_credential(gmail_cred.encrypted_access_token)  # type: ignore[arg-type]
                     refresh_token = (
-                        decrypt_credential(gmail_cred.encrypted_refresh_token)
+                        decrypt_credential(gmail_cred.encrypted_refresh_token)  # type: ignore[arg-type]
                         if gmail_cred.encrypted_refresh_token
                         else None
                     )
@@ -115,7 +115,7 @@ async def process_mail_account(account_id: int):
                         f"Gmail API credentials not found for user {account.user_id}, "
                         f"falling back to SMTP for account {account.id}"
                     )
-                    use_gmail_api = False
+                    use_gmail_api = False  # type: ignore[assignment]
 
             if not use_gmail_api:
                 # Fall back to SMTP
@@ -131,8 +131,8 @@ async def process_mail_account(account_id: int):
                     logger.error(
                         f"SMTP credentials not configured for account {account.id}"
                     )
-                    run.status = "failed"
-                    run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"
+                    run.status = "failed"  # type: ignore[assignment]
+                    run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"  # type: ignore[assignment]
                     await db.commit()
                     return
 
@@ -143,13 +143,13 @@ async def process_mail_account(account_id: int):
                         await gmail_service.inject_email(
                             raw_email=email_data,
                             label_ids=["INBOX"],
-                            source_account_name=account.name,
+                            source_account_name=account.name,  # type: ignore[arg-type]
                         )
                         emails_forwarded += 1
                     else:
                         # Forward via SMTP (fallback)
                         success = await MailProcessor.forward_email(
-                            email_data, account.name, account.forward_to, smtp_config
+                            email_data, account.name, account.forward_to, smtp_config  # type: ignore[arg-type]
                         )
                         if success:
                             emails_forwarded += 1
@@ -161,24 +161,24 @@ async def process_mail_account(account_id: int):
                     emails_failed += 1
 
             # Update run
-            run.emails_forwarded = emails_forwarded
-            run.emails_failed = emails_failed
-            run.completed_at = datetime.utcnow()
+            run.emails_forwarded = emails_forwarded  # type: ignore[assignment]
+            run.emails_failed = emails_failed  # type: ignore[assignment]
+            run.completed_at = datetime.utcnow()  # type: ignore[assignment]
             run.duration_seconds = (run.completed_at - run.started_at).total_seconds()
-            run.status = "completed" if emails_failed == 0 else "partial_failure"
+            run.status = "completed" if emails_failed == 0 else "partial_failure"  # type: ignore[assignment]
 
             # Update account
-            account.total_emails_processed += emails_forwarded
-            account.total_emails_failed += emails_failed
-            account.last_check_at = datetime.utcnow()
+            account.total_emails_processed += emails_forwarded  # type: ignore[assignment]
+            account.total_emails_failed += emails_failed  # type: ignore[assignment]
+            account.last_check_at = datetime.utcnow()  # type: ignore[assignment]
 
             if emails_failed == 0:
-                account.last_successful_check_at = datetime.utcnow()
-                account.status = AccountStatus.ACTIVE
+                account.last_successful_check_at = datetime.utcnow()  # type: ignore[assignment]
+                account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
             else:
-                account.status = AccountStatus.ERROR
-                account.last_error_at = datetime.utcnow()
-                account.last_error_message = f"{emails_failed} emails failed to forward"
+                account.status = AccountStatus.ERROR  # type: ignore[assignment]
+                account.last_error_at = datetime.utcnow()  # type: ignore[assignment]
+                account.last_error_message = f"{emails_failed} emails failed to forward"  # type: ignore[assignment]
 
             await db.commit()
 
@@ -192,18 +192,18 @@ async def process_mail_account(account_id: int):
 
             # Mark run as failed
             if "run" in locals():
-                run.status = "failed"
-                run.error_message = str(e)
-                run.completed_at = datetime.utcnow()
+                run.status = "failed"  # type: ignore[assignment]
+                run.error_message = str(e)  # type: ignore[assignment]
+                run.completed_at = datetime.utcnow()  # type: ignore[assignment]
                 run.duration_seconds = (
                     run.completed_at - run.started_at
                 ).total_seconds()
 
                 # Update account error status
-                if "account" in locals():
-                    account.status = AccountStatus.ERROR
-                    account.last_error_at = datetime.utcnow()
-                    account.last_error_message = str(e)
+                if "account" in locals() and account is not None:
+                    account.status = AccountStatus.ERROR  # type: ignore[assignment]
+                    account.last_error_at = datetime.utcnow()  # type: ignore[assignment]
+                    account.last_error_message = str(e)  # type: ignore[assignment]
 
                 await db.commit()
 

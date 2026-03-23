@@ -27,9 +27,9 @@ async def update_current_user_profile(
 ):
     """Update current user profile"""
     if user_update.email:
-        current_user.email = user_update.email
+        current_user.email = user_update.email  # type: ignore[assignment]
     if user_update.full_name:
-        current_user.full_name = user_update.full_name
+        current_user.full_name = user_update.full_name  # type: ignore[assignment]
 
     await db.commit()
     await db.refresh(current_user)

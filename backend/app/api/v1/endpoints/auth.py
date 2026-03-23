@@ -72,7 +72,7 @@ async def login(
         )
 
     # Verify password
-    if not verify_password(form_data.password, user.hashed_password):
+    if not verify_password(form_data.password, user.hashed_password):  # type: ignore[arg-type]
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -86,7 +86,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.utcnow()  # type: ignore[assignment]
     await db.commit()
 
     # Create tokens
@@ -129,11 +129,11 @@ async def google_oauth(
     if user:
         # Update Google ID if not set
         if not user.google_id:
-            user.google_id = google_id
-            user.oauth_provider = "google"
+            user.google_id = google_id  # type: ignore[assignment]
+            user.oauth_provider = "google"  # type: ignore[assignment]
 
         # Update last login
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.utcnow()  # type: ignore[assignment]
 
         logger.info(f"Existing user logged in with Google: {user.email}")
     else:
