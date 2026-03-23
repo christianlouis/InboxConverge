@@ -28,6 +28,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info("API documentation: /api/docs")
+
+    # Seed default database-backed settings (no-op if they already exist)
+    try:
+        from app.core.database import async_session_maker
+        from app.services.config_service import ConfigService
+
+        async with async_session_maker() as db:
+            await ConfigService.seed_defaults(db)
+    except Exception as exc:
+        logger.warning("Could not seed default settings: %s", exc)
+
     yield
     # Shutdown
     logger.info("Shutting down application")
