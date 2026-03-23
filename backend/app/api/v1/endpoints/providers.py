@@ -1,4 +1,5 @@
 """Provider presets and Gmail credential management endpoints"""
+
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -156,7 +157,11 @@ async def get_provider_preset(
     )
 
 
-@router.post("/gmail-credential", response_model=GmailCredentialResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/gmail-credential",
+    response_model=GmailCredentialResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def save_gmail_credential(
     credential_in: GmailCredentialCreate,
     current_user: User = Depends(get_current_active_user),
@@ -189,7 +194,9 @@ async def save_gmail_credential(
 
     encrypted_access = encrypt_credential(credential_in.access_token)
     encrypted_refresh = (
-        encrypt_credential(credential_in.refresh_token) if credential_in.refresh_token else None
+        encrypt_credential(credential_in.refresh_token)
+        if credential_in.refresh_token
+        else None
     )
 
     if existing:

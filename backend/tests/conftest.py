@@ -1,6 +1,7 @@
 """
 Test configuration and fixtures.
 """
+
 import pytest
 import asyncio
 from typing import AsyncGenerator, Generator
@@ -15,7 +16,9 @@ from app.models.database_models import User
 from app.core.security import get_password_hash, create_access_token
 
 # Test database URL (use different database for tests)
-TEST_DATABASE_URL = settings.DATABASE_URL.replace("/pop3_forwarder", "/pop3_forwarder_test")
+TEST_DATABASE_URL = settings.DATABASE_URL.replace(
+    "/pop3_forwarder", "/pop3_forwarder_test"
+)
 
 
 # Note: event_loop fixture removed - pytest-asyncio provides this automatically
@@ -30,18 +33,18 @@ async def db_engine():
         poolclass=NullPool,
         echo=False,
     )
-    
+
     # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     # Drop tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
 
 
@@ -53,7 +56,7 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session_maker() as session:
         yield session
 
@@ -61,15 +64,15 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create test client with database session override"""
-    
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
-    
+
     app.dependency_overrides.clear()
 
 
@@ -120,9 +123,11 @@ def admin_auth_headers(test_admin_user: User) -> dict:
 
 # Factory fixtures for creating test data
 
+
 @pytest.fixture
 def user_factory(db_session: AsyncSession):
     """Factory for creating test users"""
+
     async def _create_user(
         email: str = None,
         password: str = "testpassword123",
@@ -132,8 +137,9 @@ def user_factory(db_session: AsyncSession):
     ) -> User:
         if email is None:
             import uuid
+
             email = f"test-{uuid.uuid4()}@example.com"
-        
+
         user = User(
             email=email,
             hashed_password=get_password_hash(password),
@@ -145,7 +151,7 @@ def user_factory(db_session: AsyncSession):
         await db_session.commit()
         await db_session.refresh(user)
         return user
-    
+
     return _create_user
 
 
@@ -154,7 +160,7 @@ def mail_account_factory(db_session: AsyncSession):
     """Factory for creating test mail accounts"""
     from app.models.database_models import MailAccount
     from app.core.security import encrypt_password
-    
+
     async def _create_mail_account(
         user_id: int,
         host: str = "pop.example.com",
@@ -166,10 +172,11 @@ def mail_account_factory(db_session: AsyncSession):
     ) -> MailAccount:
         if username is None:
             import uuid
+
             username = f"test-{uuid.uuid4()}@example.com"
-        
+
         encrypted_password = encrypt_password(password, user_id)
-        
+
         account = MailAccount(
             user_id=user_id,
             host=host,
@@ -184,5 +191,5 @@ def mail_account_factory(db_session: AsyncSession):
         await db_session.commit()
         await db_session.refresh(account)
         return account
-    
+
     return _create_mail_account

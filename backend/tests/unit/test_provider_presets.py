@@ -1,6 +1,7 @@
 """
 Unit tests for provider presets and mail server auto-detection.
 """
+
 import pytest
 from app.services.mail_processor import MailServerAutoDetect
 
@@ -156,11 +157,13 @@ class TestProviderPresets:
     def test_provider_presets_import(self):
         """Test that provider presets can be imported"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         assert len(PROVIDER_PRESETS) > 0
 
     def test_all_presets_have_required_fields(self):
         """Test that all presets have required fields"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         for preset in PROVIDER_PRESETS:
             assert preset.id
             assert preset.name
@@ -171,6 +174,7 @@ class TestProviderPresets:
     def test_gmail_preset_exists(self):
         """Test that Gmail preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         gmail = next((p for p in PROVIDER_PRESETS if p.id == "gmail"), None)
         assert gmail is not None
         assert gmail.imap_ssl is not None
@@ -179,6 +183,7 @@ class TestProviderPresets:
     def test_gmx_preset_exists(self):
         """Test that GMX preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         gmx = next((p for p in PROVIDER_PRESETS if p.id == "gmx"), None)
         assert gmx is not None
         assert "gmx.de" in gmx.domains
@@ -186,6 +191,7 @@ class TestProviderPresets:
     def test_webde_preset_exists(self):
         """Test that WEB.DE preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         webde = next((p for p in PROVIDER_PRESETS if p.id == "webde"), None)
         assert webde is not None
         assert "web.de" in webde.domains
@@ -193,6 +199,7 @@ class TestProviderPresets:
     def test_outlook_preset_exists(self):
         """Test that Outlook preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         outlook = next((p for p in PROVIDER_PRESETS if p.id == "outlook"), None)
         assert outlook is not None
         assert "hotmail.com" in outlook.domains
@@ -200,17 +207,20 @@ class TestProviderPresets:
     def test_yahoo_preset_exists(self):
         """Test that Yahoo preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         yahoo = next((p for p in PROVIDER_PRESETS if p.id == "yahoo"), None)
         assert yahoo is not None
 
     def test_aol_preset_exists(self):
         """Test that AOL preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         aol = next((p for p in PROVIDER_PRESETS if p.id == "aol"), None)
         assert aol is not None
 
     def test_tonline_preset_exists(self):
         """Test that T-Online preset is included"""
         from app.api.v1.endpoints.providers import PROVIDER_PRESETS
+
         tonline = next((p for p in PROVIDER_PRESETS if p.id == "tonline"), None)
         assert tonline is not None

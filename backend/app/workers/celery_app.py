@@ -1,6 +1,7 @@
 """
 Celery application for background email processing tasks.
 """
+
 from celery import Celery
 from celery.schedules import crontab
 import logging
@@ -14,7 +15,7 @@ celery_app = Celery(
     "pop3_forwarder",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["app.workers.tasks"]
+    include=["app.workers.tasks"],
 )
 
 # Celery configuration

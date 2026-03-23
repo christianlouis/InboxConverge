@@ -1,6 +1,7 @@
 """
 Unit tests for Gmail service module.
 """
+
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
@@ -91,7 +92,9 @@ class TestGmailService:
         service = GmailService(access_token="test-access-token")
 
         mock_api = MagicMock()
-        mock_api.users().messages().insert().execute.side_effect = Exception("API Error")
+        mock_api.users().messages().insert().execute.side_effect = Exception(
+            "API Error"
+        )
         service._service = mock_api
 
         with pytest.raises(GmailInjectionError, match="Failed to inject email"):

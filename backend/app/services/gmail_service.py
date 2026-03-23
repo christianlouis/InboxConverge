@@ -5,6 +5,7 @@ Uses the Gmail API's users.messages.insert() method to inject emails
 into a user's Gmail account, preserving original headers and metadata.
 This is preferred over SMTP forwarding as it doesn't modify the email.
 """
+
 import asyncio
 import base64
 import logging
@@ -25,6 +26,7 @@ GMAIL_SCOPES = [
 
 class GmailInjectionError(Exception):
     """Raised when Gmail API injection fails"""
+
     pass
 
 
@@ -129,7 +131,9 @@ class GmailService:
             }
 
         except HttpError as e:
-            error_msg = f"Gmail API error: {e.reason if hasattr(e, 'reason') else str(e)}"
+            error_msg = (
+                f"Gmail API error: {e.reason if hasattr(e, 'reason') else str(e)}"
+            )
             logger.error(error_msg)
             raise GmailInjectionError(error_msg)
         except Exception as e:
@@ -149,9 +153,7 @@ class GmailService:
         try:
             result = await loop.run_in_executor(
                 None,
-                lambda: self.service.users()
-                .getProfile(userId="me")
-                .execute(),
+                lambda: self.service.users().getProfile(userId="me").execute(),
             )
             email = result.get("emailAddress", "unknown")
             logger.info(f"Gmail API access verified for: {email}")
@@ -172,9 +174,7 @@ class GmailService:
         try:
             result = await loop.run_in_executor(
                 None,
-                lambda: self.service.users()
-                .getProfile(userId="me")
-                .execute(),
+                lambda: self.service.users().getProfile(userId="me").execute(),
             )
             return result.get("emailAddress")
         except Exception as e:

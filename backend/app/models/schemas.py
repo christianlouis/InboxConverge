@@ -1,6 +1,7 @@
 """
 Pydantic schemas for API request/response validation.
 """
+
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -63,7 +64,7 @@ class UserResponse(UserBase):
     subscription_tier: SubscriptionTier
     subscription_status: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -74,7 +75,7 @@ class UserDetailResponse(UserResponse):
     stripe_customer_id: Optional[str] = None
     subscription_expires_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -145,17 +146,18 @@ class MailAccountResponse(MailAccountBase):
     last_error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
+
     # Don't expose password or username in responses
     password: str = Field(exclude=True, default="")
     username: str = Field(exclude=True, default="")
-    
+
     class Config:
         from_attributes = True
 
 
 class MailAccountTestRequest(BaseModel):
     """Test connection to mail server"""
+
     host: str
     port: int
     protocol: MailProtocol
@@ -173,6 +175,7 @@ class MailAccountTestResponse(BaseModel):
 
 class MailAccountAutoDetectRequest(BaseModel):
     """Auto-detect mail server settings"""
+
     email_address: EmailStr
 
 
@@ -193,7 +196,7 @@ class ProcessingRunResponse(BaseModel):
     emails_failed: int
     status: str
     error_message: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -207,7 +210,7 @@ class ProcessingLogResponse(BaseModel):
     email_subject: Optional[str] = None
     email_from: Optional[str] = None
     success: bool
-    
+
     class Config:
         from_attributes = True
 
@@ -239,7 +242,7 @@ class NotificationConfigResponse(NotificationConfigBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -258,7 +261,7 @@ class SubscriptionPlanResponse(BaseModel):
     support_level: str
     features: Optional[Dict[str, Any]] = None
     is_active: bool
-    
+
     class Config:
         from_attributes = True
 
@@ -307,7 +310,7 @@ class MailServerPresetResponse(BaseModel):
     provider_domain: str
     configs: Dict[str, Any]
     is_verified: bool
-    
+
     class Config:
         from_attributes = True
 
@@ -327,7 +330,7 @@ class GmailCredentialResponse(BaseModel):
     last_verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
