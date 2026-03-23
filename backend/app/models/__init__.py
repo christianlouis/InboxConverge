@@ -16,16 +16,16 @@ from app.models.database_models import (
 )
 
 __all__ = [
-    "User",
-    "MailAccount",
-    "ProcessingRun",
-    "ProcessingLog",
-    "NotificationConfig",
-    "MailServerPreset",
-    "SubscriptionPlan",
-    "AuditLog",
-    "SubscriptionTier",
-    "MailProtocol",
     "AccountStatus",
+    "AuditLog",
+    "MailAccount",
+    "MailProtocol",
+    "MailServerPreset",
     "NotificationChannel",
+    "NotificationConfig",
+    "ProcessingLog",
+    "ProcessingRun",
+    "SubscriptionPlan",
+    "SubscriptionTier",
+    "User",
 ]
