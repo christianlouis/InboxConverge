@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Wrapped `useSearchParams()` in a `Suspense` boundary in `frontend/src/app/auth/callback/page.tsx` to fix the Next.js build error: "useSearchParams() should be wrapped in a suspense boundary at page /auth/callback"
 - Fixed TypeScript build error in `frontend/src/app/accounts/page.tsx`: replaced non-existent `account.username` with `account.email_address`, `account.last_checked_at` with `account.last_check_at`, and `account.last_error` with `account.last_error_message` (the backend intentionally excludes `username` from API responses for security)
 - Fixed TypeScript error in `frontend/src/app/auth/callback/page.tsx`: `TokenResponse` doesn't include `user`; now fetches user via `userApi.getCurrentUser()` after OAuth token exchange
 - Fixed TypeScript errors in `frontend/src/app/dashboard/page.tsx`: replaced non-existent `errors_count` with `emails_failed` on `ProcessingRun`

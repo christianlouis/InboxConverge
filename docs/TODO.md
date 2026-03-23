@@ -97,6 +97,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Merge Dependabot dependency updates (PRs #26–#49)
 - [x] Remove CodeQL checks from CI (was blocking builds)
 - [x] Upgrade SQLAlchemy to 2.0.48 to fix Python 3.14 test failures
+- [x] Fix Docker build failure: wrap `useSearchParams()` in Suspense boundary in `/auth/callback` page
 
 ### In Progress 🔨
 - [ ] Configure branch protection rules
