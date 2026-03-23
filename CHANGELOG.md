@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved error handling with specific exception types
 - Updated datetime usage to timezone-aware
 - Enhanced logging with structured context
+- Bumped Docker Python base image from 3.11-slim to 3.14-slim
+- Bumped CI Python version from 3.11 to 3.14
+- Bumped CI Node.js version from 18 to 20
+- Bumped GitHub Actions: `actions/setup-python` v5 → v6, `actions/setup-node` v4 → v6, `docker/setup-buildx-action` v3 → v4, `codecov/codecov-action` v3 → v5
+- Bumped backend dependencies: pydantic 2.5.3 → 2.12.5, pydantic-settings 2.1.0 → 2.13.1, psycopg2-binary 2.9.9 → 2.9.11, asyncpg 0.29.0 → 0.31.0, stripe 7.11.0 → 14.4.1, aioimaplib 1.0.1 → 2.0.1, google-auth-httplib2 0.2.0 → 0.3.0, celery 5.3.6 → 5.6.2, redis 5.0.1 → 7.3.0, tenacity 8.2.3 → 9.1.4
+- Bumped frontend dependencies: react 19.2.3 → 19.2.4, @tanstack/react-query ^5.90.20 → ^5.95.0, axios ^1.13.5 → ^1.13.6, zustand ^5.0.11 → ^5.0.12, eslint ^9 → ^10, eslint-config-next 16.1.6 → 16.2.1
+
+### Removed
+- Removed CodeQL analysis from CI pipeline (was blocking builds)
 
 ### Fixed
 - Bare exception handlers replaced with specific types

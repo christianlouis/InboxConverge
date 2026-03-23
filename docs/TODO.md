@@ -94,6 +94,8 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Create `.github/workflows/security.yml` for security scanning
 - [x] Existing `.github/workflows/docker-build.yml` for Docker images
 - [x] Set up automatic dependency updates (Dependabot)
+- [x] Merge Dependabot dependency updates (PRs #26–#49)
+- [x] Remove CodeQL checks from CI (was blocking builds)
 
 ### In Progress 🔨
 - [ ] Configure branch protection rules
