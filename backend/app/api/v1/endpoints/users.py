@@ -1,4 +1,5 @@
 """User management endpoints"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,7 @@ router = APIRouter()
 
 @router.get("/me", response_model=UserDetailResponse)
 async def get_current_user_profile(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get current user profile"""
     return current_user
@@ -22,14 +23,14 @@ async def get_current_user_profile(
 async def update_current_user_profile(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Update current user profile"""
     if user_update.email:
         current_user.email = user_update.email
     if user_update.full_name:
         current_user.full_name = user_update.full_name
-    
+
     await db.commit()
     await db.refresh(current_user)
     return current_user

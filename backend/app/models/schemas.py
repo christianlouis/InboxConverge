@@ -1,6 +1,7 @@
 """
 Pydantic schemas for API request/response validation.
 """
+
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -27,6 +28,11 @@ class AccountStatus(str, Enum):
     INACTIVE = "inactive"
     ERROR = "error"
     TESTING = "testing"
+
+
+class DeliveryMethod(str, Enum):
+    SMTP = "smtp"
+    GMAIL_API = "gmail_api"
 
 
 class NotificationChannel(str, Enum):
@@ -58,7 +64,7 @@ class UserResponse(UserBase):
     subscription_tier: SubscriptionTier
     subscription_status: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -69,7 +75,7 @@ class UserDetailResponse(UserResponse):
     stripe_customer_id: Optional[str] = None
     subscription_expires_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -103,6 +109,7 @@ class MailAccountBase(BaseModel):
     use_tls: bool = False
     username: str = Field(..., max_length=255)
     forward_to: EmailStr
+    delivery_method: DeliveryMethod = DeliveryMethod.GMAIL_API
     is_enabled: bool = True
     check_interval_minutes: int = Field(default=5, gt=0, le=1440)
     max_emails_per_check: int = Field(default=50, gt=0, le=1000)
@@ -117,6 +124,7 @@ class MailAccountUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = None
     forward_to: Optional[EmailStr] = None
+    delivery_method: Optional[DeliveryMethod] = None
     is_enabled: Optional[bool] = None
     check_interval_minutes: Optional[int] = Field(None, gt=0, le=1440)
     max_emails_per_check: Optional[int] = Field(None, gt=0, le=1000)
@@ -127,6 +135,7 @@ class MailAccountResponse(MailAccountBase):
     id: int
     user_id: int
     status: AccountStatus
+    delivery_method: DeliveryMethod
     provider_name: Optional[str] = None
     auto_detected: bool
     total_emails_processed: int
@@ -137,17 +146,18 @@ class MailAccountResponse(MailAccountBase):
     last_error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
+
     # Don't expose password or username in responses
     password: str = Field(exclude=True, default="")
     username: str = Field(exclude=True, default="")
-    
+
     class Config:
         from_attributes = True
 
 
 class MailAccountTestRequest(BaseModel):
     """Test connection to mail server"""
+
     host: str
     port: int
     protocol: MailProtocol
@@ -165,6 +175,7 @@ class MailAccountTestResponse(BaseModel):
 
 class MailAccountAutoDetectRequest(BaseModel):
     """Auto-detect mail server settings"""
+
     email_address: EmailStr
 
 
@@ -185,7 +196,7 @@ class ProcessingRunResponse(BaseModel):
     emails_failed: int
     status: str
     error_message: Optional[str] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -199,7 +210,7 @@ class ProcessingLogResponse(BaseModel):
     email_subject: Optional[str] = None
     email_from: Optional[str] = None
     success: bool
-    
+
     class Config:
         from_attributes = True
 
@@ -231,7 +242,7 @@ class NotificationConfigResponse(NotificationConfigBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -250,7 +261,7 @@ class SubscriptionPlanResponse(BaseModel):
     support_level: str
     features: Optional[Dict[str, Any]] = None
     is_active: bool
-    
+
     class Config:
         from_attributes = True
 
@@ -299,6 +310,41 @@ class MailServerPresetResponse(BaseModel):
     provider_domain: str
     configs: Dict[str, Any]
     is_verified: bool
-    
+
     class Config:
         from_attributes = True
+
+
+# Gmail Credential Schemas
+class GmailCredentialCreate(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    gmail_email: EmailStr
+
+
+class GmailCredentialResponse(BaseModel):
+    id: int
+    user_id: int
+    gmail_email: str
+    is_valid: bool
+    last_verified_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Provider Wizard Schemas
+class ProviderPreset(BaseModel):
+    id: str
+    name: str
+    icon: Optional[str] = None
+    domains: List[str]
+    imap_ssl: Optional[Dict[str, Any]] = None
+    pop3_ssl: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+
+
+class ProviderListResponse(BaseModel):
+    providers: List[ProviderPreset]

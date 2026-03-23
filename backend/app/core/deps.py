@@ -1,9 +1,14 @@
 """
 Authentication dependencies for FastAPI.
 """
+
 from typing import Optional
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -19,7 +24,7 @@ http_bearer = HTTPBearer(auto_error=False)
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(http_bearer),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get current authenticated user from JWT token.
@@ -27,14 +32,14 @@ async def get_current_user(
     """
     # Get token from either source
     auth_token = token or (credentials.credentials if credentials else None)
-    
+
     if not auth_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Decode token
     payload = decode_token(auth_token)
     if not payload:
@@ -43,7 +48,7 @@ async def get_current_user(
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Verify token type
     token_type = payload.get("type")
     if token_type != "access":
@@ -52,7 +57,7 @@ async def get_current_user(
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Get user ID from token
     user_id: Optional[int] = payload.get("sub")
     if user_id is None:
@@ -61,24 +66,23 @@ async def get_current_user(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Fetch user from database
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
-    
+
     return user
 
 
@@ -88,8 +92,7 @@ async def get_current_active_user(
     """Get current active user"""
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user"
         )
     return current_user
 
@@ -100,8 +103,7 @@ async def get_current_superuser(
     """Get current superuser"""
     if not current_user.is_superuser:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
         )
     return current_user
 
@@ -111,23 +113,18 @@ def check_subscription_tier(required_tier: str):
     Dependency factory to check if user has required subscription tier.
     Returns a dependency function.
     """
-    tier_hierarchy = {
-        "free": 0,
-        "basic": 1,
-        "pro": 2,
-        "enterprise": 3
-    }
-    
+    tier_hierarchy = {"free": 0, "basic": 1, "pro": 2, "enterprise": 3}
+
     async def check_tier(current_user: User = Depends(get_current_active_user)) -> User:
         user_tier_level = tier_hierarchy.get(current_user.subscription_tier.value, 0)
         required_tier_level = tier_hierarchy.get(required_tier, 0)
-        
+
         if user_tier_level < required_tier_level:
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail=f"This feature requires {required_tier} subscription or higher"
+                detail=f"This feature requires {required_tier} subscription or higher",
             )
-        
+
         return current_user
-    
+
     return check_tier
