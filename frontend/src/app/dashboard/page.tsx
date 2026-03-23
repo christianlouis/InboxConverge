@@ -63,7 +63,7 @@ export default function DashboardPage() {
         return new Date(r.started_at).toDateString() === today;
       })
       .reduce((sum, r) => sum + r.emails_forwarded, 0) || 0,
-    errors: runs?.filter((r) => r.errors_count > 0).length || 0,
+    errors: runs?.filter((r) => r.emails_failed > 0).length || 0,
   };
 
   return (
@@ -166,8 +166,8 @@ export default function DashboardPage() {
                             {run.emails_forwarded}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {run.errors_count > 0 ? (
-                              <span className="text-red-600 font-medium">{run.errors_count}</span>
+                            {run.emails_failed > 0 ? (
+                              <span className="text-red-600 font-medium">{run.emails_failed}</span>
                             ) : (
                               <span className="text-gray-400">0</span>
                             )}
