@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Downgraded `eslint` from `^10` to `^9` in the frontend to resolve `TypeError: contextOrFilename.getFilename is not a function` caused by ESLint 10 removing the `getFilename()` API used by `eslint-plugin-react` bundled in `eslint-config-next`
+
 ### Added
 - **Database-backed configuration**: `AppSetting` model and `ConfigService` for hybrid config (DB-first, env-var fallback)
 - Admin API endpoints for managing settings (`GET/PUT/DELETE /api/v1/settings`)
