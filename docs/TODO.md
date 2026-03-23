@@ -103,7 +103,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [ ] Set up Codecov integration
 
 ### Not Started 📋
-- [ ] Add deployment workflow (staging/production)
+- [x] Add deployment workflow (dual-registry: GHCR + private registry)
 - [ ] Add release workflow with automated changelog
 - [ ] Configure status checks for PRs
 - [ ] Add performance regression detection
