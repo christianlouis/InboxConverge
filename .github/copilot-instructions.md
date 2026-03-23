@@ -24,6 +24,13 @@ cd frontend
 npm run lint
 ```
 
+## Documentation Requirements
+
+When making changes, always update the following files:
+
+- **`docs/TODO.md`**: Update task checkboxes, progress percentages, and status indicators to reflect completed work and any new items discovered.
+- **`CHANGELOG.md`**: Add entries under the `[Unreleased]` section using the appropriate category (`Added`, `Changed`, `Fixed`, `Security`, `Removed`, `Deprecated`).
+
 ## Conventions
 
 - **Python**: Follow PEP 8. Use `black` for formatting. All ruff and mypy errors must be resolved before committing.

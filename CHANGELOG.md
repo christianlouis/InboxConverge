@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rate limiting per user/tier
 - Comprehensive test infrastructure setup
 - CI/CD pipeline for testing and security scanning
+- Dependabot configuration for automated dependency updates (pip, npm, GitHub Actions, Docker)
+- Copilot instructions requiring TODO.md and CHANGELOG.md updates
+- Unit tests for security middleware (SecurityHeadersMiddleware, CSRFProtectionMiddleware)
+- Unit tests for JWT token lifecycle (access tokens, refresh tokens, decode, edge cases)
+- Unit tests for credential encryption edge cases (empty, long, unicode, special chars)
+- Unit tests for FastAPI application factory and core endpoints (root, health, OpenAPI)
+- Unit tests for Pydantic schema validation (users, mail accounts, notifications, subscriptions)
+- Reached 57% test coverage (up from 54%)
 
 ### Changed
 - Reorganized documentation into `docs/` directory
@@ -113,5 +121,5 @@ Use these standard categories:
 
 ---
 
-**Maintained by**: Development Team  
-**Last Updated**: 2026-02-06
+**Maintained by**: Development Team
+**Last Updated**: 2026-03-23
