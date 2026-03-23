@@ -18,7 +18,7 @@ authlib==1.6.9  # Updated: Fixed OIDC hash binding, JWE RSA1_5 padding oracle, a
 httpx==0.26.0
 
 # Payment Processing
-stripe==7.11.0
+stripe==14.4.1
 
 # Email & Mail Processing
 aiosmtplib==3.0.1
