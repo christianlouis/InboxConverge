@@ -190,8 +190,12 @@ class ConfigService:
                         setting.value,  # type: ignore[arg-type]
                         setting.value_type or "string",  # type: ignore[arg-type]
                     )
-            except Exception:
-                logger.debug("DB lookup failed for key=%s, falling back to env", key)
+            except Exception as exc:
+                logger.warning(
+                    "DB lookup failed for key=%s, falling back to env: %s",
+                    key,
+                    exc,
+                )
 
         env_val = os.getenv(key)
         if env_val is not None:
@@ -216,8 +220,8 @@ class ConfigService:
                         setting.value,  # type: ignore[arg-type]
                         setting.value_type or "string",  # type: ignore[arg-type]
                     )
-            except Exception:
-                logger.debug("DB bulk lookup failed, falling back to env")
+            except Exception as exc:
+                logger.warning("DB bulk lookup failed, falling back to env: %s", exc)
 
         for key in keys:
             if key not in result:
@@ -253,8 +257,7 @@ class ConfigService:
                 existing.value_type = value_type  # type: ignore[assignment]
             if description is not None:
                 existing.description = description  # type: ignore[assignment]
-            if is_secret is not None:
-                existing.is_secret = is_secret  # type: ignore[assignment]
+            existing.is_secret = is_secret  # type: ignore[assignment]
             if category is not None:
                 existing.category = category  # type: ignore[assignment]
             await db.commit()

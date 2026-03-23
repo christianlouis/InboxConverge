@@ -146,7 +146,7 @@ Emails are forwarded to Gmail via SMTP. This is the legacy method and is used as
 | `POP3_ACCOUNT_N_PASSWORD` | Yes | — | POP3 password |
 | `POP3_ACCOUNT_N_USE_SSL` | No | `true` | Use SSL/TLS |
 
-#### SMTP Settings ★
+#### SMTP Settings (★ database-configurable)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -156,7 +156,7 @@ Emails are forwarded to Gmail via SMTP. This is the legacy method and is used as
 | `SMTP_PASSWORD` | For SMTP | — | SMTP password (App Password) |
 | `SMTP_USE_TLS` | No | `true` | Use STARTTLS |
 
-#### Gmail API Settings ★
+#### Gmail API Settings (★ database-configurable)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -164,7 +164,7 @@ Emails are forwarded to Gmail via SMTP. This is the legacy method and is used as
 | `GOOGLE_CLIENT_SECRET` | For Gmail API | — | Google OAuth2 client secret |
 | `GMAIL_API_ENABLED` | No | `true` | Enable Gmail API delivery |
 
-#### Processing Settings ★
+#### Processing Settings (★ database-configurable)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|

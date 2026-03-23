@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async with async_session_maker() as db:
             await ConfigService.seed_defaults(db)
     except Exception as exc:
-        logger.warning("Could not seed default settings: %s", exc)
+        logger.warning("Could not seed default settings: %s", exc, exc_info=True)
 
     yield
     # Shutdown
