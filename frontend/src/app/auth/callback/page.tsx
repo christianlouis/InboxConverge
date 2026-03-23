@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi, userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuthStore();
@@ -59,38 +59,56 @@ export default function AuthCallbackPage() {
   }, [searchParams, router, setUser]);
 
   return (
+    <div className="flex flex-col items-center">
+      {status === 'loading' && (
+        <>
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Authenticating...
+          </h2>
+        </>
+      )}
+      
+      {status === 'success' && (
+        <>
+          <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Success!
+          </h2>
+        </>
+      )}
+      
+      {status === 'error' && (
+        <>
+          <XCircle className="h-12 w-12 text-red-600 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Authentication Failed
+          </h2>
+        </>
+      )}
+      
+      <p className="text-gray-600 text-center">{message}</p>
+    </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <div className="flex flex-col items-center">
-          {status === 'loading' && (
-            <>
+        <Suspense
+          fallback={
+            <div className="flex flex-col items-center">
               <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 Authenticating...
               </h2>
-            </>
-          )}
-          
-          {status === 'success' && (
-            <>
-              <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Success!
-              </h2>
-            </>
-          )}
-          
-          {status === 'error' && (
-            <>
-              <XCircle className="h-12 w-12 text-red-600 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Authentication Failed
-              </h2>
-            </>
-          )}
-          
-          <p className="text-gray-600 text-center">{message}</p>
-        </div>
+              <p className="text-gray-600 text-center">Processing authentication...</p>
+            </div>
+          }
+        >
+          <AuthCallbackContent />
+        </Suspense>
       </div>
     </div>
   );
