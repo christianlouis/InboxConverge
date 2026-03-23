@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Downgraded `eslint` from `^10` to `^9` in the frontend to resolve `TypeError: contextOrFilename.getFilename is not a function` caused by ESLint 10 removing the `getFilename()` API used by `eslint-plugin-react` bundled in `eslint-config-next`
+- Upgraded `sqlalchemy` from `2.0.25` to `2.0.48` to fix `AssertionError: Class ... directly inherits TypingOnly but has additional attributes` on Python 3.14 (`__static_attributes__`, `__firstlineno__`)
 
 ### Added
 - **Database-backed configuration**: `AppSetting` model and `ConfigService` for hybrid config (DB-first, env-var fallback)
