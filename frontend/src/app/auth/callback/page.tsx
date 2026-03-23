@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { authApi } from '@/lib/api';
+import { authApi, userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -37,8 +37,9 @@ export default function AuthCallbackPage() {
         const response = await authApi.googleAuth(code, redirectUri);
         
         localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        setUser(response.user);
+        const user = response.user ? response.user : await userApi.getCurrentUser();
+        localStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
         
         setStatus('success');
         setMessage('Authentication successful! Redirecting...');

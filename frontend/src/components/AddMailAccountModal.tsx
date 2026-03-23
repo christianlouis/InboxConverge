@@ -25,7 +25,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     protocol: account?.protocol || 'pop3',
     host: account?.host || '',
     port: account?.port || 995,
-    username: account?.username || '',
+    username: '',
     password: '',
     use_ssl: account?.use_ssl ?? true,
     check_interval_minutes: account?.check_interval_minutes || 5,
@@ -70,14 +70,17 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
 
     setAutoDetecting(true);
     try {
-      const settings = await mailAccountsApi.autoDetect(formData.username);
-      setFormData((prev) => ({
-        ...prev,
-        protocol: settings.protocol || prev.protocol,
-        host: settings.host || prev.host,
-        port: settings.port || prev.port,
-        use_ssl: settings.use_ssl ?? prev.use_ssl,
-      }));
+      const result = await mailAccountsApi.autoDetect(formData.username);
+      const suggestion = result.success && result.suggestions.length > 0 ? result.suggestions[0] : null;
+      if (suggestion) {
+        setFormData((prev) => ({
+          ...prev,
+          protocol: suggestion.protocol || prev.protocol,
+          host: suggestion.host || prev.host,
+          port: suggestion.port || prev.port,
+          use_ssl: suggestion.use_ssl ?? prev.use_ssl,
+        }));
+      }
       alert('Settings auto-detected successfully!');
     } catch {
       alert('Failed to auto-detect settings. Please enter manually.');

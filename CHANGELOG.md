@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fixed TypeScript build error in `frontend/src/app/accounts/page.tsx`: replaced non-existent `account.username` with `account.email_address`, `account.last_checked_at` with `account.last_check_at`, and `account.last_error` with `account.last_error_message` (the backend intentionally excludes `username` from API responses for security)
+- Fixed TypeScript error in `frontend/src/app/auth/callback/page.tsx`: `TokenResponse` doesn't include `user`; now fetches user via `userApi.getCurrentUser()` after OAuth token exchange
+- Fixed TypeScript errors in `frontend/src/app/dashboard/page.tsx`: replaced non-existent `errors_count` with `emails_failed` on `ProcessingRun`
+- Fixed TypeScript errors in `frontend/src/components/AddMailAccountModal.tsx`: removed invalid `account.username` access, added missing required fields to initial form state, and fixed autoDetect suggestions access
+- Made `email_address`, `use_tls`, `forward_to` optional in the `MailAccountCreate` TypeScript interface to align with form usage
+- Added typed suggestion fields to `autoDetect` return type in `api.ts`
+- Excluded test files (`*.test.ts`, `*.spec.ts`) from TypeScript compilation in `tsconfig.json`
 - Upgraded Node.js base image in `frontend/Dockerfile` from `node:18-alpine` to `node:20-alpine` to satisfy the Node.js >= 20.9.0 requirement for Next.js and fix Docker build failures
 - Removed `actions/attest-build-provenance` step and associated `id-token: write` / `attestations: write` permissions from the CI `build` job — this action is not available for private user-owned repositories and caused every build to fail
 - Downgraded `eslint` from `^10` to `^9` in the frontend to resolve `TypeError: contextOrFilename.getFilename is not a function` caused by ESLint 10 removing the `getFilename()` API used by `eslint-plugin-react` bundled in `eslint-config-next`

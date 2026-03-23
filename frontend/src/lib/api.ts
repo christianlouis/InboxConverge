@@ -82,15 +82,15 @@ export interface MailAccount {
 
 export interface MailAccountCreate {
   name: string;
-  email_address: string;
+  email_address?: string;
   protocol: string;
   host: string;
   port: number;
   use_ssl: boolean;
-  use_tls: boolean;
+  use_tls?: boolean;
   username: string;
   password: string;
-  forward_to: string;
+  forward_to?: string;
   delivery_method?: string;
   is_enabled?: boolean;
   check_interval_minutes?: number;
@@ -111,10 +111,19 @@ export interface ProcessingRun {
   error_message?: string | null;
 }
 
+export interface AutoDetectSuggestion {
+  protocol?: string;
+  host?: string;
+  port?: number;
+  use_ssl?: boolean;
+  [key: string]: unknown;
+}
+
 interface TokenResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
+  user?: User;
 }
 
 // ── Auth API ────────────────────────────────────────────────────────────
@@ -215,10 +224,10 @@ export const mailAccountsApi = {
 
   async autoDetect(
     emailAddress: string
-  ): Promise<{ success: boolean; suggestions: Record<string, unknown>[] }> {
+  ): Promise<{ success: boolean; suggestions: AutoDetectSuggestion[] }> {
     const response = await api.post<{
       success: boolean;
-      suggestions: Record<string, unknown>[];
+      suggestions: AutoDetectSuggestion[];
     }>("/mail-accounts/auto-detect", { email_address: emailAddress });
     return response.data;
   },
