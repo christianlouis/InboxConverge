@@ -1,12 +1,12 @@
 """User management endpoints"""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
 from app.models.database_models import User
-from app.models.schemas import UserResponse, UserDetailResponse, UserUpdate
+from app.models.schemas import UserDetailResponse, UserUpdate
 
 router = APIRouter()
 

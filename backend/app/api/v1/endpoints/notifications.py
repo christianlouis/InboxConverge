@@ -1,7 +1,7 @@
 """Notification configuration endpoints"""
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -11,7 +11,6 @@ from app.models.database_models import User, NotificationConfig
 from app.models.schemas import (
     NotificationConfigCreate,
     NotificationConfigResponse,
-    NotificationConfigUpdate,
 )
 
 router = APIRouter()

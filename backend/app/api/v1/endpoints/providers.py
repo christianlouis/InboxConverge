@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
-from app.core.security import encrypt_credential, decrypt_credential
+from app.core.security import encrypt_credential
 from app.core.config import settings
 from app.models.database_models import User, GmailCredential
 from app.models.schemas import (

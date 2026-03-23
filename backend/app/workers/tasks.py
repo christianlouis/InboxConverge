@@ -5,7 +5,6 @@ Celery tasks for background email processing.
 import asyncio
 import os
 from datetime import datetime, timedelta
-from typing import List
 from celery import Task
 import logging
 
@@ -24,7 +23,6 @@ from app.services.mail_processor import MailProcessor
 from app.services.gmail_service import GmailService, GmailInjectionError
 from app.core.config import settings
 from sqlalchemy import select, and_
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +92,7 @@ async def process_mail_account(account_id: int):
                 gmail_cred_result = await db.execute(
                     select(GmailCredential).where(
                         GmailCredential.user_id == account.user_id,
-                        GmailCredential.is_valid == True,
+                        GmailCredential.is_valid == True,  # noqa: E712
                     )
                 )
                 gmail_cred = gmail_cred_result.scalar_one_or_none()
@@ -222,7 +220,7 @@ async def process_all_enabled_accounts():
             result = await db.execute(
                 select(MailAccount).where(
                     and_(
-                        MailAccount.is_enabled == True,
+                        MailAccount.is_enabled == True,  # noqa: E712
                         MailAccount.status.in_(
                             [AccountStatus.ACTIVE, AccountStatus.TESTING]
                         ),

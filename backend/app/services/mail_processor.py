@@ -12,12 +12,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
 import logging
 from aioimaplib import aioimaplib
 
 from app.models.database_models import MailAccount, MailProtocol
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

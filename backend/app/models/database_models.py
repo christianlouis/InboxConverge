@@ -3,7 +3,6 @@ Database models for the multi-tenant POP3 forwarder application.
 """
 
 from datetime import datetime
-from typing import Optional
 from sqlalchemy import (
     Column,
     Integer,

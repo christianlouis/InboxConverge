@@ -4,8 +4,6 @@ Main FastAPI application.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
 import logging
 
 from app.core.config import settings
@@ -68,7 +66,7 @@ def create_application() -> FastAPI:
         """Run on application startup"""
         logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
         logger.info(f"Debug mode: {settings.DEBUG}")
-        logger.info(f"API documentation: /api/docs")
+        logger.info("API documentation: /api/docs")
 
     @app.on_event("shutdown")
     async def shutdown_event():

@@ -1,7 +1,7 @@
 """Subscription and payment endpoints"""
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -17,7 +17,7 @@ router = APIRouter()
 async def list_subscription_plans(db: AsyncSession = Depends(get_db)):
     """List all available subscription plans"""
     result = await db.execute(
-        select(SubscriptionPlan).where(SubscriptionPlan.is_active == True)
+        select(SubscriptionPlan).where(SubscriptionPlan.is_active == True)  # noqa: E712
     )
     return result.scalars().all()
 

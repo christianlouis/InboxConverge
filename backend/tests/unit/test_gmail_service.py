@@ -3,7 +3,7 @@ Unit tests for Gmail service module.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock
 from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
 
 
