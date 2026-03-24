@@ -2,7 +2,7 @@
 Database models for the multi-tenant POP3 forwarder application.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     Integer,
@@ -93,14 +93,21 @@ class User(Base):
     )  # active, canceled, past_due
     stripe_customer_id = Column(String(255), unique=True, nullable=True)
     stripe_subscription_id = Column(String(255), unique=True, nullable=True)
-    subscription_expires_at = Column(DateTime, nullable=True)
+    subscription_expires_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
-    last_login_at = Column(DateTime, nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     mail_accounts = relationship(
@@ -161,15 +168,22 @@ class MailAccount(Base):
     # Statistics
     total_emails_processed = Column(Integer, default=0)
     total_emails_failed = Column(Integer, default=0)
-    last_check_at = Column(DateTime, nullable=True)
-    last_successful_check_at = Column(DateTime, nullable=True)
-    last_error_at = Column(DateTime, nullable=True)
+    last_check_at = Column(DateTime(timezone=True), nullable=True)
+    last_successful_check_at = Column(DateTime(timezone=True), nullable=True)
+    last_error_at = Column(DateTime(timezone=True), nullable=True)
     last_error_message = Column(Text, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
@@ -196,8 +210,12 @@ class ProcessingRun(Base):
     )
 
     # Run details
-    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at = Column(DateTime, nullable=True)
+    started_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     duration_seconds = Column(Float, nullable=True)
 
     # Results
@@ -233,7 +251,12 @@ class ProcessingLog(Base):
     )
 
     # Log details
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
     level = Column(String(20), nullable=False)  # INFO, WARNING, ERROR
     message = Column(Text, nullable=False)
 
@@ -283,9 +306,16 @@ class NotificationConfig(Base):
     notify_threshold = Column(Integer, default=3)  # Notify after N consecutive errors
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
@@ -319,9 +349,16 @@ class MailServerPreset(Base):
     popularity_score = Column(Integer, default=0)  # For sorting recommendations
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
 
@@ -358,9 +395,16 @@ class SubscriptionPlan(Base):
     is_active = Column(Boolean, default=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
 
@@ -388,7 +432,12 @@ class AuditLog(Base):
     status = Column(String(20), default="success")  # success, failure
 
     # When
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
 
     # Indexes
     __table_args__ = (
@@ -415,17 +464,24 @@ class GmailCredential(Base):
     encrypted_refresh_token = Column(Text, nullable=True)
 
     # Token metadata
-    token_expiry = Column(DateTime, nullable=True)
+    token_expiry = Column(DateTime(timezone=True), nullable=True)
     scopes = Column(JSON, nullable=True)
 
     # Status
     is_valid = Column(Boolean, default=True)
-    last_verified_at = Column(DateTime, nullable=True)
+    last_verified_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
@@ -453,7 +509,14 @@ class AppSetting(Base):
     category = Column(String(100), nullable=True, index=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
