@@ -4,17 +4,30 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { userApi } from '@/lib/api';
 import { Mail, ArrowRight, Shield, Zap, Clock } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
-  const { user, isLoading } = useAuthStore();
+  const { isLoading, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
-    if (!isLoading && user) {
-      router.push('/dashboard');
-    }
-  }, [user, isLoading, router]);
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return;
+
+    userApi
+      .getCurrentUser()
+      .then((userData) => {
+        setUser(userData);
+        router.push('/dashboard');
+      })
+      .catch((err) => {
+        console.error('Auth check failed on home page:', err);
+        localStorage.removeItem('access_token');
+        setLoading(false);
+      });
+  }, [router, setUser, setLoading]);
 
   if (isLoading) {
     return (
