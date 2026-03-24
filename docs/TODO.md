@@ -101,6 +101,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Fix frontend API URL hardcoded to `localhost:8000` in production: replaced build-time `NEXT_PUBLIC_API_URL` with a runtime Next.js Route Handler proxy (`/api/v1/[...path]`) reading `BACKEND_URL` at server startup
 - [x] Log `BACKEND_URL` at frontend server startup and include target URL in per-request proxy error messages
 - [x] Fix `UndefinedTableError` on first boot: lifespan event now runs `Base.metadata.create_all()` so tables are created automatically when no migrations have been applied
+- [x] Fix `ProgrammingError` (cached statement plan is invalid) during startup: set `prepared_statement_cache_size=0` on the asyncpg engine to prevent plan invalidation when `CREATE TYPE` DDL runs at startup
 
 ### In Progress 🔨
 - [ ] Configure branch protection rules
