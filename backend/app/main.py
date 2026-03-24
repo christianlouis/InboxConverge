@@ -29,6 +29,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info("API documentation: /api/docs")
 
+    # Ensure all database tables exist (idempotent; safe to run on every startup)
+    try:
+        from app.core.database import engine, Base
+        import app.models.database_models  # noqa: F401 - register all ORM models
+
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables verified/created")
+    except Exception as exc:
+        logger.error(
+            "Could not create database tables: %s — API requests requiring DB will fail",
+            exc,
+            exc_info=True,
+        )
+
     # Seed default database-backed settings (no-op if they already exist)
     try:
         from app.core.database import async_session_maker
