@@ -195,6 +195,7 @@ because the API client layer is missing.
   - Exports: `authApi`, `mailAccountsApi`, `processingRunsApi`, `userApi`
   - Exports types: `User`, `MailAccount`, `MailAccountCreate`, `ProcessingRun`
   - 8 files import from `@/lib/api` — all compilation errors resolved
+- [x] Fix infinite spinner on home page: `isLoading` now initialises based on token presence; home page performs auth check when token exists
 
 ### Existing Pages (UI done, need API wiring) 🔨
 - [x] Landing page (`app/page.tsx`)
