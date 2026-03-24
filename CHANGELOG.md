@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fixed frontend API calls being hardcoded to `http://localhost:8000` in production: `NEXT_PUBLIC_API_URL` is baked into the JavaScript bundle at Next.js build time, so it can never be overridden at container runtime. Replaced the `NEXT_PUBLIC_API_URL` mechanism with a Next.js Route Handler proxy at `/api/v1/[...path]` that reads `process.env.BACKEND_URL` at server startup and proxies all `/api/v1/*` requests to the real backend. The frontend Axios client now uses a relative base URL (`/api/v1`), which also eliminates the CORS issue since the browser only ever talks to the same-origin Next.js server. Update `BACKEND_URL=http://backend:8000` in `docker-compose.new.yml` (or your deployment env) to point the proxy at your backend.
 - Fixed infinite spinning wheel on the home page: `authStore` no longer initialises `isLoading` as `true` unconditionally — it is now `false` when no access token exists in `localStorage`, so unauthenticated users see the landing page immediately instead of an endless spinner
 - Home page now performs an auth check when a token is present in `localStorage`, redirecting authenticated users to the dashboard and clearing stale tokens on failure
 - Wrapped `useSearchParams()` in a `Suspense` boundary in `frontend/src/app/auth/callback/page.tsx` to fix the Next.js build error: "useSearchParams() should be wrapped in a suspense boundary at page /auth/callback"
