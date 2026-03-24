@@ -29,7 +29,7 @@ async function handler(request: NextRequest, context: RouteContext) {
       headers: upstream.headers,
     });
   } catch (error) {
-    console.error("Proxy error forwarding to backend:", error);
+    console.error(`Proxy error forwarding to backend (target: ${targetUrl}):`, error);
     return NextResponse.json({ detail: "Backend unavailable" }, { status: 502 });
   }
 }

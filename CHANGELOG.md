@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `sqlalchemy` from `2.0.25` to `2.0.48` to fix `AssertionError: Class ... directly inherits TypingOnly but has additional attributes` on Python 3.14 (`__static_attributes__`, `__firstlineno__`)
 
 ### Added
+- **Backend URL logged at startup**: The Next.js server now logs the resolved `BACKEND_URL` (e.g. `[proxy] BACKEND_URL = http://backend:8000`) via `src/instrumentation.ts` when the server starts, making it easy to diagnose `ECONNREFUSED` proxy errors. The per-request error log now also includes the full target URL.
 - **Dual-registry Docker deployment**: CI now builds separate backend and frontend images and pushes to both GHCR (`ghcr.io`) and private registry (`registry.cklnet.com`) using a matrix strategy
 - **Database-backed configuration**: `AppSetting` model and `ConfigService` for hybrid config (DB-first, env-var fallback)
 - Admin API endpoints for managing settings (`GET/PUT/DELETE /api/v1/settings`)
