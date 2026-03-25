@@ -25,12 +25,15 @@ class OAuthService:
     def _register_google(self):
         """Register Google OAuth2 provider"""
         if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
+            from app.services.gmail_service import GMAIL_SCOPES
+
+            scope = " ".join(["openid", "email", "profile", *GMAIL_SCOPES])
             self.oauth.register(
                 name="google",
                 client_id=settings.GOOGLE_CLIENT_ID,
                 client_secret=settings.GOOGLE_CLIENT_SECRET,
                 server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-                client_kwargs={"scope": "openid email profile"},
+                client_kwargs={"scope": scope},
             )
 
     async def get_google_user_info(
@@ -99,6 +102,10 @@ class OAuthService:
                     "google_id": user_info.get("id"),
                     "picture": user_info.get("picture"),
                     "verified_email": user_info.get("verified_email", False),
+                    "access_token": access_token,
+                    "refresh_token": token_data.get("refresh_token"),
+                    "expires_in": token_data.get("expires_in"),
+                    "scope": token_data.get("scope", ""),
                 }
 
         except HTTPException:

@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Unified Google OAuth flow**: Google Sign-In now requests all Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`) in the same consent screen, so users no longer need a separate "Connect Gmail" step after signing in with Google. Gmail credentials are stored automatically on successful sign-in.
+- `include_granted_scopes=true` added to both the login and Gmail authorize URLs so scope additions take effect for users who previously connected.
+
+### Changed
+- `GMAIL_API_SCOPES` (providers endpoint) and `GMAIL_SCOPES` (GmailService) now include `gmail.readonly`, required for `users().getProfile()` access verification (fixes 403 insufficientPermissions errors).
+- Google Sign-In authorize URL (`GET /auth/google/authorize-url`) now requests all six scopes with `access_type=offline`, `prompt=consent`, and `include_granted_scopes=true` so a refresh token is always issued.
+- Gmail "Connect Gmail" button in Settings now redirects to `/auth/callback?state=gmail_connect` instead of the dedicated `/auth/gmail-callback` page, reducing the number of redirect URIs that must be registered in Google Cloud Console to one (`{origin}/auth/callback`).
+- `auth_service.py` `get_google_user_info` now returns `access_token`, `refresh_token`, `expires_in`, and `scope` alongside user info so the login endpoint can persist Gmail credentials in the same request.
+
 ### Fixed
+- Gmail API `verify_access()` returning 403 for tokens that lacked a read-capable scope: added `gmail.readonly` to all scope lists.
+
 - Fixed three ESLint errors that caused CI to fail: removed unused `_setUser` store binding and unused `useAuthStore` import from `login/page.tsx`; replaced unused `_err` catch binding with a bare `catch {}` in `login/page.tsx`; removed a `useEffect` in `settings/page.tsx` that called `setProfileForm` synchronously (flagged by `react-hooks/set-state-in-effect`) — the effect was redundant because `useState` already initialises the form from the auth store's `user` object, which is the same value passed as `initialData` to `useQuery`.
 - Fixed wizard to create new mail accounts showing a big grey screen: `bg-opacity-75` was removed in Tailwind CSS v4; replaced with the `/75` opacity modifier syntax (`bg-gray-500/75`) in `AddMailAccountModal` and `DashboardLayout` mobile overlay. Restructured the modal from the deprecated `inline-block align-bottom` centering trick to a proper flexbox layout with `relative z-10` on the modal content.
 - Fixed mail account creation always failing with a backend validation error: `email_address` and `forward_to` are required fields in the backend schema but were missing from the `AddMailAccountModal` form. Added both fields to the form — `email_address` is auto-synced from the username input, and `forward_to` (destination Gmail address) is a new explicit field pre-populated from the logged-in user's email. Also added `delivery_method` selector and `delete_after_forward` checkbox.

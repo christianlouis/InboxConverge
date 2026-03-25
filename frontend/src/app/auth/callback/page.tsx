@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { authApi, userApi } from '@/lib/api';
+import { authApi, gmailApi, userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -17,6 +17,7 @@ function AuthCallbackContent() {
     const handleCallback = async () => {
       const code = searchParams.get('code');
       const error = searchParams.get('error');
+      const state = searchParams.get('state');
 
       if (error) {
         setStatus('error');
@@ -32,8 +33,31 @@ function AuthCallbackContent() {
         return;
       }
 
+      const redirectUri = `${window.location.origin}/auth/callback`;
+
+      // Gmail reconnect flow: user was already logged in and clicked
+      // "Connect Gmail" in Settings. The authorize URL includes state=gmail_connect.
+      if (state === 'gmail_connect') {
+        try {
+          await gmailApi.saveCallback(code, redirectUri);
+          setStatus('success');
+          setMessage('Gmail connected successfully! Redirecting to settings…');
+          setTimeout(() => router.push('/settings'), 1500);
+        } catch (err: unknown) {
+          const detail =
+            err instanceof Error && 'response' in err
+              ? (err as { response?: { data?: { detail?: string } } }).response?.data
+                  ?.detail
+              : null;
+          setStatus('error');
+          setMessage(detail || 'Failed to connect Gmail. Please try again.');
+          setTimeout(() => router.push('/settings'), 3000);
+        }
+        return;
+      }
+
+      // Normal Google Sign-In flow
       try {
-        const redirectUri = `${window.location.origin}/auth/callback`;
         const response = await authApi.googleAuth(code, redirectUri);
         
         localStorage.setItem('access_token', response.access_token);

@@ -6,17 +6,31 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote as urlquote
 import logging
 
+from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import verify_password, get_password_hash
-from app.models.database_models import User, SubscriptionTier
+from app.core.security import verify_password, get_password_hash, encrypt_credential
+from app.models.database_models import User, SubscriptionTier, GmailCredential
 from app.models.schemas import Token, UserCreate, UserResponse, GoogleAuthRequest
 from app.services.auth_service import oauth_service
+from app.services.gmail_service import GmailService, GMAIL_SCOPES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# All scopes requested during Google Sign-In so users only go through one OAuth
+# consent screen for both login and Gmail API access.
+# GMAIL_SCOPES (gmail.insert, gmail.labels, gmail.readonly) are imported from
+# gmail_service so the scope list stays in sync with what GmailService uses.
+GOOGLE_LOGIN_SCOPES = [
+    "openid",
+    "email",
+    "profile",
+    *GMAIL_SCOPES,
+]
 
 
 @router.post(
@@ -154,6 +168,66 @@ async def google_oauth(
     await db.commit()
     await db.refresh(user)
 
+    # If Gmail tokens were returned (Gmail scopes were granted), store them so
+    # users don't need a separate "Connect Gmail" step after signing in.
+    google_access_token = user_info.get("access_token")
+    google_refresh_token = user_info.get("refresh_token")
+    if google_access_token:
+        try:
+            gmail_service = GmailService(
+                access_token=google_access_token,
+                refresh_token=google_refresh_token,
+                client_id=settings.GOOGLE_CLIENT_ID,
+                client_secret=settings.GOOGLE_CLIENT_SECRET,
+            )
+            is_valid = await gmail_service.verify_access()
+            if is_valid:
+                token_expiry = datetime.now(timezone.utc) + timedelta(
+                    seconds=int(user_info.get("expires_in", 3600))
+                )
+                encrypted_access = encrypt_credential(google_access_token)
+                encrypted_refresh = (
+                    encrypt_credential(google_refresh_token)
+                    if google_refresh_token
+                    else None
+                )
+                scope_list = user_info.get("scope", "").split()
+
+                cred_result = await db.execute(
+                    select(GmailCredential).where(GmailCredential.user_id == user.id)
+                )
+                existing_cred = cred_result.scalar_one_or_none()
+
+                if existing_cred:
+                    existing_cred.gmail_email = email  # type: ignore[assignment]
+                    existing_cred.encrypted_access_token = encrypted_access  # type: ignore[assignment]
+                    if encrypted_refresh:
+                        existing_cred.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
+                    existing_cred.token_expiry = token_expiry  # type: ignore[assignment]
+                    existing_cred.scopes = scope_list  # type: ignore[assignment]
+                    existing_cred.is_valid = True  # type: ignore[assignment]
+                    existing_cred.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                else:
+                    new_cred = GmailCredential(
+                        user_id=user.id,
+                        gmail_email=email,
+                        encrypted_access_token=encrypted_access,
+                        encrypted_refresh_token=encrypted_refresh,
+                        token_expiry=token_expiry,
+                        scopes=scope_list,
+                        is_valid=True,
+                        last_verified_at=datetime.now(timezone.utc),
+                    )
+                    db.add(new_cred)
+
+                await db.commit()
+                logger.info(f"Gmail credentials stored for user: {email}")
+        except Exception as e:
+            # Non-fatal: login succeeds even if Gmail credential storage fails
+            logger.warning(
+                f"Could not store Gmail credentials during Google login for {email}: {e}"
+            )
+
     # Create tokens
     tokens = oauth_service.create_tokens_for_user(user)
 
@@ -162,16 +236,17 @@ async def google_oauth(
 
 @router.get("/google/authorize-url")
 async def get_google_authorize_url(redirect_uri: str):
-    """Get Google OAuth2 authorization URL"""
-    from app.core.config import settings
-
+    """Get Google OAuth2 authorization URL requesting all necessary scopes."""
+    scope = urlquote(" ".join(GOOGLE_LOGIN_SCOPES))
     auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={settings.GOOGLE_CLIENT_ID}&"
-        f"response_type=code&"
-        f"scope=openid%20email%20profile&"
-        f"redirect_uri={redirect_uri}&"
-        f"access_type=offline"
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={settings.GOOGLE_CLIENT_ID}"
+        "&response_type=code"
+        f"&scope={scope}"
+        f"&redirect_uri={redirect_uri}"
+        "&access_type=offline"
+        "&prompt=consent"
+        "&include_granted_scopes=true"
     )
 
     return {"authorization_url": auth_url}

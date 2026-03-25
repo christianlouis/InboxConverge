@@ -182,6 +182,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Account enable/disable toggle (UX + backend)
 - [x] Per-user SMTP configuration (UX + backend)
 - [x] Gmail API one-click OAuth grant flow with token refresh and revocation handling
+- [x] Unified Google OAuth flow: sign-in requests all Gmail scopes; single `/auth/callback` redirect URI needed in Google Console
 - [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
 - [ ] Implement GDPR data export endpoint
 - [ ] Complete notification service integration (Apprise)

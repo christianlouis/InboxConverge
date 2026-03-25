@@ -175,7 +175,7 @@ function SettingsContent() {
 
   const handleConnectGmail = async () => {
     try {
-      const redirectUri = `${window.location.origin}/auth/gmail-callback`;
+      const redirectUri = `${window.location.origin}/auth/callback`;
       const url = await gmailApi.getAuthorizeUrl(redirectUri);
       window.location.href = url;
     } catch (error) {
