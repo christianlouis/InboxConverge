@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from urllib.parse import quote as urlquote
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -21,17 +22,18 @@ from app.models.schemas import (
     GmailAuthorizeResponse,
     GmailCallbackRequest,
 )
-from app.services.gmail_service import GmailService
+from app.services.gmail_service import GmailService, GMAIL_SCOPES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Gmail API scopes needed for email injection
+# Gmail API scopes requested during the "Connect Gmail" OAuth flow.
+# GMAIL_SCOPES (gmail.insert, gmail.labels, gmail.readonly) are imported from
+# gmail_service so the scope list stays in sync with what GmailService uses.
 GMAIL_API_SCOPES = [
     "openid",
     "email",
-    "https://www.googleapis.com/auth/gmail.insert",
-    "https://www.googleapis.com/auth/gmail.labels",
+    *GMAIL_SCOPES,
 ]
 
 # Provider presets with server configurations
@@ -302,7 +304,7 @@ async def get_gmail_authorize_url(
             detail="Google OAuth2 is not configured on this server.",
         )
 
-    scope = " ".join(GMAIL_API_SCOPES)
+    scope = urlquote(" ".join(GMAIL_API_SCOPES))
     url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={settings.GOOGLE_CLIENT_ID}"
@@ -311,6 +313,8 @@ async def get_gmail_authorize_url(
         f"&redirect_uri={redirect_uri}"
         "&access_type=offline"
         "&prompt=consent"
+        "&include_granted_scopes=true"
+        "&state=gmail_connect"
     )
     return GmailAuthorizeResponse(authorization_url=url)
 

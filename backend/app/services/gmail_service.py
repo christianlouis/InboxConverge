@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.insert",
     "https://www.googleapis.com/auth/gmail.labels",
+    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 
