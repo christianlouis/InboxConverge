@@ -95,6 +95,17 @@ export interface MailAccountCreate {
   delete_after_forward?: boolean;
 }
 
+export interface MailAccountUpdate {
+  name?: string;
+  password?: string;
+  forward_to?: string;
+  delivery_method?: string;
+  is_enabled?: boolean;
+  check_interval_minutes?: number;
+  max_emails_per_check?: number;
+  delete_after_forward?: boolean;
+}
+
 export interface ProcessingRun {
   id: number;
   mail_account_id: number;
@@ -220,7 +231,7 @@ export const mailAccountsApi = {
 
   async update(
     id: number,
-    data: Partial<MailAccountCreate>
+    data: MailAccountUpdate
   ): Promise<MailAccount> {
     const response = await api.put<MailAccount>(`/mail-accounts/${id}`, data);
     return response.data;

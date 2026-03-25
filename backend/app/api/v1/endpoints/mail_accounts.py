@@ -146,9 +146,9 @@ async def update_mail_account(
     update_data = account_update.model_dump(exclude_unset=True)
 
     if "password" in update_data:
-        update_data["encrypted_password"] = encrypt_credential(
-            update_data.pop("password")
-        )
+        password = update_data.pop("password")
+        if password:  # Only update when a non-empty password is provided
+            update_data["encrypted_password"] = encrypt_credential(password)
 
     for field, value in update_data.items():
         setattr(account, field, value)

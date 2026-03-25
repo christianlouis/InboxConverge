@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { mailAccountsApi, MailAccount, MailAccountCreate } from '@/lib/api';
+import { mailAccountsApi, MailAccount, MailAccountCreate, MailAccountUpdate } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { X, Loader2, CheckCircle, XCircle, Lock } from 'lucide-react';
 import { ProviderWizard } from './ProviderWizard';
 
 interface AddMailAccountModalProps {
@@ -17,10 +17,11 @@ type WizardStep = 'provider' | 'form';
 export function AddMailAccountModal({ account, onClose }: AddMailAccountModalProps) {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const isEditMode = !!account;
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const [autoDetecting, setAutoDetecting] = useState(false);
-  const [wizardStep, setWizardStep] = useState<WizardStep>(account ? 'form' : 'provider');
+  const [wizardStep, setWizardStep] = useState<WizardStep>(isEditMode ? 'form' : 'provider');
 
   const [formData, setFormData] = useState<MailAccountCreate>({
     name: account?.name || '',
@@ -28,7 +29,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     protocol: account?.protocol || 'pop3_ssl',
     host: account?.host || '',
     port: account?.port || 995,
-    username: '',
+    username: account?.email_address || '',
     password: '',
     use_ssl: account?.use_ssl ?? true,
     use_tls: account?.use_tls ?? false,
@@ -40,13 +41,19 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     delete_after_forward: account?.delete_after_forward ?? true,
   });
 
+  const onMutationSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
+    onClose();
+  };
+
   const createMutation = useMutation({
-    mutationFn: (data: MailAccountCreate) =>
-      account ? mailAccountsApi.update(account.id, data) : mailAccountsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
-      onClose();
-    },
+    mutationFn: (data: MailAccountCreate) => mailAccountsApi.create(data),
+    onSuccess: onMutationSuccess,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: MailAccountUpdate) => mailAccountsApi.update(account!.id, data),
+    onSuccess: onMutationSuccess,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -138,7 +145,26 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createMutation.mutateAsync(formData);
+      if (isEditMode) {
+        // For updates only send the fields the backend allows changing.
+        // Never send an empty password – the backend treats a non-empty value
+        // as an intentional credential change.
+        const updateData: MailAccountUpdate = {
+          name: formData.name,
+          forward_to: formData.forward_to,
+          delivery_method: formData.delivery_method,
+          is_enabled: formData.is_enabled,
+          check_interval_minutes: formData.check_interval_minutes,
+          max_emails_per_check: formData.max_emails_per_check,
+          delete_after_forward: formData.delete_after_forward,
+        };
+        if (formData.password) {
+          updateData.password = formData.password;
+        }
+        await updateMutation.mutateAsync(updateData);
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error && 'response' in error
         ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
@@ -157,7 +183,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
             <div className="bg-white px-6 pt-6 pb-4">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {account ? 'Edit Mail Account' : 'Add Mail Account'}
+                  {isEditMode ? 'Edit Mail Account' : 'Add Mail Account'}
                 </h3>
                 <button
                   type="button"
@@ -168,14 +194,14 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                 </button>
               </div>
 
-              {wizardStep === 'provider' && !account ? (
+              {wizardStep === 'provider' && !isEditMode ? (
                 <ProviderWizard
                   onSelect={handleProviderSelect}
                   onManual={() => setWizardStep('form')}
                 />
               ) : (
                 <div className="space-y-4">
-                  {!account && (
+                  {!isEditMode && (
                     <button
                       type="button"
                       onClick={() => setWizardStep('provider')}
@@ -210,19 +236,28 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         name="username"
                         value={formData.username}
                         onChange={handleChange}
-                        required
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required={!isEditMode}
+                        disabled={isEditMode}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                         placeholder="user@example.com"
                       />
-                      <button
-                        type="button"
-                        onClick={handleAutoDetect}
-                        disabled={autoDetecting}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
-                      >
-                        {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
-                      </button>
+                      {!isEditMode && (
+                        <button
+                          type="button"
+                          onClick={handleAutoDetect}
+                          disabled={autoDetecting}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                        >
+                          {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+                        </button>
+                      )}
                     </div>
+                    {isEditMode && (
+                      <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Username and server settings cannot be changed after creation.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -234,9 +269,9 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
-                      required={!account}
+                      required={!isEditMode}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={account ? 'Leave blank to keep current password' : 'Password'}
+                      placeholder={isEditMode ? 'Leave blank to keep current password' : 'Password'}
                     />
                   </div>
 
@@ -249,7 +284,8 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         name="protocol"
                         value={formData.protocol}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isEditMode}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                       >
                         <option value="pop3">POP3</option>
                         <option value="pop3_ssl">POP3 (SSL)</option>
@@ -267,8 +303,9 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         name="host"
                         value={formData.host}
                         onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required={!isEditMode}
+                        disabled={isEditMode}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                         placeholder="pop.gmail.com"
                       />
                     </div>
@@ -282,8 +319,9 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         name="port"
                         value={formData.port}
                         onChange={handleChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required={!isEditMode}
+                        disabled={isEditMode}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -296,9 +334,10 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         id="use_ssl"
                         checked={formData.use_ssl}
                         onChange={handleChange}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={isEditMode}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
                       />
-                      <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
+                      <label htmlFor="use_ssl" className={`ml-2 block text-sm ${isEditMode ? 'text-gray-400' : 'text-gray-700'}`}>
                         Use SSL/TLS
                       </label>
                     </div>
@@ -446,10 +485,10 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                   </button>
                   <button
                     type="submit"
-                    disabled={createMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {createMutation.isPending ? 'Saving...' : 'Save'}
+                    {(createMutation.isPending || updateMutation.isPending) ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
