@@ -11,6 +11,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Implement CSRF protection middleware
 - [x] Document all error codes in docs/ERRORS.md
 - [x] Create security ADR (Architecture Decision Records)
+- [x] Upgrade `python-jose` 3.3.0 → 3.5.0 (algorithm confusion with OpenSSH ECDSA keys, CVE, affected < 3.4.0)
 
 ### In Progress 🔨
 - [ ] Enable rate limiting per user/tier
