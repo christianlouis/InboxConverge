@@ -77,7 +77,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 bg-gray-600/75" onClick={() => setSidebarOpen(false)} />
           <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
             <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
               <h1 className="text-xl font-bold text-gray-900">POP3 Forwarder</h1>

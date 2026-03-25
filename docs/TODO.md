@@ -209,9 +209,10 @@ because the API client layer is missing.
 - [x] Dashboard with stats cards and processing runs table
 - [x] Mail accounts list with CRUD operations
 - [x] Settings page
-- [x] `AddMailAccountModal` component (auto-detect, test connection)
+- [x] `AddMailAccountModal` component (auto-detect, test connection, all required fields)
 - [x] `DashboardLayout` with responsive sidebar
 - [x] `AuthGuard` for protected routes
+- [x] Fix wizard grey screen (Tailwind v4 `bg-opacity` → `/75` syntax, modal restructure)
 
 ### Not Started 📋
 - [ ] End-to-end testing of frontend against backend API
@@ -307,7 +308,7 @@ because the API client layer is missing.
 | Production Ready | 30% | 🔴 Needs Work |
 | Observability | 10% | 🔴 Needs Work |
 | Backend Features | 85% | 🟢 Near Complete |
-| Frontend | 50% | 🟡 In Progress |
+| Frontend | 65% | 🟢 Near Complete |
 
 **Overall Repository Readiness**: 55% ⚠️
 

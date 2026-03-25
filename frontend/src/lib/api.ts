@@ -79,7 +79,7 @@ export interface MailAccount {
 
 export interface MailAccountCreate {
   name: string;
-  email_address?: string;
+  email_address: string;
   protocol: string;
   host: string;
   port: number;
@@ -87,7 +87,7 @@ export interface MailAccountCreate {
   use_tls?: boolean;
   username: string;
   password: string;
-  forward_to?: string;
+  forward_to: string;
   delivery_method?: string;
   is_enabled?: boolean;
   check_interval_minutes?: number;
@@ -174,6 +174,11 @@ export const authApi = {
 export const userApi = {
   async getCurrentUser(): Promise<User> {
     const response = await api.get<User>("/users/me");
+    return response.data;
+  },
+
+  async updateProfile(data: { full_name?: string; email?: string }): Promise<User> {
+    const response = await api.put<User>("/users/me", data);
     return response.data;
   },
 };
