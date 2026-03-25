@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `sqlalchemy` from `2.0.25` to `2.0.48` to fix `AssertionError: Class ... directly inherits TypingOnly but has additional attributes` on Python 3.14 (`__static_attributes__`, `__firstlineno__`)
 
 ### Added
+- **Architecture Decision Records ADR-003 through ADR-010**: Added eight new ADRs covering FastAPI web framework (ADR-003), PostgreSQL database (ADR-004), Celery task retry strategy (ADR-005), key management in production (ADR-006), JWT authentication (ADR-007), Next.js frontend (ADR-008), Gmail API email delivery (ADR-009), and hybrid configuration model (ADR-010)
+- `userApi.updateProfile()` method in `frontend/src/lib/api.ts` for updating user profile via `PUT /users/me`
 - **Account enable/disable toggle**: `PATCH /mail-accounts/{id}/toggle` backend endpoint and a Power-icon toggle button on each account card in the UI. Disabled accounts are visually dimmed. Re-enabling an account that was in ERROR state resets its status to ACTIVE so the scheduler picks it up again.
 - **`is_enabled` checkbox in edit modal**: The Add/Edit mail account form now includes an "Enabled" checkbox so the flag can be set when creating or editing an account.
 - **Message deduplication tracking** (`DownloadedMessageId` table): Both POP3 and IMAP fetch paths now track downloaded message UIDs so the same message is never delivered twice, even when `delete_after_forward=False`.
