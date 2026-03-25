@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -34,16 +34,6 @@ function SettingsContent() {
     queryFn: userApi.getCurrentUser,
     initialData: user ?? undefined,
   });
-
-  // Sync form when server data arrives
-  useEffect(() => {
-    if (currentUser) {
-      setProfileForm({
-        full_name: currentUser.full_name || '',
-        email: currentUser.email || '',
-      });
-    }
-  }, [currentUser]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: { full_name: string; email: string }) =>

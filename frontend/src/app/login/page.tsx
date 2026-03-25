@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
 
 export default function LoginPage() {
   const router = useRouter();
-  const _setUser = useAuthStore((state) => state.setUser);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -38,7 +36,7 @@ export default function LoginPage() {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const authUrl = await authApi.getGoogleAuthUrl(redirectUri);
       window.location.href = authUrl;
-    } catch (_err: unknown) {
+    } catch {
       setError('Failed to initialize Google login');
     }
   };
