@@ -9,6 +9,10 @@ This is preferred over SMTP forwarding as it doesn't modify the email.
 import asyncio
 import base64
 import logging
+import textwrap
+from datetime import datetime, timezone
+from email.mime.text import MIMEText
+from email.utils import format_datetime
 from typing import Optional, Dict, Any
 
 from google.oauth2.credentials import Credentials
@@ -183,6 +187,119 @@ class GmailService:
         except Exception as e:
             logger.error(f"Failed to get Gmail email address: {e}")
             return None
+
+    async def get_or_create_label(self, name: str) -> str:
+        """
+        Return the Gmail label ID for a label with the given name.
+
+        Lists the user's existing labels and returns the ID of the first
+        match (case-insensitive).  If no matching label is found, a new
+        label is created and its ID is returned.
+
+        Args:
+            name: Human-readable label name (e.g. "test", "imported").
+
+        Returns:
+            Gmail label ID string (e.g. "Label_1234567890").
+
+        Raises:
+            GmailInjectionError: If the Gmail API call fails.
+        """
+        loop = asyncio.get_event_loop()
+
+        try:
+            labels_resp = await loop.run_in_executor(
+                None,
+                lambda: self.service.users().labels().list(userId="me").execute(),
+            )
+            for label in labels_resp.get("labels", []):
+                if label.get("name", "").lower() == name.lower():
+                    return label["id"]
+
+            # Label not found – create it
+            created = await loop.run_in_executor(
+                None,
+                lambda: self.service.users()
+                .labels()
+                .create(userId="me", body={"name": name})
+                .execute(),
+            )
+            logger.info(f"Created Gmail label '{name}' with id={created['id']}")
+            return created["id"]
+
+        except HttpError as e:
+            error_msg = f"Gmail API error while managing label '{name}': {e.reason if hasattr(e, 'reason') else str(e)}"
+            logger.error(error_msg)
+            raise GmailInjectionError(error_msg)
+        except Exception as e:
+            error_msg = f"Failed to get/create Gmail label '{name}': {str(e)}"
+            logger.error(error_msg)
+            raise GmailInjectionError(error_msg)
+
+    async def inject_debug_email(
+        self,
+        recipient_email: str,
+    ) -> Dict[str, Any]:
+        """
+        Inject a debug/test email into the user's Gmail inbox.
+
+        The message is made to appear as if it was sent by
+        christian@docuelevate.org on the current date.  It is placed in
+        the inbox and tagged with the custom labels "test" and "imported"
+        so it is easy to identify and clean up.
+
+        Args:
+            recipient_email: The Gmail address to deliver the message to
+                (the authenticated user's address).
+
+        Returns:
+            Dict with message_id, thread_id, and label_ids.
+
+        Raises:
+            GmailInjectionError: If injection or label management fails.
+        """
+        now = datetime.now(timezone.utc)
+        date_str = now.strftime("%d %B %Y")  # e.g. "25 March 2026"
+
+        subject = f"Test Import – {date_str}"
+
+        body = textwrap.dedent(f"""\
+            Hi there,
+
+            This is an automated test message injected via the Gmail API to
+            confirm that the import pipeline is working correctly.
+
+            Date:   {date_str}
+            Source: DocuElevate Integration Test
+
+            If you can see this message in your inbox it means that Gmail API
+            delivery is functioning as expected.  Feel free to delete it.
+
+            Best regards,
+            Christian Loris
+            DocuElevate
+            """)
+
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["From"] = "Christian Loris <christian@docuelevate.org>"
+        msg["To"] = recipient_email
+        msg["Subject"] = subject
+        msg["Date"] = format_datetime(now)
+        msg["Message-ID"] = f"<debug-{now.strftime('%Y%m%d%H%M%S')}@docuelevate.org>"
+
+        raw_bytes = msg.as_bytes()
+
+        # Resolve label IDs (create labels if they don't exist yet)
+        test_label_id = await self.get_or_create_label("test")
+        imported_label_id = await self.get_or_create_label("imported")
+
+        label_ids = ["INBOX", test_label_id, imported_label_id]
+
+        return await self.inject_email(
+            raw_email=raw_bytes,
+            label_ids=label_ids,
+            source_account_name="debug",
+        )
 
     def get_refreshed_token(self) -> Optional[Dict[str, Any]]:
         """

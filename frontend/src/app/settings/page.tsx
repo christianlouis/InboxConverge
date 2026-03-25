@@ -15,6 +15,7 @@ import {
   Server,
   AlertTriangle,
   XCircle,
+  Bug,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -101,6 +102,19 @@ function SettingsContent() {
     mutationFn: gmailApi.disconnect,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gmail-credential'] });
+    },
+  });
+
+  const [debugEmailResult, setDebugEmailResult] = useState<string | null>(null);
+  const sendDebugEmailMutation = useMutation({
+    mutationFn: gmailApi.sendDebugEmail,
+    onSuccess: () => {
+      setDebugEmailResult('success');
+      setTimeout(() => setDebugEmailResult(null), 5000);
+    },
+    onError: () => {
+      setDebugEmailResult('error');
+      setTimeout(() => setDebugEmailResult(null), 5000);
     },
   });
 
@@ -302,35 +316,61 @@ function SettingsContent() {
           )}
 
           {!gmailLoading && gmailConnected && (
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Connected as <span className="font-semibold">{gmailCredential.gmail_email}</span>
-                  </p>
-                  {gmailCredential.last_verified_at && (
-                    <p className="text-xs text-gray-500">
-                      Last verified: {new Date(gmailCredential.last_verified_at).toLocaleString()}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      Connected as <span className="font-semibold">{gmailCredential.gmail_email}</span>
                     </p>
-                  )}
+                    {gmailCredential.last_verified_at && (
+                      <p className="text-xs text-gray-500">
+                        Last verified: {new Date(gmailCredential.last_verified_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => sendDebugEmailMutation.mutate()}
+                    disabled={sendDebugEmailMutation.isPending}
+                    title="Inject a test email into your Gmail inbox"
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 transition-colors disabled:opacity-50"
+                  >
+                    {sendDebugEmailMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Sending…</>
+                    ) : (
+                      <><Bug className="h-4 w-4" />Send Debug Email</>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleConnectGmail}
+                    className="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                  >
+                    Re-authorise
+                  </button>
+                  <button
+                    onClick={handleDisconnectGmail}
+                    disabled={disconnectGmailMutation.isPending}
+                    className="px-4 py-2 text-sm bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
+                  >
+                    Disconnect
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleConnectGmail}
-                  className="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                >
-                  Re-authorise
-                </button>
-                <button
-                  onClick={handleDisconnectGmail}
-                  disabled={disconnectGmailMutation.isPending}
-                  className="px-4 py-2 text-sm bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors disabled:opacity-50"
-                >
-                  Disconnect
-                </button>
-              </div>
+              {debugEmailResult === 'success' && (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  Debug email injected successfully. Check your Gmail inbox — it should be labelled <strong className="mx-1">test</strong> and <strong className="mx-1">imported</strong>.
+                </div>
+              )}
+              {debugEmailResult === 'error' && (
+                <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  Failed to inject debug email. Check that Gmail API access is still valid.
+                </div>
+              )}
             </div>
           )}
 
