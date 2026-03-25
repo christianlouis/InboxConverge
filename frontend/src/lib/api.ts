@@ -116,6 +116,28 @@ export interface AutoDetectSuggestion {
   [key: string]: unknown;
 }
 
+export interface GmailCredential {
+  id: number;
+  user_id: number;
+  gmail_email: string;
+  is_valid: boolean;
+  last_verified_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSmtpConfig {
+  id: number;
+  user_id: number;
+  host: string;
+  port: number;
+  username: string;
+  use_tls: boolean;
+  has_password: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 interface TokenResponse {
   access_token: string;
   refresh_token: string;
@@ -204,6 +226,11 @@ export const mailAccountsApi = {
     return response.data;
   },
 
+  async toggle(id: number): Promise<MailAccount> {
+    const response = await api.patch<MailAccount>(`/mail-accounts/${id}/toggle`);
+    return response.data;
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete(`/mail-accounts/${id}`);
   },
@@ -242,6 +269,63 @@ export const processingRunsApi = {
     // TODO: Add a dedicated /processing-runs endpoint to the backend
     // For now, return empty array since no user-facing endpoint exists yet
     return [];
+  },
+};
+
+// ── Gmail API ───────────────────────────────────────────────────────────
+
+export const gmailApi = {
+  /** Returns the Google OAuth2 URL the user should be redirected to. */
+  async getAuthorizeUrl(redirectUri: string): Promise<string> {
+    const response = await api.get<{ authorization_url: string }>(
+      '/providers/gmail/authorize-url',
+      { params: { redirect_uri: redirectUri } }
+    );
+    return response.data.authorization_url;
+  },
+
+  /** Exchange an OAuth2 code for Gmail tokens and persist them. */
+  async saveCallback(code: string, redirectUri: string): Promise<GmailCredential> {
+    const response = await api.post<GmailCredential>('/providers/gmail/callback', {
+      code,
+      redirect_uri: redirectUri,
+    });
+    return response.data;
+  },
+
+  /** Get the current user's stored Gmail credential status. */
+  async getCredential(): Promise<GmailCredential> {
+    const response = await api.get<GmailCredential>('/providers/gmail-credential');
+    return response.data;
+  },
+
+  /** Remove stored Gmail credentials. */
+  async disconnect(): Promise<void> {
+    await api.delete('/providers/gmail-credential');
+  },
+};
+
+// ── SMTP Config API ─────────────────────────────────────────────────────
+
+export const smtpApi = {
+  async get(): Promise<UserSmtpConfig> {
+    const response = await api.get<UserSmtpConfig>('/users/smtp-config');
+    return response.data;
+  },
+
+  async save(data: {
+    host: string;
+    port: number;
+    username: string;
+    password?: string;
+    use_tls: boolean;
+  }): Promise<UserSmtpConfig> {
+    const response = await api.put<UserSmtpConfig>('/users/smtp-config', data);
+    return response.data;
+  },
+
+  async remove(): Promise<void> {
+    await api.delete('/users/smtp-config');
   },
 };
 

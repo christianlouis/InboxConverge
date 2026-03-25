@@ -339,3 +339,35 @@ class ProviderPreset(BaseModel):
 
 class ProviderListResponse(BaseModel):
     providers: List[ProviderPreset]
+
+
+# User SMTP Config Schemas
+class UserSmtpConfigBase(BaseModel):
+    host: str = "smtp.gmail.com"
+    port: int = Field(587, gt=0, lt=65536)
+    username: str = ""
+    use_tls: bool = True
+
+
+class UserSmtpConfigUpdate(UserSmtpConfigBase):
+    password: Optional[str] = None  # Only provided when changing the password
+
+
+class UserSmtpConfigResponse(UserSmtpConfigBase):
+    id: int
+    user_id: int
+    has_password: bool  # True if a password is stored (value is never returned)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Gmail OAuth Schemas
+class GmailAuthorizeResponse(BaseModel):
+    authorization_url: str
+
+
+class GmailCallbackRequest(BaseModel):
+    code: str
+    redirect_uri: str

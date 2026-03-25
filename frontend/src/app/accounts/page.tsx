@@ -4,7 +4,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount } from '@/lib/api';
-import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Power } from 'lucide-react';
 import { useState } from 'react';
 import { AddMailAccountModal } from '@/components/AddMailAccountModal';
 
@@ -25,6 +25,13 @@ export default function AccountsPage() {
     },
   });
 
+  const toggleMutation = useMutation({
+    mutationFn: mailAccountsApi.toggle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
+    },
+  });
+
   const handleEdit = (account: MailAccount) => {
     setEditingAccount(account);
     setIsModalOpen(true);
@@ -37,6 +44,14 @@ export default function AccountsPage() {
       } catch {
         alert('Failed to delete account');
       }
+    }
+  };
+
+  const handleToggle = async (id: number) => {
+    try {
+      await toggleMutation.mutateAsync(id);
+    } catch {
+      alert('Failed to update account');
     }
   };
 
@@ -69,7 +84,9 @@ export default function AccountsPage() {
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden"
+                  className={`bg-white rounded-lg shadow-md border overflow-hidden transition-opacity ${
+                    account.is_enabled ? 'border-gray-200' : 'border-gray-200 opacity-60'
+                  }`}
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -81,9 +98,15 @@ export default function AccountsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {account.is_enabled ? (
-                          <CheckCircle className="h-5 w-5 text-green-500" aria-label="Enabled" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <CheckCircle className="h-3 w-3" />
+                            Enabled
+                          </span>
                         ) : (
-                          <XCircle className="h-5 w-5 text-gray-400" aria-label="Disabled" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                            <XCircle className="h-3 w-3" />
+                            Disabled
+                          </span>
                         )}
                       </div>
                     </div>
@@ -129,6 +152,18 @@ export default function AccountsPage() {
                     )}
 
                     <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => handleToggle(account.id)}
+                        disabled={toggleMutation.isPending}
+                        title={account.is_enabled ? 'Disable account' : 'Enable account'}
+                        className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 ${
+                          account.is_enabled
+                            ? 'text-yellow-600 bg-yellow-50 hover:bg-yellow-100'
+                            : 'text-green-600 bg-green-50 hover:bg-green-100'
+                        }`}
+                      >
+                        <Power className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => handleEdit(account)}
                         className="flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"

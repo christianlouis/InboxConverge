@@ -179,6 +179,10 @@ Comprehensive task breakdown for repository improvements and production readines
 ### Not Started 📋
 - [ ] Implement Stripe webhook handling
 - [ ] Add scheduled Celery tasks for email processing
+- [x] Account enable/disable toggle (UX + backend)
+- [x] Per-user SMTP configuration (UX + backend)
+- [x] Gmail API one-click OAuth grant flow with token refresh and revocation handling
+- [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
 - [ ] Implement GDPR data export endpoint
 - [ ] Complete notification service integration (Apprise)
 - [ ] Add advanced email filtering
@@ -207,12 +211,13 @@ because the API client layer is missing.
 - [x] Registration page
 - [x] OAuth callback handler
 - [x] Dashboard with stats cards and processing runs table
-- [x] Mail accounts list with CRUD operations
-- [x] Settings page
-- [x] `AddMailAccountModal` component (auto-detect, test connection, all required fields)
+- [x] Mail accounts list with CRUD operations + enable/disable toggle
+- [x] Settings page — Profile, Gmail API connection, SMTP relay, Account info, Security
+- [x] `AddMailAccountModal` component (auto-detect, test connection, all required fields, is_enabled checkbox)
 - [x] `DashboardLayout` with responsive sidebar
 - [x] `AuthGuard` for protected routes
 - [x] Fix wizard grey screen (Tailwind v4 `bg-opacity` → `/75` syntax, modal restructure)
+- [x] `/auth/gmail-callback` page for Gmail OAuth one-click flow
 
 ### Not Started 📋
 - [ ] End-to-end testing of frontend against backend API
