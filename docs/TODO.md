@@ -16,6 +16,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [ ] Enable rate limiting per user/tier
 - [x] Fix bare exception handlers throughout codebase
 - [x] Update datetime usage to timezone-aware (`DateTime(timezone=True)` columns and `lambda: datetime.now(timezone.utc)` defaults; fixes `DBAPIError` from asyncpg on timezone-naive columns)
+- [x] Fix `Exception terminating connection` in Celery workers: call `await engine.dispose()` inside task coroutine so pooled asyncpg connections are closed before the event loop is torn down
 - [ ] Validate redirect_uri to prevent open redirect vulnerabilities
 - [ ] Add per-user random salt for encryption (currently deterministic)
 
