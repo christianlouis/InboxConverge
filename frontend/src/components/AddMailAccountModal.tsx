@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount, MailAccountCreate } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ProviderWizard } from './ProviderWizard';
 
@@ -15,6 +16,7 @@ type WizardStep = 'provider' | 'form';
 
 export function AddMailAccountModal({ account, onClose }: AddMailAccountModalProps) {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const [autoDetecting, setAutoDetecting] = useState(false);
@@ -22,14 +24,20 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
 
   const [formData, setFormData] = useState<MailAccountCreate>({
     name: account?.name || '',
-    protocol: account?.protocol || 'pop3',
+    email_address: account?.email_address || '',
+    protocol: account?.protocol || 'pop3_ssl',
     host: account?.host || '',
     port: account?.port || 995,
     username: '',
     password: '',
     use_ssl: account?.use_ssl ?? true,
+    use_tls: account?.use_tls ?? false,
+    forward_to: account?.forward_to || user?.email || '',
+    delivery_method: account?.delivery_method || 'gmail_api',
+    is_enabled: account?.is_enabled ?? true,
     check_interval_minutes: account?.check_interval_minutes || 5,
-    max_emails_per_check: account?.max_emails_per_check || 100,
+    max_emails_per_check: account?.max_emails_per_check || 50,
+    delete_after_forward: account?.delete_after_forward ?? true,
   });
 
   const createMutation = useMutation({
@@ -43,11 +51,21 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
-              type === 'number' ? Number(value) : value,
-    }));
+    const newValue =
+      type === 'checkbox'
+        ? (e.target as HTMLInputElement).checked
+        : type === 'number'
+        ? Number(value)
+        : value;
+
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: newValue };
+      // Keep email_address in sync with username unless explicitly changed
+      if (name === 'username') {
+        updated.email_address = value;
+      }
+      return updated;
+    });
   };
 
   const handleProviderSelect = (config: { name: string; protocol: string; host: string; port: number; use_ssl: boolean }) => {
@@ -110,8 +128,8 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
       setTestMessage('Connection successful!');
     } catch (error) {
       setTestStatus('error');
-      const errorMessage = error instanceof Error && 'response' in error 
-        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail 
+      const errorMessage = error instanceof Error && 'response' in error
+        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
         : null;
       setTestMessage(errorMessage || 'Connection failed');
     }
@@ -122,8 +140,8 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     try {
       await createMutation.mutateAsync(formData);
     } catch (error) {
-      const errorMessage = error instanceof Error && 'response' in error 
-        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail 
+      const errorMessage = error instanceof Error && 'response' in error
+        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
         : null;
       alert(errorMessage || 'Failed to save account');
     }
@@ -131,10 +149,10 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
+      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="fixed inset-0 bg-gray-500/75 transition-opacity" onClick={onClose} />
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+        <div className="relative z-10 bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all w-full sm:my-8 sm:max-w-2xl">
           <form onSubmit={handleSubmit}>
             <div className="bg-white px-6 pt-6 pb-4">
               <div className="flex items-center justify-between mb-6">
@@ -270,21 +288,69 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                     </div>
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="use_ssl"
-                      id="use_ssl"
-                      checked={formData.use_ssl}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
-                      Use SSL/TLS
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="use_ssl"
+                        id="use_ssl"
+                        checked={formData.use_ssl}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
+                        Use SSL/TLS
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="delete_after_forward"
+                        id="delete_after_forward"
+                        checked={formData.delete_after_forward}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="delete_after_forward" className="ml-2 block text-sm text-gray-700">
+                        Delete after forwarding
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Forward To (destination email)
                     </label>
+                    <input
+                      type="email"
+                      name="forward_to"
+                      value={formData.forward_to}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="you@gmail.com"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Fetched emails will be delivered to this address.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Delivery Method
+                      </label>
+                      <select
+                        name="delivery_method"
+                        value={formData.delivery_method}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="gmail_api">Gmail API (recommended)</option>
+                        <option value="smtp">SMTP</option>
+                      </select>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Check Interval (minutes)
@@ -296,31 +362,25 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         onChange={handleChange}
                         required
                         min="1"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Max Emails Per Check
-                      </label>
-                      <input
-                        type="number"
-                        name="max_emails_per_check"
-                        value={formData.max_emails_per_check}
-                        onChange={handleChange}
-                        min="1"
+                        max="1440"
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <p className="text-sm text-blue-800">
-                      <strong>Delivery:</strong> Emails will be delivered to your Gmail account.
-                      Configure your Gmail API credentials in Settings for direct injection (recommended),
-                      or they will be forwarded via SMTP.
-                    </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Emails Per Check
+                    </label>
+                    <input
+                      type="number"
+                      name="max_emails_per_check"
+                      value={formData.max_emails_per_check}
+                      onChange={handleChange}
+                      min="1"
+                      max="1000"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
 
                   {testStatus !== 'idle' && (
