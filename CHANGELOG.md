@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `sqlalchemy` from `2.0.25` to `2.0.48` to fix `AssertionError: Class ... directly inherits TypingOnly but has additional attributes` on Python 3.14 (`__static_attributes__`, `__firstlineno__`)
 
 ### Added
+- **Architecture Decision Records ADR-003 through ADR-010**: Added eight new ADRs covering FastAPI web framework (ADR-003), PostgreSQL database (ADR-004), Celery task retry strategy (ADR-005), key management in production (ADR-006), JWT authentication (ADR-007), Next.js frontend (ADR-008), Gmail API email delivery (ADR-009), and hybrid configuration model (ADR-010)
 - `userApi.updateProfile()` method in `frontend/src/lib/api.ts` for updating user profile via `PUT /users/me`
 - **Backend URL logged at startup**: The Next.js server now logs the resolved `BACKEND_URL` (e.g. `[proxy] BACKEND_URL = http://backend:8000`) via `src/instrumentation.ts` when the server starts, making it easy to diagnose `ECONNREFUSED` proxy errors. The per-request error log now also includes the full target URL.
 - **Dual-registry Docker deployment**: CI now builds separate backend and frontend images and pushes to both GHCR (`ghcr.io`) and private registry (`registry.cklnet.com`) using a matrix strategy
