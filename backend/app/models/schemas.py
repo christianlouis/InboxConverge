@@ -120,6 +120,13 @@ class MailAccountCreate(MailAccountBase):
 
 class MailAccountUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
+    email_address: Optional[EmailStr] = None
+    protocol: Optional[MailProtocol] = None
+    host: Optional[str] = Field(None, max_length=255)
+    port: Optional[int] = Field(None, gt=0, lt=65536)
+    use_ssl: Optional[bool] = None
+    use_tls: Optional[bool] = None
+    username: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = None
     forward_to: Optional[EmailStr] = None
     delivery_method: Optional[DeliveryMethod] = None
@@ -145,9 +152,8 @@ class MailAccountResponse(MailAccountBase):
     created_at: datetime
     updated_at: datetime
 
-    # Don't expose password or username in responses
+    # Don't expose password in responses; username is safe to return
     password: str = Field(exclude=True, default="")
-    username: str = Field(exclude=True, default="")
 
     model_config = ConfigDict(from_attributes=True)
 

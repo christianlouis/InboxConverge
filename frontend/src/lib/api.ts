@@ -58,6 +58,7 @@ export interface MailAccount {
   port: number;
   use_ssl: boolean;
   use_tls: boolean;
+  username: string;
   forward_to: string;
   delivery_method: string;
   is_enabled: boolean;
@@ -97,6 +98,13 @@ export interface MailAccountCreate {
 
 export interface MailAccountUpdate {
   name?: string;
+  email_address?: string;
+  protocol?: string;
+  host?: string;
+  port?: number;
+  use_ssl?: boolean;
+  use_tls?: boolean;
+  username?: string;
   password?: string;
   forward_to?: string;
   delivery_method?: string;

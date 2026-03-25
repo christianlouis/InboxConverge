@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount, MailAccountCreate, MailAccountUpdate } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import { X, Loader2, CheckCircle, XCircle, Lock } from 'lucide-react';
+import { X, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { ProviderWizard } from './ProviderWizard';
 
 interface AddMailAccountModalProps {
@@ -29,7 +29,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     protocol: account?.protocol || 'pop3_ssl',
     host: account?.host || '',
     port: account?.port || 995,
-    username: account?.email_address || '',
+    username: account?.username || '',
     password: '',
     use_ssl: account?.use_ssl ?? true,
     use_tls: account?.use_tls ?? false,
@@ -146,11 +146,18 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     e.preventDefault();
     try {
       if (isEditMode) {
-        // For updates only send the fields the backend allows changing.
-        // Never send an empty password – the backend treats a non-empty value
-        // as an intentional credential change.
+        // Send all fields so the user can change any aspect of the account.
+        // Password is the only exception: omit it when blank so the stored
+        // credential is preserved.
         const updateData: MailAccountUpdate = {
           name: formData.name,
+          email_address: formData.email_address,
+          protocol: formData.protocol,
+          host: formData.host,
+          port: formData.port,
+          use_ssl: formData.use_ssl,
+          use_tls: formData.use_tls,
+          username: formData.username,
           forward_to: formData.forward_to,
           delivery_method: formData.delivery_method,
           is_enabled: formData.is_enabled,
@@ -237,27 +244,19 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         value={formData.username}
                         onChange={handleChange}
                         required={!isEditMode}
-                        disabled={isEditMode}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="user@example.com"
                       />
-                      {!isEditMode && (
-                        <button
-                          type="button"
-                          onClick={handleAutoDetect}
-                          disabled={autoDetecting}
-                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
-                        >
-                          {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={handleAutoDetect}
+                        disabled={autoDetecting}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+                      </button>
                     </div>
-                    {isEditMode && (
-                      <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
-                        <Lock className="h-3 w-3" />
-                        Username and server settings cannot be changed after creation.
-                      </p>
-                    )}
+
                   </div>
 
                   <div>
@@ -284,8 +283,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         name="protocol"
                         value={formData.protocol}
                         onChange={handleChange}
-                        disabled={isEditMode}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="pop3">POP3</option>
                         <option value="pop3_ssl">POP3 (SSL)</option>
@@ -304,8 +302,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         value={formData.host}
                         onChange={handleChange}
                         required={!isEditMode}
-                        disabled={isEditMode}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="pop.gmail.com"
                       />
                     </div>
@@ -320,8 +317,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         value={formData.port}
                         onChange={handleChange}
                         required={!isEditMode}
-                        disabled={isEditMode}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -334,10 +330,9 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         id="use_ssl"
                         checked={formData.use_ssl}
                         onChange={handleChange}
-                        disabled={isEditMode}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:cursor-not-allowed"
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
-                      <label htmlFor="use_ssl" className={`ml-2 block text-sm ${isEditMode ? 'text-gray-400' : 'text-gray-700'}`}>
+                      <label htmlFor="use_ssl" className="ml-2 block text-sm text-gray-700">
                         Use SSL/TLS
                       </label>
                     </div>

@@ -215,7 +215,7 @@ because the API client layer is missing.
 - [x] Mail accounts list with CRUD operations + enable/disable toggle
 - [x] Settings page — Profile, Gmail API connection, SMTP relay, Account info, Security
 - [x] `AddMailAccountModal` component (auto-detect, test connection, all required fields, is_enabled checkbox)
-- [x] Fix `AddMailAccountModal` edit mode: pre-populate username from `email_address`; make connection fields (username, protocol, host, port, SSL) read-only; remove hard `required` on username; send only `MailAccountUpdate`-compatible payload on edit; skip empty-string password both in the frontend payload and as a backend guard
+- [x] Fix `AddMailAccountModal` edit mode: backend now returns `username` in `MailAccountResponse`; all fields (including protocol, host, port, use\_ssl, username) are editable in edit mode and pre-populated from the stored account; Auto-Detect is shown in edit mode too; only password is omitted from the update payload when left blank
 - [x] `DashboardLayout` with responsive sidebar
 - [x] `AuthGuard` for protected routes
 - [x] Fix wizard grey screen (Tailwind v4 `bg-opacity` → `/75` syntax, modal restructure)
