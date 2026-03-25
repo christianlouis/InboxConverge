@@ -8,7 +8,7 @@ from sqlalchemy import select, desc
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
 from app.core.security import encrypt_credential
-from app.models.database_models import User, MailAccount
+from app.models.database_models import User, MailAccount, AccountStatus
 from app.models.schemas import (
     MailAccountCreate,
     MailAccountResponse,
@@ -180,6 +180,38 @@ async def delete_mail_account(
 
     await db.delete(account)
     await db.commit()
+
+
+@router.patch("/{account_id}/toggle", response_model=MailAccountResponse)
+async def toggle_mail_account(
+    account_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle the enabled/disabled state of a mail account"""
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id, MailAccount.user_id == current_user.id
+        )
+    )
+    account = result.scalar_one_or_none()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    account.is_enabled = not account.is_enabled  # type: ignore[assignment]
+
+    # When re-enabling a previously errored account, reset status to ACTIVE
+    # so the scheduler picks it up on the next run.
+    if account.is_enabled and account.status == AccountStatus.ERROR:
+        account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
+
+    await db.commit()
+    await db.refresh(account)
+
+    return account
 
 
 @router.post("/test", response_model=MailAccountTestResponse)

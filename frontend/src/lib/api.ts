@@ -204,6 +204,11 @@ export const mailAccountsApi = {
     return response.data;
   },
 
+  async toggle(id: number): Promise<MailAccount> {
+    const response = await api.patch<MailAccount>(`/mail-accounts/${id}/toggle`);
+    return response.data;
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete(`/mail-accounts/${id}`);
   },

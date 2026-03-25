@@ -446,6 +446,44 @@ class AuditLog(Base):
     )
 
 
+class DownloadedMessageId(Base):
+    """
+    Tracks unique message IDs that have already been downloaded and forwarded.
+
+    - For POP3: stores the UIDL string returned by the server.
+    - For IMAP: stores the IMAP UID (numeric string) of the message.
+
+    This prevents re-processing the same message when delete_after_forward=False.
+    """
+
+    __tablename__ = "downloaded_message_ids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mail_account_id = Column(
+        Integer, ForeignKey("mail_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Unique message identifier (UIDL for POP3, UID for IMAP)
+    message_uid = Column(String(512), nullable=False)
+
+    downloaded_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Indexes — unique constraint prevents duplicates
+    __table_args__ = (
+        Index(
+            "idx_account_message_uid",
+            "mail_account_id",
+            "message_uid",
+            unique=True,
+        ),
+        Index("idx_downloaded_at", "downloaded_at"),
+    )
+
+
 class GmailCredential(Base):
     """Stores OAuth2 credentials for Gmail API access (per-user)"""
 

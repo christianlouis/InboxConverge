@@ -17,12 +17,13 @@ from app.models.database_models import (
     AccountStatus,
     DeliveryMethod,
     GmailCredential,
+    DownloadedMessageId,
 )
 from app.services.mail_processor import MailProcessor
 from app.services.gmail_service import GmailService
 from app.services.config_service import ConfigService
 from app.core.config import settings
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, delete
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +70,22 @@ async def process_mail_account(account_id: int):
             # Decrypt password
             password = decrypt_credential(account.encrypted_password)  # type: ignore[arg-type]
 
+            # Load already-downloaded UIDs to prevent re-processing
+            seen_result = await db.execute(
+                select(DownloadedMessageId.message_uid).where(
+                    DownloadedMessageId.mail_account_id == account.id
+                )
+            )
+            already_seen_uids = set(seen_result.scalars().all())
+
             # Create processor
             processor = MailProcessor(account, password)
 
-            # Fetch emails
-            emails = await processor.fetch_emails(account.max_emails_per_check)  # type: ignore[arg-type]
+            # Fetch emails (returns raw bytes + new UIDs)
+            emails, new_uids = await processor.fetch_emails(
+                account.max_emails_per_check,  # type: ignore[arg-type]
+                already_seen_uids=already_seen_uids,
+            )
 
             run.emails_fetched = len(emails)  # type: ignore[assignment]
 
@@ -130,7 +142,9 @@ async def process_mail_account(account_id: int):
                     await db.commit()
                     return
 
-            for email_data in emails:
+            successfully_forwarded_uids: list[str] = []
+
+            for email_data, uid in zip(emails, new_uids):
                 try:
                     if use_gmail_api and gmail_service:
                         # Inject via Gmail API (preferred)
@@ -140,6 +154,7 @@ async def process_mail_account(account_id: int):
                             source_account_name=account.name,  # type: ignore[arg-type]
                         )
                         emails_forwarded += 1
+                        successfully_forwarded_uids.append(uid)
                     else:
                         # Forward via SMTP (fallback)
                         success = await MailProcessor.forward_email(
@@ -147,12 +162,23 @@ async def process_mail_account(account_id: int):
                         )
                         if success:
                             emails_forwarded += 1
+                            successfully_forwarded_uids.append(uid)
                         else:
                             emails_failed += 1
 
                 except Exception as e:
                     logger.error(f"Error delivering email: {e}")
                     emails_failed += 1
+
+            # Persist new message UIDs so they are not processed again
+            for uid in successfully_forwarded_uids:
+                if uid not in already_seen_uids:
+                    db.add(
+                        DownloadedMessageId(
+                            mail_account_id=account.id,
+                            message_uid=uid,
+                        )
+                    )
 
             # Update run
             run.emails_forwarded = emails_forwarded  # type: ignore[assignment]
@@ -210,15 +236,11 @@ async def process_all_enabled_accounts():
     """
     async with async_session_maker() as db:
         try:
-            # Get all enabled accounts
+            # Fetch all enabled accounts regardless of operational status so
+            # that accounts in ERROR state are retried automatically.
             result = await db.execute(
                 select(MailAccount).where(
-                    and_(
-                        MailAccount.is_enabled == True,  # noqa: E712
-                        MailAccount.status.in_(
-                            [AccountStatus.ACTIVE, AccountStatus.TESTING]
-                        ),
-                    )
+                    MailAccount.is_enabled == True,  # noqa: E712
                 )
             )
             accounts = result.scalars().all()
@@ -248,10 +270,10 @@ async def process_all_enabled_accounts():
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.cleanup_old_logs")
 async def cleanup_old_logs(days_to_keep: int = 30):
     """
-    Clean up old processing logs and runs.
+    Clean up old processing logs, runs, and downloaded message ID records.
 
     Args:
-        days_to_keep: Number of days of logs to retain
+        days_to_keep: Number of days of data to retain
     """
     async with async_session_maker() as db:
         try:
@@ -274,6 +296,14 @@ async def cleanup_old_logs(days_to_keep: int = 30):
 
             for log in old_logs:
                 await db.delete(log)
+
+            # Delete old downloaded message ID records so the table doesn't
+            # grow unboundedly for accounts that never delete messages.
+            await db.execute(
+                delete(DownloadedMessageId).where(
+                    DownloadedMessageId.downloaded_at < cutoff_date
+                )
+            )
 
             await db.commit()
 
