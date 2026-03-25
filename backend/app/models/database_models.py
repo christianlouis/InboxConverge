@@ -446,6 +446,76 @@ class AuditLog(Base):
     )
 
 
+class UserSmtpConfig(Base):
+    """Per-user SMTP relay configuration for email forwarding fallback."""
+
+    __tablename__ = "user_smtp_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+
+    host = Column(String(255), nullable=False, default="smtp.gmail.com")
+    port = Column(Integer, nullable=False, default=587)
+    username = Column(String(255), nullable=False, default="")
+    encrypted_password = Column(Text, nullable=False, default="")
+    use_tls = Column(Boolean, default=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user = relationship("User", backref="smtp_config")
+
+
+class DownloadedMessageId(Base):
+    """
+    Tracks unique message IDs that have already been downloaded and forwarded.
+
+    - For POP3: stores the UIDL string returned by the server.
+    - For IMAP: stores the IMAP UID (numeric string) of the message.
+
+    This prevents re-processing the same message when delete_after_forward=False.
+    """
+
+    __tablename__ = "downloaded_message_ids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mail_account_id = Column(
+        Integer, ForeignKey("mail_accounts.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Unique message identifier (UIDL for POP3, UID for IMAP)
+    message_uid = Column(String(512), nullable=False)
+
+    downloaded_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Indexes — unique constraint prevents duplicates
+    __table_args__ = (
+        Index(
+            "idx_account_message_uid",
+            "mail_account_id",
+            "message_uid",
+            unique=True,
+        ),
+        Index("idx_downloaded_at", "downloaded_at"),
+    )
+
+
 class GmailCredential(Base):
     """Stores OAuth2 credentials for Gmail API access (per-user)"""
 

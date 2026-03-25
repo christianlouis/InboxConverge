@@ -315,6 +315,19 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                         Delete after forwarding
                       </label>
                     </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="is_enabled"
+                        id="is_enabled"
+                        checked={formData.is_enabled ?? true}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="is_enabled" className="ml-2 block text-sm text-gray-700">
+                        Enabled
+                      </label>
+                    </div>
                   </div>
 
                   <div>

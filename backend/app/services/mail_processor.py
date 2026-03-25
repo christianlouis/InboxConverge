@@ -11,7 +11,7 @@ from email import parser
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple
 import logging
 from aioimaplib import aioimaplib
 
@@ -143,26 +143,42 @@ class MailProcessor:
         except Exception as e:
             return False, f"IMAP connection failed: {str(e)}"
 
-    async def fetch_emails(self, max_count: Optional[int] = None) -> List[bytes]:
+    async def fetch_emails(
+        self,
+        max_count: Optional[int] = None,
+        already_seen_uids: Optional[Set[str]] = None,
+    ) -> Tuple[List[bytes], List[str]]:
         """
         Fetch emails from the mail server.
-        Returns list of raw email data.
+
+        Args:
+            max_count: Maximum number of messages to fetch.
+            already_seen_uids: Set of message UIDs that have already been
+                processed and should be skipped.
+
+        Returns:
+            A tuple of (raw_email_bytes_list, new_uid_strings_list).
+            The caller should persist the new UIDs to prevent re-processing.
         """
         effective_max: int = max_count if max_count is not None else self.account.max_emails_per_check  # type: ignore[assignment]
+        seen: Set[str] = already_seen_uids or set()
 
         if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
-            return await self._fetch_pop3_emails(effective_max)
+            return await self._fetch_pop3_emails(effective_max, seen)
         else:
-            return await self._fetch_imap_emails(effective_max)
+            return await self._fetch_imap_emails(effective_max, seen)
 
-    async def _fetch_pop3_emails(self, max_count: int) -> List[bytes]:
-        """Fetch emails via POP3"""
-        emails = []
+    async def _fetch_pop3_emails(
+        self, max_count: int, already_seen_uids: Set[str]
+    ) -> Tuple[List[bytes], List[str]]:
+        """Fetch emails via POP3, skipping already-downloaded UIDs."""
+        emails: List[bytes] = []
+        new_uids: List[str] = []
 
         try:
             loop = asyncio.get_event_loop()
 
-            def fetch_pop3():
+            def fetch_pop3() -> Tuple[List[bytes], List[str]]:
                 # Connect
                 if self.account.protocol == MailProtocol.POP3_SSL:
                     context = ssl.create_default_context()
@@ -181,27 +197,49 @@ class MailProcessor:
                 pop_conn.user(self.account.username)
                 pop_conn.pass_(self.password)
 
-                # Get message count
-                num_messages = len(pop_conn.list()[1])
+                # Retrieve UIDL map: {msg_number: uid_string}
+                uidl_response = pop_conn.uidl()
+                uid_map: Dict[int, str] = {}
+                for entry in uidl_response[1]:
+                    parts = entry.decode().split(" ", 1)
+                    if len(parts) == 2:
+                        uid_map[int(parts[0])] = parts[1].strip()
+
+                num_messages = len(uid_map)
                 logger.info(
                     f"Found {num_messages} messages for account {self.account.id}"
                 )
 
-                fetched_emails = []
-                messages_to_delete = []
+                fetched: List[bytes] = []
+                fetched_uids: List[str] = []
+                messages_to_delete: List[int] = []
+                fetched_count = 0
 
-                # Fetch emails (limited by max_count)
-                for i in range(1, min(num_messages + 1, max_count + 1)):
+                for msg_num, uid in uid_map.items():
+                    if fetched_count >= max_count:
+                        break
+
+                    # Skip messages we already processed
+                    if uid in already_seen_uids:
+                        logger.debug(
+                            f"Skipping already-downloaded message {uid} "
+                            f"for account {self.account.id}"
+                        )
+                        continue
+
                     try:
-                        response, lines, octets = pop_conn.retr(i)
+                        response, lines, octets = pop_conn.retr(msg_num)
                         email_data = b"\r\n".join(lines)
-                        fetched_emails.append(email_data)
-                        messages_to_delete.append(i)
+                        fetched.append(email_data)
+                        fetched_uids.append(uid)
+                        messages_to_delete.append(msg_num)
+                        fetched_count += 1
                         logger.info(
-                            f"Retrieved message {i} from account {self.account.id}"
+                            f"Retrieved message {msg_num} (uid={uid}) "
+                            f"from account {self.account.id}"
                         )
                     except Exception as e:
-                        logger.error(f"Error retrieving message {i}: {e}")
+                        logger.error(f"Error retrieving message {msg_num}: {e}")
 
                 # Delete messages if configured
                 if self.account.delete_after_forward:
@@ -212,19 +250,22 @@ class MailProcessor:
                             logger.error(f"Error deleting message {msg_id}: {e}")
 
                 pop_conn.quit()
-                return fetched_emails
+                return fetched, fetched_uids
 
-            emails = await loop.run_in_executor(None, fetch_pop3)
+            emails, new_uids = await loop.run_in_executor(None, fetch_pop3)
 
         except Exception as e:
             logger.error(f"Error fetching POP3 emails: {e}")
             raise MailFetchError(f"POP3 fetch error: {str(e)}")
 
-        return emails
+        return emails, new_uids
 
-    async def _fetch_imap_emails(self, max_count: int) -> List[bytes]:
-        """Fetch emails via IMAP"""
-        emails = []
+    async def _fetch_imap_emails(
+        self, max_count: int, already_seen_uids: Set[str]
+    ) -> Tuple[List[bytes], List[str]]:
+        """Fetch emails via IMAP, marking each message \Seen to prevent re-fetch."""
+        emails: List[bytes] = []
+        new_uids: List[str] = []
 
         try:
             # Create IMAP client
@@ -241,8 +282,8 @@ class MailProcessor:
             await imap_client.login(self.account.username, self.password)
             await imap_client.select("INBOX")
 
-            # Search for all messages
-            response = await imap_client.search("UNSEEN")  # Only fetch unread
+            # Search for unseen messages only
+            response = await imap_client.search("UNSEEN")
             message_ids = response.lines[0].split()
 
             # Limit to max_count
@@ -254,6 +295,18 @@ class MailProcessor:
 
             # Fetch each message
             for msg_id in message_ids:
+                uid_str = msg_id.decode() if isinstance(msg_id, bytes) else str(msg_id)
+
+                # Skip messages already tracked in our DB
+                if uid_str in already_seen_uids:
+                    logger.debug(
+                        f"Skipping already-processed IMAP message {uid_str} "
+                        f"for account {self.account.id}"
+                    )
+                    # Still mark as Seen so it doesn't show up in UNSEEN searches
+                    await imap_client.store(msg_id, "+FLAGS", "\\Seen")
+                    continue
+
                 try:
                     response = await imap_client.fetch(msg_id, "(RFC822)")
 
@@ -272,8 +325,12 @@ class MailProcessor:
 
                     if email_data:
                         emails.append(email_data)
+                        new_uids.append(uid_str)
 
-                        # Mark as seen if deleting after forward
+                        # Always mark as Seen after fetching so the message is
+                        # not picked up again on the next UNSEEN search.
+                        await imap_client.store(msg_id, "+FLAGS", "\\Seen")
+
                         if self.account.delete_after_forward:
                             await imap_client.store(msg_id, "+FLAGS", "\\Deleted")
 
@@ -290,7 +347,7 @@ class MailProcessor:
             logger.error(f"Error fetching IMAP emails: {e}")
             raise MailFetchError(f"IMAP fetch error: {str(e)}")
 
-        return emails
+        return emails, new_uids
 
     @staticmethod
     async def forward_email(
