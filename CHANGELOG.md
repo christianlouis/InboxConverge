@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `auth_service.py` `get_google_user_info` now returns `access_token`, `refresh_token`, `expires_in`, and `scope` alongside user info so the login endpoint can persist Gmail credentials in the same request.
 
 ### Fixed
+- Fixed `Exception terminating connection` error logged by Celery workers after every task run. The error was caused by `asyncio.run()` closing the event loop while the asyncpg connection pool still held open idle connections. The fix calls `await engine.dispose()` inside the task's `_run()` coroutine (within the same event loop) so all pooled connections are closed cleanly before the loop is torn down.
 - Gmail API `verify_access()` returning 403 for tokens that lacked a read-capable scope: added `gmail.readonly` to all scope lists.
 
 - Fixed three ESLint errors that caused CI to fail: removed unused `_setUser` store binding and unused `useAuthStore` import from `login/page.tsx`; replaced unused `_err` catch binding with a bare `catch {}` in `login/page.tsx`; removed a `useEffect` in `settings/page.tsx` that called `setProfileForm` synchronously (flagged by `react-hooks/set-state-in-effect`) — the effect was redundant because `useState` already initialises the form from the auth store's `user` object, which is the same value passed as `initialData` to `useQuery`.
