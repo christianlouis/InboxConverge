@@ -56,6 +56,7 @@ class GmailService:
             client_id: Google OAuth2 client ID
             client_secret: Google OAuth2 client secret
         """
+        self._initial_access_token = access_token
         self.credentials = Credentials(
             token=access_token,
             refresh_token=refresh_token,
@@ -135,6 +136,7 @@ class GmailService:
                 f"Gmail API error: {e.reason if hasattr(e, 'reason') else str(e)}"
             )
             logger.error(error_msg)
+            # Surface 401 so callers can mark credentials as invalid
             raise GmailInjectionError(error_msg)
         except Exception as e:
             error_msg = f"Failed to inject email into Gmail: {str(e)}"
@@ -180,3 +182,24 @@ class GmailService:
         except Exception as e:
             logger.error(f"Failed to get Gmail email address: {e}")
             return None
+
+    def get_refreshed_token(self) -> Optional[Dict[str, Any]]:
+        """
+        Return the current access token and expiry if the token was refreshed
+        since this service instance was created.
+
+        The google-auth library auto-refreshes the access token when an API
+        call is made with an expired token.  Call this after inject_email() to
+        check whether a refresh happened and persist the new token.
+
+        Returns:
+            Dict with ``access_token`` and ``expiry`` (datetime | None), or
+            None if the token has not changed from the one passed to __init__.
+        """
+        current_token = self.credentials.token
+        if current_token and current_token != self._initial_access_token:
+            return {
+                "access_token": current_token,
+                "expiry": self.credentials.expiry,
+            }
+        return None

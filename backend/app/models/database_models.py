@@ -446,6 +446,38 @@ class AuditLog(Base):
     )
 
 
+class UserSmtpConfig(Base):
+    """Per-user SMTP relay configuration for email forwarding fallback."""
+
+    __tablename__ = "user_smtp_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+
+    host = Column(String(255), nullable=False, default="smtp.gmail.com")
+    port = Column(Integer, nullable=False, default=587)
+    username = Column(String(255), nullable=False, default="")
+    encrypted_password = Column(Text, nullable=False, default="")
+    use_tls = Column(Boolean, default=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user = relationship("User", backref="smtp_config")
+
+
 class DownloadedMessageId(Base):
     """
     Tracks unique message IDs that have already been downloaded and forwarded.

@@ -9,7 +9,7 @@ import logging
 
 from app.workers.celery_app import celery_app
 from app.core.database import async_session_maker
-from app.core.security import decrypt_credential
+from app.core.security import decrypt_credential, encrypt_credential
 from app.models.database_models import (
     MailAccount,
     ProcessingRun,
@@ -18,12 +18,13 @@ from app.models.database_models import (
     DeliveryMethod,
     GmailCredential,
     DownloadedMessageId,
+    UserSmtpConfig,
 )
 from app.services.mail_processor import MailProcessor
 from app.services.gmail_service import GmailService
 from app.services.config_service import ConfigService
 from app.core.config import settings
-from sqlalchemy import select, and_, delete
+from sqlalchemy import select, delete
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +131,24 @@ async def process_mail_account(account_id: int):
                     use_gmail_api = False  # type: ignore[assignment]
 
             if not use_gmail_api:
-                # Fall back to SMTP – read config from DB with env fallback
-                smtp_config = await ConfigService.get_smtp_config(db=db)
+                # Fall back to SMTP – check per-user config first, then global
+                user_smtp_result = await db.execute(
+                    select(UserSmtpConfig).where(
+                        UserSmtpConfig.user_id == account.user_id
+                    )
+                )
+                user_smtp = user_smtp_result.scalar_one_or_none()
+
+                if user_smtp and user_smtp.username and user_smtp.encrypted_password:
+                    smtp_config = {
+                        "host": user_smtp.host,
+                        "port": user_smtp.port,
+                        "username": user_smtp.username,
+                        "password": decrypt_credential(user_smtp.encrypted_password),  # type: ignore[arg-type]
+                        "use_tls": user_smtp.use_tls,
+                    }
+                else:
+                    smtp_config = await ConfigService.get_smtp_config(db=db)
 
                 if not smtp_config["username"] or not smtp_config["password"]:
                     logger.error(
@@ -143,6 +160,12 @@ async def process_mail_account(account_id: int):
                     return
 
             successfully_forwarded_uids: list[str] = []
+
+            if len(emails) != len(new_uids):
+                logger.error(
+                    f"emails/uids length mismatch ({len(emails)} vs {len(new_uids)}) "
+                    f"for account {account.id}; truncating to shorter list"
+                )
 
             for email_data, uid in zip(emails, new_uids):
                 try:
@@ -167,6 +190,23 @@ async def process_mail_account(account_id: int):
                             emails_failed += 1
 
                 except Exception as e:
+                    error_str = str(e).lower()
+                    # If Gmail returns 401/403 the refresh token was revoked –
+                    # mark credentials invalid so the user gets notified.
+                    if (
+                        use_gmail_api
+                        and gmail_cred
+                        and (
+                            "401" in error_str
+                            or "403" in error_str
+                            or "invalid_grant" in error_str
+                        )
+                    ):
+                        gmail_cred.is_valid = False  # type: ignore[assignment]
+                        logger.warning(
+                            f"Gmail credentials revoked for user {account.user_id}. "
+                            "User must re-authorise."
+                        )
                     logger.error(f"Error delivering email: {e}")
                     emails_failed += 1
 
@@ -178,6 +218,19 @@ async def process_mail_account(account_id: int):
                             mail_account_id=account.id,
                             message_uid=uid,
                         )
+                    )
+
+            # If Gmail API was used, persist any refreshed access token back to
+            # the DB so the next run doesn't need an extra token-refresh call.
+            if use_gmail_api and gmail_service and gmail_cred:
+                refreshed = gmail_service.get_refreshed_token()
+                if refreshed and refreshed["access_token"] != access_token:
+                    gmail_cred.encrypted_access_token = encrypt_credential(refreshed["access_token"])  # type: ignore[assignment]
+                    if refreshed.get("expiry"):
+                        gmail_cred.token_expiry = refreshed["expiry"]  # type: ignore[assignment]
+                    gmail_cred.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                    logger.info(
+                        f"Persisted refreshed Gmail access token for user {account.user_id}"
                     )
 
             # Update run

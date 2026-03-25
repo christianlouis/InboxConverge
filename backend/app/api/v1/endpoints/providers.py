@@ -1,10 +1,12 @@
 """Provider presets and Gmail credential management endpoints"""
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import httpx
+import logging
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
@@ -16,10 +18,21 @@ from app.models.schemas import (
     ProviderListResponse,
     GmailCredentialCreate,
     GmailCredentialResponse,
+    GmailAuthorizeResponse,
+    GmailCallbackRequest,
 )
 from app.services.gmail_service import GmailService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# Gmail API scopes needed for email injection
+GMAIL_API_SCOPES = [
+    "openid",
+    "email",
+    "https://www.googleapis.com/auth/gmail.insert",
+    "https://www.googleapis.com/auth/gmail.labels",
+]
 
 # Provider presets with server configurations
 PROVIDER_PRESETS: List[ProviderPreset] = [
@@ -268,3 +281,166 @@ async def delete_gmail_credential(
 
     await db.delete(credential)
     await db.commit()
+
+
+@router.get("/gmail/authorize-url", response_model=GmailAuthorizeResponse)
+async def get_gmail_authorize_url(
+    redirect_uri: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Return a Google OAuth2 URL that grants this app Gmail API write permissions.
+
+    The URL requests the gmail.insert + gmail.labels scopes with
+    access_type=offline so a long-lived refresh token is issued.
+    prompt=consent forces Google to always issue a new refresh token even if
+    the user has authorised the app before.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth2 is not configured on this server.",
+        )
+
+    scope = " ".join(GMAIL_API_SCOPES)
+    url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={settings.GOOGLE_CLIENT_ID}"
+        "&response_type=code"
+        f"&scope={scope}"
+        f"&redirect_uri={redirect_uri}"
+        "&access_type=offline"
+        "&prompt=consent"
+    )
+    return GmailAuthorizeResponse(authorization_url=url)
+
+
+@router.post(
+    "/gmail/callback",
+    response_model=GmailCredentialResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def gmail_oauth_callback(
+    callback_in: GmailCallbackRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Exchange a Google authorization code for Gmail API tokens and persist them.
+
+    This is the backend half of the "Connect Gmail" one-click flow.  The
+    frontend redirects the user to Google, Google sends a code back to the
+    frontend callback page, and the frontend posts that code here.
+
+    Token lifetime
+    --------------
+    * Access token  : 1 hour.  The google-auth library auto-refreshes it
+      during Celery tasks; the new value is written back to this row so the
+      next run doesn't need an extra refresh round-trip.
+    * Refresh token : does not expire unless the user revokes access or the
+      app credentials change.  If revoked, ``is_valid`` is set to False by
+      the next Celery run that hits a 401, and the user must re-authorise.
+    """
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google OAuth2 is not configured on this server.",
+        )
+
+    # Exchange code for tokens
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": callback_in.code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": callback_in.redirect_uri,
+                "grant_type": "authorization_code",
+            },
+        )
+
+    if token_resp.status_code != 200:
+        logger.error(f"Gmail token exchange failed: {token_resp.text}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to exchange authorization code with Google.",
+        )
+
+    token_data = token_resp.json()
+    access_token: Optional[str] = token_data.get("access_token")
+    refresh_token: Optional[str] = token_data.get("refresh_token")
+
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google did not return an access token.",
+        )
+
+    # Fetch the Gmail email address to associate with this credential
+    async with httpx.AsyncClient() as client:
+        profile_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    gmail_email = current_user.email  # fallback
+    if profile_resp.status_code == 200:
+        gmail_email = profile_resp.json().get("email", current_user.email)
+
+    # Calculate token expiry (Google access tokens last 1 hour)
+    token_expiry = datetime.now(timezone.utc) + timedelta(
+        seconds=int(token_data.get("expires_in", 3600))
+    )
+
+    # Verify the credentials actually work with the Gmail API
+    gmail_service = GmailService(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+    )
+    is_valid = await gmail_service.verify_access()
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Obtained tokens but could not verify Gmail API access. "
+            "Ensure the gmail.insert scope was granted.",
+        )
+
+    # Persist tokens
+    result = await db.execute(
+        select(GmailCredential).where(GmailCredential.user_id == current_user.id)
+    )
+    existing = result.scalar_one_or_none()
+
+    encrypted_access = encrypt_credential(access_token)
+    encrypted_refresh = encrypt_credential(refresh_token) if refresh_token else None
+
+    if existing:
+        existing.gmail_email = gmail_email  # type: ignore[assignment]
+        existing.encrypted_access_token = encrypted_access  # type: ignore[assignment]
+        if encrypted_refresh:
+            existing.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
+        existing.token_expiry = token_expiry  # type: ignore[assignment]
+        existing.scopes = token_data.get("scope", "").split()  # type: ignore[assignment]
+        existing.is_valid = True  # type: ignore[assignment]
+        existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+    else:
+        credential = GmailCredential(
+            user_id=current_user.id,
+            gmail_email=gmail_email,
+            encrypted_access_token=encrypted_access,
+            encrypted_refresh_token=encrypted_refresh,
+            token_expiry=token_expiry,
+            scopes=token_data.get("scope", "").split(),
+            is_valid=True,
+            last_verified_at=datetime.now(timezone.utc),
+        )
+        db.add(credential)
+        await db.commit()
+        await db.refresh(credential)
+        return credential
