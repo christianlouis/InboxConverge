@@ -334,7 +334,7 @@ export function NotificationWizard({ onComplete, onCancel, initialData }: Notifi
               showUrl ? 'text-gray-800' : 'text-gray-400 select-none'
             }`}
           >
-            {showUrl ? effectiveUrl : '•'.repeat(Math.min(effectiveUrl.length, 48))}
+            {showUrl ? effectiveUrl : '•'.repeat(effectiveUrl.length)}
           </p>
         </div>
       )}
