@@ -485,4 +485,135 @@ export const adminApi = {
   },
 };
 
+// ── Notification Types ──────────────────────────────────────────────────
+
+export interface NotificationConfig {
+  id: number;
+  user_id: number;
+  name: string;
+  channel: string;
+  apprise_url: string | null;
+  is_enabled: boolean;
+  config: Record<string, unknown>;
+  notify_on_errors: boolean;
+  notify_on_success: boolean;
+  notify_threshold: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationConfigCreate {
+  name: string;
+  channel: string;
+  apprise_url?: string | null;
+  is_enabled?: boolean;
+  config?: Record<string, unknown>;
+  notify_on_errors?: boolean;
+  notify_on_success?: boolean;
+  notify_threshold?: number;
+}
+
+export interface NotificationConfigUpdate {
+  name?: string;
+  channel?: string;
+  apprise_url?: string | null;
+  is_enabled?: boolean;
+  config?: Record<string, unknown>;
+  notify_on_errors?: boolean;
+  notify_on_success?: boolean;
+  notify_threshold?: number;
+}
+
+export interface AdminNotificationConfig {
+  id: number;
+  name: string;
+  apprise_url: string;
+  is_enabled: boolean;
+  notify_on_errors: boolean;
+  notify_on_system_events: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminNotificationConfigCreate {
+  name: string;
+  apprise_url: string;
+  is_enabled?: boolean;
+  notify_on_errors?: boolean;
+  notify_on_system_events?: boolean;
+  description?: string | null;
+}
+
+export interface AdminNotificationConfigUpdate {
+  name?: string;
+  apprise_url?: string;
+  is_enabled?: boolean;
+  notify_on_errors?: boolean;
+  notify_on_system_events?: boolean;
+  description?: string | null;
+}
+
+// ── Notifications API ───────────────────────────────────────────────────
+
+export const notificationsApi = {
+  async list(): Promise<NotificationConfig[]> {
+    const response = await api.get<NotificationConfig[]>('/notifications');
+    return response.data;
+  },
+
+  async create(data: NotificationConfigCreate): Promise<NotificationConfig> {
+    const response = await api.post<NotificationConfig>('/notifications', data);
+    return response.data;
+  },
+
+  async update(id: number, data: NotificationConfigUpdate): Promise<NotificationConfig> {
+    const response = await api.put<NotificationConfig>(`/notifications/${id}`, data);
+    return response.data;
+  },
+
+  async delete(id: number): Promise<void> {
+    await api.delete(`/notifications/${id}`);
+  },
+
+  async test(apprise_url: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/notifications/test',
+      { apprise_url }
+    );
+    return response.data;
+  },
+};
+
+// ── Admin Notifications API ─────────────────────────────────────────────
+
+export const adminNotificationsApi = {
+  async list(): Promise<AdminNotificationConfig[]> {
+    const response = await api.get<AdminNotificationConfig[]>('/admin/notifications');
+    return response.data;
+  },
+
+  async create(data: AdminNotificationConfigCreate): Promise<AdminNotificationConfig> {
+    const response = await api.post<AdminNotificationConfig>('/admin/notifications', data);
+    return response.data;
+  },
+
+  async update(id: number, data: AdminNotificationConfigUpdate): Promise<AdminNotificationConfig> {
+    const response = await api.put<AdminNotificationConfig>(`/admin/notifications/${id}`, data);
+    return response.data;
+  },
+
+  async delete(id: number): Promise<void> {
+    await api.delete(`/admin/notifications/${id}`);
+  },
+
+  async test(apprise_url: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/admin/notifications/test',
+      { apprise_url }
+    );
+    return response.data;
+  },
+};
+
 export default api;

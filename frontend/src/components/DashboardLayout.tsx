@@ -14,7 +14,8 @@ import {
   User,
   Shield,
   Users,
-  CreditCard
+  CreditCard,
+  Bell
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +36,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Mail Accounts', href: '/accounts', icon: Mail },
+    { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
