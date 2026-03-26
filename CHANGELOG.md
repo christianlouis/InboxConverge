@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `python-jose[cryptography]` from `3.3.0` to `3.4.0` to fix an algorithm-confusion vulnerability with OpenSSH ECDSA keys (CVE affects all versions < 3.4.0).
 
 ### Added
+- **Impressum & Datenschutz pages**: Added `/impressum` (legal notice per § 5 TMG) and `/datenschutz` (comprehensive privacy policy covering GDPR/DSGVO, CCPA, LGPD, and other international regulations) as public pages. Footer links to both pages were added to the dashboard layout and the login page.
 - **Gmail Debug Email**: New "Send Debug Email" button in the Gmail API settings section. When clicked, it injects a test email into the user's Gmail inbox via the Gmail API. The message appears to be from `christian@docuelevate.org`, includes the current date in the subject line, and is automatically labelled with `test` and `imported` (labels are created on first use) and placed in the inbox. Useful for verifying end-to-end Gmail API delivery without requiring a full mail-account polling cycle.
 - `GmailService.get_or_create_label()` async method: lists the user's Gmail labels and returns the matching label ID, creating the label if it does not yet exist.
 - `GmailService.inject_debug_email()` async method: builds a properly formatted RFC 2822 test message and calls `inject_email()` with the INBOX, `test`, and `imported` label IDs.

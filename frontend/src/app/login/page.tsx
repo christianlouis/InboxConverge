@@ -149,6 +149,15 @@ export default function LoginPage() {
             </p>
           </div>
         </form>
+
+        <div className="mt-6 flex justify-center gap-4 text-xs text-gray-400">
+          <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+            Impressum
+          </Link>
+          <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+            Datenschutz
+          </Link>
+        </div>
       </div>
     </div>
   );

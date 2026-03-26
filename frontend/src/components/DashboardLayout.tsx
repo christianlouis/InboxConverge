@@ -157,6 +157,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-gray-200 bg-white py-4 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl flex flex-wrap justify-center gap-4 text-xs text-gray-400">
+            <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+              Impressum
+            </Link>
+            <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+              Datenschutz
+            </Link>
+          </div>
+        </footer>
       </div>
     </div>
   );
