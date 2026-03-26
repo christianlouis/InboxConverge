@@ -22,6 +22,7 @@ from app.models.database_models import User, SubscriptionTier, GmailCredential
 from app.models.schemas import Token, UserCreate, UserResponse, GoogleAuthRequest
 from app.services.auth_service import oauth_service
 from app.services.gmail_service import GmailService, GMAIL_SCOPES
+from app.utils.gmail_labels import build_gmail_credential_scopes
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -286,7 +287,10 @@ async def google_oauth(
                     if encrypted_refresh:
                         existing_cred.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
                     existing_cred.token_expiry = token_expiry  # type: ignore[assignment]
-                    existing_cred.scopes = scope_list  # type: ignore[assignment]
+                    existing_cred.scopes = build_gmail_credential_scopes(  # type: ignore[assignment]
+                        scope_list,
+                        existing_cred.import_label_templates,
+                    )
                     existing_cred.is_valid = True  # type: ignore[assignment]
                     existing_cred.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 else:
@@ -296,7 +300,7 @@ async def google_oauth(
                         encrypted_access_token=encrypted_access,
                         encrypted_refresh_token=encrypted_refresh,
                         token_expiry=token_expiry,
-                        scopes=scope_list,
+                        scopes=build_gmail_credential_scopes(scope_list),
                         is_valid=True,
                         last_verified_at=datetime.now(timezone.utc),
                     )

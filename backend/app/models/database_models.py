@@ -17,6 +17,12 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.orm import relationship
+
+from app.utils.gmail_labels import (
+    DEFAULT_IMPORT_LABEL_TEMPLATES,
+    extract_granted_scopes,
+    extract_import_label_templates,
+)
 import enum
 
 from app.core.database import Base
@@ -556,6 +562,18 @@ class GmailCredential(Base):
 
     # Relationships
     user = relationship("User", backref="gmail_credential")
+
+    @property
+    def granted_scopes(self) -> list[str]:
+        return extract_granted_scopes(self.scopes)
+
+    @property
+    def import_label_templates(self) -> list[str]:
+        return extract_import_label_templates(self.scopes)
+
+    @property
+    def default_import_label_templates(self) -> list[str]:
+        return DEFAULT_IMPORT_LABEL_TEMPLATES.copy()
 
 
 class AppSetting(Base):
