@@ -29,6 +29,13 @@ from sqlalchemy import select, delete
 logger = logging.getLogger(__name__)
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Return *dt* with UTC tzinfo, attaching it if the datetime is naive."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 class AsyncTask(Task):
     """Base task class that handles async operations"""
 
@@ -249,7 +256,9 @@ async def process_mail_account(account_id: int):
             run.emails_forwarded = emails_forwarded  # type: ignore[assignment]
             run.emails_failed = emails_failed  # type: ignore[assignment]
             run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-            run.duration_seconds = (run.completed_at - run.started_at).total_seconds()
+            run.duration_seconds = (
+                run.completed_at - _as_utc(run.started_at)
+            ).total_seconds()
             run.status = "completed" if emails_failed == 0 else "partial_failure"  # type: ignore[assignment]
 
             # Update account
@@ -281,7 +290,7 @@ async def process_mail_account(account_id: int):
                 run.error_message = str(e)  # type: ignore[assignment]
                 run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 run.duration_seconds = (
-                    run.completed_at - run.started_at
+                    run.completed_at - _as_utc(run.started_at)
                 ).total_seconds()
 
                 # Update account error status
