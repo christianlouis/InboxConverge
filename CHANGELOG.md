@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed `TypeError: can't subtract offset-naive and offset-aware datetimes` in `process_mail_account` task when computing `duration_seconds`. After a database refresh, `started_at` may be returned as a naive datetime; it is now normalized to UTC before subtraction.
 - **Admin user not seeing admin dashboard**: Added startup auto-promotion in `main.py` lifespan handler — on every application start, if the user matching `ADMIN_EMAIL` exists in the database but does not yet have `is_superuser=True`, they are promoted immediately. This fixes accounts created before the auto-promotion-on-login code was deployed (e.g. `christianlouis@gmail.com` was logged in but saw no admin section).
+- **Blank page on direct navigation to `/admin`, `/admin/users`, `/admin/plans`**: All three admin pages had `if (!user?.is_superuser) return null` before the `<AuthGuard>` was ever rendered. On a direct page load or refresh the Zustand store initialises with `user = null`, so the guard fired immediately and returned an empty render — `AuthGuard` was never mounted, its `checkAuth` effect never ran, and the user data was never fetched. Fixed by removing the early return and moving the superuser guard inside the `<AuthGuard>/<DashboardLayout>` tree, so authentication always runs first.
 
 ### Security
 - Upgraded `python-jose` from 3.3.0 to 3.5.0 to fix CVE: algorithm confusion vulnerability with OpenSSH ECDSA keys (affected versions < 3.4.0).

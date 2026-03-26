@@ -248,6 +248,7 @@ because the API client layer is missing.
 - [x] `ADMIN_EMAIL` env var with default `christianlouis@gmail.com`; admin auto-promoted on login and on every application startup (fixes pre-existing accounts)
 - [x] `is_superuser` exposed in `/users/me` response
 - [x] Admin badge (purple shield) shown in top bar for superusers
+- [x] Fix blank page on direct navigation to `/admin*`: moved superuser guard inside `<AuthGuard>` so auth check always runs on fresh load
 
 ---
 
