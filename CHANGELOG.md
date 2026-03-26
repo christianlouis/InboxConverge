@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Upgraded `python-jose` from 3.3.0 to 3.5.0 to fix CVE: algorithm confusion vulnerability with OpenSSH ECDSA keys (affected versions < 3.4.0).
+- Upgraded `python-jose[cryptography]` from `3.3.0` to `3.4.0` to fix an algorithm-confusion vulnerability with OpenSSH ECDSA keys (CVE affects all versions < 3.4.0).
 
 ### Added
+- **Gmail Debug Email**: New "Send Debug Email" button in the Gmail API settings section. When clicked, it injects a test email into the user's Gmail inbox via the Gmail API. The message appears to be from `christian@docuelevate.org`, includes the current date in the subject line, and is automatically labelled with `test` and `imported` (labels are created on first use) and placed in the inbox. Useful for verifying end-to-end Gmail API delivery without requiring a full mail-account polling cycle.
+- `GmailService.get_or_create_label()` async method: lists the user's Gmail labels and returns the matching label ID, creating the label if it does not yet exist.
+- `GmailService.inject_debug_email()` async method: builds a properly formatted RFC 2822 test message and calls `inject_email()` with the INBOX, `test`, and `imported` label IDs.
+- `POST /providers/gmail/debug-email` backend endpoint: requires a valid Gmail credential, injects the debug email, and persists any auto-refreshed access token.
+- `gmailApi.sendDebugEmail()` frontend API helper and `GmailDebugEmailResponse` TypeScript interface.
 - **Unified Google OAuth flow**: Google Sign-In now requests all Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`) in the same consent screen, so users no longer need a separate "Connect Gmail" step after signing in with Google. Gmail credentials are stored automatically on successful sign-in.
 - `include_granted_scopes=true` added to both the login and Gmail authorize URLs so scope additions take effect for users who previously connected.
 
 ### Changed
+- `providers.py` now imports both `encrypt_credential` and `decrypt_credential` from `app.core.security`.
+- `gmail_service.py` now imports `textwrap`, `MIMEText`, `format_datetime`, and `datetime`/`timezone` for the debug email builder.
 - `GMAIL_API_SCOPES` (providers endpoint) and `GMAIL_SCOPES` (GmailService) now include `gmail.readonly`, required for `users().getProfile()` access verification (fixes 403 insufficientPermissions errors).
 - Google Sign-In authorize URL (`GET /auth/google/authorize-url`) now requests all six scopes with `access_type=offline`, `prompt=consent`, and `include_granted_scopes=true` so a refresh token is always issued.
 - Gmail "Connect Gmail" button in Settings now redirects to `/auth/callback?state=gmail_connect` instead of the dedicated `/auth/gmail-callback` page, reducing the number of redirect URIs that must be registered in Google Cloud Console to one (`{origin}/auth/callback`).
@@ -24,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed mailbox edit form: username field was marked `required` but was never pre-populated (the backend intentionally excludes credentials from responses), making it impossible to save edits without re-entering the username. The backend now returns `username` in `MailAccountResponse` so the edit form can pre-populate it. All connection fields (protocol, host, port, use\_ssl, username) are now fully editable in edit mode. The Auto-Detect button is also shown in edit mode to re-detect server settings after a protocol change.
 - Fixed mailbox edit form silently overwriting stored credentials with an empty string: when the password field was left blank during an edit the frontend sent `password: ""`, which the backend encrypted and stored, locking the user out. The frontend now only includes `password` in the update payload when it is non-empty, and the backend additionally guards against empty-string passwords.
 - Fixed mailbox edit form sending all `MailAccountCreate` fields (including immutable ones like `username`, `host`, `port`) on update requests. The submit handler now builds a `MailAccountUpdate` payload containing all editable fields; `MailAccountUpdate` now covers every field in `MailAccountBase` (protocol, host, port, use\_ssl, use\_tls, username, email\_address, and the previously supported subset).
+- Fixed `Exception terminating connection` error logged by Celery workers after every task run. The error was caused by `asyncio.run()` closing the event loop while the asyncpg connection pool still held open idle connections. The fix calls `await engine.dispose()` inside the task's `_run()` coroutine (within the same event loop) so all pooled connections are closed cleanly before the loop is torn down.
 - Gmail API `verify_access()` returning 403 for tokens that lacked a read-capable scope: added `gmail.readonly` to all scope lists.
 
 - Fixed three ESLint errors that caused CI to fail: removed unused `_setUser` store binding and unused `useAuthStore` import from `login/page.tsx`; replaced unused `_err` catch binding with a bare `catch {}` in `login/page.tsx`; removed a `useEffect` in `settings/page.tsx` that called `setProfileForm` synchronously (flagged by `react-hooks/set-state-in-effect`) — the effect was redundant because `useState` already initialises the form from the auth store's `user` object, which is the same value passed as `initialData` to `useQuery`.

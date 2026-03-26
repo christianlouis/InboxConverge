@@ -8,7 +8,7 @@ from celery import Task
 import logging
 
 from app.workers.celery_app import celery_app
-from app.core.database import async_session_maker
+from app.core.database import async_session_maker, engine
 from app.core.security import decrypt_credential, encrypt_credential
 from app.models.database_models import (
     MailAccount,
@@ -34,8 +34,20 @@ class AsyncTask(Task):
 
     def __call__(self, *args, **kwargs):
         """Run async task in event loop"""
-        # Use asyncio.run() for better event loop management
-        return asyncio.run(self.run(*args, **kwargs))
+
+        async def _run():
+            try:
+                return await self.run(*args, **kwargs)
+            finally:
+                # Dispose the connection pool before the event loop closes.
+                # Each asyncio.run() creates a fresh event loop; if pooled
+                # asyncpg connections are still open when the loop is torn
+                # down, asyncpg raises "Exception terminating connection".
+                # Disposing the engine here closes those connections cleanly
+                # inside the same loop, before asyncio.run() shuts it down.
+                await engine.dispose()
+
+        return asyncio.run(_run())
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.process_mail_account")

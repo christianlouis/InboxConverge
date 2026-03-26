@@ -145,6 +145,13 @@ export interface GmailCredential {
   updated_at: string;
 }
 
+export interface GmailDebugEmailResponse {
+  message: string;
+  message_id: string | null;
+  thread_id: string | null;
+  label_ids: string[];
+}
+
 export interface UserSmtpConfig {
   id: number;
   user_id: number;
@@ -321,6 +328,12 @@ export const gmailApi = {
   /** Remove stored Gmail credentials. */
   async disconnect(): Promise<void> {
     await api.delete('/providers/gmail-credential');
+  },
+
+  /** Inject a debug test email into the user's Gmail inbox. */
+  async sendDebugEmail(): Promise<GmailDebugEmailResponse> {
+    const response = await api.post<GmailDebugEmailResponse>('/providers/gmail/debug-email');
+    return response.data;
   },
 };
 
