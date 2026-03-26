@@ -2,14 +2,18 @@
 Main FastAPI application.
 """
 
+import re
+import time
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import logging
 
 from app.core.config import settings
 from app.core.middleware import SecurityHeadersMiddleware, CSRFProtectionMiddleware
+from app.core.metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS
 from app.api.v1.api import api_router
 
 # Configure logging
@@ -88,6 +92,30 @@ def create_application() -> FastAPI:
     # Include API router
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+    @app.middleware("http")
+    async def prometheus_middleware(request: Request, call_next):
+        """Record per-request Prometheus metrics."""
+        # Normalize the path so high-cardinality IDs don't explode label sets.
+        path = request.url.path
+        # Strip numeric path segments (e.g. /api/v1/accounts/42 → /api/v1/accounts/{id})
+        normalized = re.sub(r"/\d+", "/{id}", path)
+
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration = time.perf_counter() - start
+
+        HTTP_REQUESTS_TOTAL.labels(
+            method=request.method,
+            endpoint=normalized,
+            status_code=str(response.status_code),
+        ).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            method=request.method,
+            endpoint=normalized,
+        ).observe(duration)
+
+        return response
+
     @app.get("/")
     async def root():
         """Root endpoint"""
@@ -101,6 +129,12 @@ def create_application() -> FastAPI:
     async def health_check():
         """Health check endpoint for container orchestration"""
         return {"status": "healthy"}
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics():
+        """Prometheus metrics endpoint."""
+        data = generate_latest()
+        return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
     return app
 

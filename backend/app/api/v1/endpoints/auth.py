@@ -13,6 +13,11 @@ import logging
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, encrypt_credential
+from app.core.metrics import (
+    AUTH_LOGINS_TOTAL,
+    AUTH_REGISTRATIONS_TOTAL,
+    OAUTH_CALLBACKS_TOTAL,
+)
 from app.models.database_models import User, SubscriptionTier, GmailCredential
 from app.models.schemas import Token, UserCreate, UserResponse, GoogleAuthRequest
 from app.services.auth_service import oauth_service
@@ -109,6 +114,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
+    AUTH_REGISTRATIONS_TOTAL.labels(method="password", status="success").inc()
     logger.info(f"New user registered: {user.email}")
 
     return user
@@ -125,6 +131,7 @@ async def login(
     user = result.scalar_one_or_none()
 
     if not user or not user.hashed_password:
+        AUTH_LOGINS_TOTAL.labels(method="password", status="failure").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -133,6 +140,7 @@ async def login(
 
     # Verify password
     if not verify_password(form_data.password, user.hashed_password):  # type: ignore[arg-type]
+        AUTH_LOGINS_TOTAL.labels(method="password", status="failure").inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -141,6 +149,7 @@ async def login(
 
     # Check if user is active
     if not user.is_active:
+        AUTH_LOGINS_TOTAL.labels(method="password", status="failure").inc()
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
@@ -162,6 +171,7 @@ async def login(
     # Create tokens
     tokens = oauth_service.create_tokens_for_user(user)
 
+    AUTH_LOGINS_TOTAL.labels(method="password", status="success").inc()
     logger.info(f"User logged in: {user.email}")
 
     return tokens
@@ -182,6 +192,7 @@ async def google_oauth(
     )
 
     if not user_info.get("verified_email"):
+        OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="error").inc()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email not verified with Google",
@@ -215,6 +226,7 @@ async def google_oauth(
             logger.info(f"Auto-promoted admin user via Google OAuth: {user.email}")
 
         logger.info(f"Existing user logged in with Google: {user.email}")
+        AUTH_LOGINS_TOTAL.labels(method="google", status="success").inc()
     else:
         # Domain restriction check before creating the account
         _check_domain_allowed(email)
@@ -233,6 +245,7 @@ async def google_oauth(
         db.add(user)
 
         logger.info(f"New user registered with Google: {user.email}")
+        AUTH_REGISTRATIONS_TOTAL.labels(method="google", status="success").inc()
 
     await db.commit()
     await db.refresh(user)
@@ -300,6 +313,7 @@ async def google_oauth(
     # Create tokens
     tokens = oauth_service.create_tokens_for_user(user)
 
+    OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="success").inc()
     return tokens
 
 

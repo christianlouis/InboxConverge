@@ -3,6 +3,7 @@ Celery tasks for background email processing.
 """
 
 import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 from celery import Task
 import logging
@@ -10,6 +11,15 @@ import logging
 from app.workers.celery_app import celery_app
 from app.core.database import async_session_maker, engine
 from app.core.security import decrypt_credential, encrypt_credential
+from app.core.metrics import (
+    MAIL_PROCESSING_RUNS_TOTAL,
+    MAIL_PROCESSING_EMAILS_TOTAL,
+    MAIL_PROCESSING_DURATION_SECONDS,
+    ACTIVE_MAIL_ACCOUNTS,
+    GMAIL_CREDENTIALS_INVALIDATED_TOTAL,
+    CELERY_TASKS_TOTAL,
+    CELERY_TASK_DURATION_SECONDS,
+)
 from app.models.database_models import (
     MailAccount,
     ProcessingRun,
@@ -65,6 +75,7 @@ async def process_mail_account(account_id: int):
     Args:
         account_id: ID of mail account to process
     """
+    _task_start = time.monotonic()
     async with async_session_maker() as db:
         try:
             # Get account
@@ -108,6 +119,7 @@ async def process_mail_account(account_id: int):
             )
 
             run.emails_fetched = len(emails)  # type: ignore[assignment]
+            MAIL_PROCESSING_EMAILS_TOTAL.labels(operation="fetched").inc(len(emails))
 
             # Forward emails
             emails_forwarded = 0
@@ -222,6 +234,7 @@ async def process_mail_account(account_id: int):
                         )
                     ):
                         gmail_cred.is_valid = False  # type: ignore[assignment]
+                        GMAIL_CREDENTIALS_INVALIDATED_TOTAL.inc()
                         logger.warning(
                             f"Gmail credentials revoked for user {account.user_id}. "
                             "User must re-authorise."
@@ -276,6 +289,22 @@ async def process_mail_account(account_id: int):
 
             await db.commit()
 
+            # Record Prometheus metrics for this completed run
+            _run_status = "completed" if emails_failed == 0 else "partial_failure"
+            MAIL_PROCESSING_RUNS_TOTAL.labels(status=_run_status).inc()
+            MAIL_PROCESSING_EMAILS_TOTAL.labels(operation="forwarded").inc(
+                emails_forwarded
+            )
+            MAIL_PROCESSING_EMAILS_TOTAL.labels(operation="failed").inc(emails_failed)
+            _task_duration = time.monotonic() - _task_start
+            MAIL_PROCESSING_DURATION_SECONDS.observe(_task_duration)
+            CELERY_TASKS_TOTAL.labels(
+                task_name="process_mail_account", status="success"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="process_mail_account"
+            ).observe(_task_duration)
+
             logger.info(
                 f"Processed account {account.id}: "
                 f"{emails_forwarded} forwarded, {emails_failed} failed"
@@ -283,6 +312,16 @@ async def process_mail_account(account_id: int):
 
         except Exception as e:
             logger.error(f"Error processing account {account_id}: {e}")
+
+            # Record failure metric
+            _task_duration = time.monotonic() - _task_start
+            MAIL_PROCESSING_RUNS_TOTAL.labels(status="failed").inc()
+            CELERY_TASKS_TOTAL.labels(
+                task_name="process_mail_account", status="failure"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="process_mail_account"
+            ).observe(_task_duration)
 
             # Mark run as failed
             if "run" in locals():
@@ -308,6 +347,7 @@ async def process_all_enabled_accounts():
     Process all enabled mail accounts.
     This task is scheduled to run periodically.
     """
+    _task_start = time.monotonic()
     async with async_session_maker() as db:
         try:
             # Fetch all enabled accounts regardless of operational status so
@@ -320,6 +360,7 @@ async def process_all_enabled_accounts():
             accounts = result.scalars().all()
 
             logger.info(f"Processing {len(accounts)} enabled mail accounts")
+            ACTIVE_MAIL_ACCOUNTS.set(len(accounts))
 
             # Process each account
             for account in accounts:
@@ -337,8 +378,23 @@ async def process_all_enabled_accounts():
                 # Queue processing task
                 process_mail_account.delay(account.id)
 
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="process_all_enabled_accounts", status="success"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="process_all_enabled_accounts"
+            ).observe(_task_duration)
+
         except Exception as e:
             logger.error(f"Error processing accounts: {e}")
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="process_all_enabled_accounts", status="failure"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="process_all_enabled_accounts"
+            ).observe(_task_duration)
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.cleanup_old_logs")
@@ -349,6 +405,7 @@ async def cleanup_old_logs(days_to_keep: int = 30):
     Args:
         days_to_keep: Number of days of data to retain
     """
+    _task_start = time.monotonic()
     async with async_session_maker() as db:
         try:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
@@ -386,5 +443,20 @@ async def cleanup_old_logs(days_to_keep: int = 30):
                 f"{len(old_logs)} old logs"
             )
 
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="cleanup_old_logs", status="success"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(task_name="cleanup_old_logs").observe(
+                _task_duration
+            )
+
         except Exception as e:
             logger.error(f"Error cleaning up logs: {e}")
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="cleanup_old_logs", status="failure"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(task_name="cleanup_old_logs").observe(
+                _task_duration
+            )

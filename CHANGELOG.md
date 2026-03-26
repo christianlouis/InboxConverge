@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
+  - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
+  - **Mail processing** — `mail_processing_runs_total` (counter, by `status`: `completed` / `partial_failure` / `failed`), `mail_processing_emails_total` (counter, by `operation`: `fetched` / `forwarded` / `failed`), `mail_processing_duration_seconds` (histogram), `active_mail_accounts_total` (gauge — set each scheduler cycle).
+  - **Gmail API** — `gmail_api_requests_total` (counter, by `operation` and `status`), `gmail_api_duration_seconds` (histogram, by `operation`), `gmail_token_refreshes_total` (counter), `gmail_credentials_invalidated_total` (counter).
+  - **Authentication / OAuth** — `auth_logins_total` (counter, `method` × `status`), `auth_registrations_total` (counter, `method` × `status`), `oauth_callbacks_total` (counter, `provider` × `status`).
+  - **Celery tasks** — `celery_tasks_total` (counter, `task_name` × `status`) and `celery_task_duration_seconds` (histogram, by `task_name`).
+- **All metrics** defined as module-level singletons in `backend/app/core/metrics.py` (imported by HTTP middleware, task workers, GmailService, and auth endpoints).
+- **Prometheus service** added to `docker-compose.new.yml` (port 9090, 30-day retention, config from `monitoring/prometheus.yml`).
+- **Grafana service** added to `docker-compose.new.yml` (port 3001, auto-provisioned datasource + pre-built dashboard). Default credentials: `admin` / `admin`.
+- **Pre-built Grafana dashboard** (`monitoring/grafana/dashboards/inboxrescue.json`) with five sections: Mail Processing, Gmail API, Authentication & OAuth, HTTP API, and Celery Workers. Dashboard auto-refreshes every 30 s.
+
+
 - **Admin interface**: Superusers now have access to a dedicated Admin section in the sidebar with three pages:
   - **Admin Overview** (`/admin`): System-wide stats (total users, mail accounts, processing runs).
   - **Manage Users** (`/admin/users`): Table of all registered users with their subscription tier, status, mail account count, and last login. Admins can edit any user's name, email, plan, active status, and promote/demote admin (superuser) privileges. Users can be deleted (with confirmation).
