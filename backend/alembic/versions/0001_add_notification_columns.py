@@ -29,15 +29,10 @@ def upgrade() -> None:
         "ADD COLUMN IF NOT EXISTS name VARCHAR(255) NOT NULL DEFAULT 'My Notification'"
     )
     op.execute(
-        "ALTER TABLE notification_configs "
-        "ADD COLUMN IF NOT EXISTS apprise_url TEXT"
+        "ALTER TABLE notification_configs " "ADD COLUMN IF NOT EXISTS apprise_url TEXT"
     )
 
 
 def downgrade() -> None:
-    op.execute(
-        "ALTER TABLE notification_configs DROP COLUMN IF EXISTS apprise_url"
-    )
-    op.execute(
-        "ALTER TABLE notification_configs DROP COLUMN IF EXISTS name"
-    )
+    op.execute("ALTER TABLE notification_configs DROP COLUMN IF EXISTS apprise_url")
+    op.execute("ALTER TABLE notification_configs DROP COLUMN IF EXISTS name")
