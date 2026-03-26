@@ -11,7 +11,10 @@ import {
   LogOut, 
   Menu, 
   X,
-  User
+  User,
+  Shield,
+  Users,
+  CreditCard
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -34,6 +37,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Mail Accounts', href: '/accounts', icon: Mail },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
+
+  const adminNavigation = user?.is_superuser
+    ? [
+        { name: 'Admin Overview', href: '/admin', icon: Shield },
+        { name: 'Manage Users', href: '/admin/users', icon: Users },
+        { name: 'Manage Plans', href: '/admin/plans', icon: CreditCard },
+      ]
+    : [];
+
+  const allNavItems = [...navigation, ...adminNavigation];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -61,6 +74,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               );
             })}
+            {adminNavigation.length > 0 && (
+              <>
+                <div className="pt-4 pb-1 px-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
+                </div>
+                {adminNavigation.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive
+                          ? 'bg-purple-50 text-purple-600'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-purple-600' : 'text-gray-400'}`} />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </>
+            )}
           </nav>
           <div className="flex-shrink-0 border-t border-gray-200 p-4">
             <button
@@ -104,6 +141,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </Link>
                 );
               })}
+              {adminNavigation.length > 0 && (
+                <>
+                  <div className="pt-4 pb-1 px-4">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
+                  </div>
+                  {adminNavigation.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                          isActive
+                            ? 'bg-purple-50 text-purple-600'
+                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <item.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-purple-600' : 'text-gray-400'}`} />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
             </nav>
             <div className="flex-shrink-0 border-t border-gray-200 p-4">
               <button
@@ -132,17 +194,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex flex-1 items-center">
               <h2 className="text-lg font-semibold text-gray-900">
-                {navigation.find((item) => item.href === pathname)?.name || 'Dashboard'}
+                {allNavItems.find((item) => item.href === pathname)?.name || 'Dashboard'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white">
-                  <User className="h-4 w-4" />
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-white ${user?.is_superuser ? 'bg-purple-600' : 'bg-blue-600'}`}>
+                  {user?.is_superuser ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
                 </div>
                 <div className="hidden sm:block">
                   <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+                  <p className="text-xs text-gray-500">
+                    {user?.email}
+                    {user?.is_superuser && (
+                      <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                        Admin
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>

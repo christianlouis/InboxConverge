@@ -57,6 +57,10 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
         ),
         subscription_tier=SubscriptionTier.FREE,
         is_active=True,
+        is_superuser=(
+            settings.ADMIN_EMAIL is not None
+            and user_in.email.lower() == settings.ADMIN_EMAIL.lower()
+        ),
     )
 
     db.add(user)
@@ -101,6 +105,16 @@ async def login(
 
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+
+    # Auto-promote to superuser if this is the configured admin email
+    if (
+        settings.ADMIN_EMAIL is not None
+        and user.email.lower() == settings.ADMIN_EMAIL.lower()
+        and not user.is_superuser
+    ):
+        user.is_superuser = True  # type: ignore[assignment]
+        logger.info(f"Auto-promoted admin user: {user.email}")
+
     await db.commit()
 
     # Create tokens
@@ -149,6 +163,15 @@ async def google_oauth(
         # Update last login
         user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
+        # Auto-promote to superuser if this is the configured admin email
+        if (
+            settings.ADMIN_EMAIL is not None
+            and user.email.lower() == settings.ADMIN_EMAIL.lower()
+            and not user.is_superuser
+        ):
+            user.is_superuser = True  # type: ignore[assignment]
+            logger.info(f"Auto-promoted admin user via Google OAuth: {user.email}")
+
         logger.info(f"Existing user logged in with Google: {user.email}")
     else:
         # Create new user
@@ -160,6 +183,10 @@ async def google_oauth(
             subscription_tier=SubscriptionTier.FREE,
             is_active=True,
             last_login_at=datetime.now(timezone.utc),
+            is_superuser=(
+                settings.ADMIN_EMAIL is not None
+                and email.lower() == settings.ADMIN_EMAIL.lower()
+            ),
         )
         db.add(user)
 

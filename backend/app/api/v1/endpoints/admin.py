@@ -1,12 +1,27 @@
 """Admin endpoints"""
 
-from fastapi import APIRouter, Depends
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.deps import get_current_superuser
-from app.models.database_models import User, MailAccount, ProcessingRun
+from app.models.database_models import (
+    User,
+    MailAccount,
+    ProcessingRun,
+    SubscriptionPlan,
+    SubscriptionTier,
+)
+from app.models.schemas import (
+    AdminUserListResponse,
+    AdminUserUpdate,
+    UserDetailResponse,
+    SubscriptionPlanResponse,
+    SubscriptionPlanCreate,
+    SubscriptionPlanUpdate,
+)
 
 router = APIRouter()
 
@@ -35,3 +50,235 @@ async def get_admin_stats(
         "total_mail_accounts": total_accounts,
         "total_processing_runs": total_runs,
     }
+
+
+# ── User management ────────────────────────────────────────────────────────────
+
+
+@router.get("/users", response_model=List[AdminUserListResponse])
+async def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all users with their mail account counts (admin only)"""
+    result = await db.execute(
+        select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
+    )
+    users = result.scalars().all()
+
+    # Fetch mail account counts per user in one query
+    counts_result = await db.execute(
+        select(MailAccount.user_id, func.count(MailAccount.id).label("cnt")).group_by(
+            MailAccount.user_id
+        )
+    )
+    counts = {row.user_id: row.cnt for row in counts_result}
+
+    response = []
+    for u in users:
+        response.append(
+            AdminUserListResponse(
+                id=u.id,  # type: ignore[arg-type]
+                email=u.email,  # type: ignore[arg-type]
+                full_name=u.full_name,  # type: ignore[arg-type]
+                is_active=u.is_active,  # type: ignore[arg-type]
+                is_superuser=u.is_superuser,  # type: ignore[arg-type]
+                subscription_tier=u.subscription_tier,  # type: ignore[arg-type]
+                subscription_status=u.subscription_status,  # type: ignore[arg-type]
+                google_id=u.google_id,  # type: ignore[arg-type]
+                oauth_provider=u.oauth_provider,  # type: ignore[arg-type]
+                last_login_at=u.last_login_at,  # type: ignore[arg-type]
+                created_at=u.created_at,  # type: ignore[arg-type]
+                mail_account_count=counts.get(u.id, 0),  # type: ignore[arg-type]
+            )
+        )
+    return response
+
+
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user(
+    user_id: int,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific user's details (admin only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+    return user
+
+
+@router.put("/users/{user_id}", response_model=UserDetailResponse)
+async def update_user(
+    user_id: int,
+    user_update: AdminUserUpdate,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a user's details, plan, or admin status (admin only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    if user_update.full_name is not None:
+        user.full_name = user_update.full_name  # type: ignore[assignment]
+    if user_update.email is not None:
+        user.email = user_update.email  # type: ignore[assignment]
+    if user_update.is_active is not None:
+        user.is_active = user_update.is_active  # type: ignore[assignment]
+    if user_update.is_superuser is not None:
+        user.is_superuser = user_update.is_superuser  # type: ignore[assignment]
+    if user_update.subscription_tier is not None:
+        user.subscription_tier = SubscriptionTier(user_update.subscription_tier.value)  # type: ignore[assignment]
+    if user_update.subscription_status is not None:
+        user.subscription_status = user_update.subscription_status  # type: ignore[assignment]
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a user and all their data (admin only)"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account via admin endpoint",
+        )
+    await db.delete(user)
+    await db.commit()
+
+
+# ── Plan management ────────────────────────────────────────────────────────────
+
+
+@router.get("/plans", response_model=List[SubscriptionPlanResponse])
+async def list_all_plans(
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all subscription plans including inactive ones (admin only)"""
+    result = await db.execute(select(SubscriptionPlan).order_by(SubscriptionPlan.tier))
+    return result.scalars().all()
+
+
+@router.post(
+    "/plans",
+    response_model=SubscriptionPlanResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_plan(
+    plan_in: SubscriptionPlanCreate,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new subscription plan (admin only)"""
+    existing = await db.execute(
+        select(SubscriptionPlan).where(
+            SubscriptionPlan.tier == SubscriptionTier(plan_in.tier.value)
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A plan for tier '{plan_in.tier.value}' already exists",
+        )
+
+    plan = SubscriptionPlan(
+        tier=SubscriptionTier(plan_in.tier.value),
+        name=plan_in.name,
+        description=plan_in.description,
+        price_monthly=plan_in.price_monthly,
+        price_yearly=plan_in.price_yearly,
+        max_mail_accounts=plan_in.max_mail_accounts,
+        max_emails_per_day=plan_in.max_emails_per_day,
+        check_interval_minutes=plan_in.check_interval_minutes,
+        support_level=plan_in.support_level,
+        features=plan_in.features,
+        is_active=plan_in.is_active,
+    )
+    db.add(plan)
+    await db.commit()
+    await db.refresh(plan)
+    return plan
+
+
+@router.put("/plans/{plan_id}", response_model=SubscriptionPlanResponse)
+async def update_plan(
+    plan_id: int,
+    plan_update: SubscriptionPlanUpdate,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a subscription plan's limits or pricing (admin only)"""
+    result = await db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
+
+    if plan_update.name is not None:
+        plan.name = plan_update.name  # type: ignore[assignment]
+    if plan_update.description is not None:
+        plan.description = plan_update.description  # type: ignore[assignment]
+    if plan_update.price_monthly is not None:
+        plan.price_monthly = plan_update.price_monthly  # type: ignore[assignment]
+    if plan_update.price_yearly is not None:
+        plan.price_yearly = plan_update.price_yearly  # type: ignore[assignment]
+    if plan_update.max_mail_accounts is not None:
+        plan.max_mail_accounts = plan_update.max_mail_accounts  # type: ignore[assignment]
+    if plan_update.max_emails_per_day is not None:
+        plan.max_emails_per_day = plan_update.max_emails_per_day  # type: ignore[assignment]
+    if plan_update.check_interval_minutes is not None:
+        plan.check_interval_minutes = plan_update.check_interval_minutes  # type: ignore[assignment]
+    if plan_update.support_level is not None:
+        plan.support_level = plan_update.support_level  # type: ignore[assignment]
+    if plan_update.features is not None:
+        plan.features = plan_update.features  # type: ignore[assignment]
+    if plan_update.is_active is not None:
+        plan.is_active = plan_update.is_active  # type: ignore[assignment]
+
+    await db.commit()
+    await db.refresh(plan)
+    return plan
+
+
+@router.delete("/plans/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_plan(
+    plan_id: int,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a subscription plan (admin only)"""
+    result = await db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found"
+        )
+    await db.delete(plan)
+    await db.commit()

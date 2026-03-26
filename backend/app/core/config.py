@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Admin
-    ADMIN_EMAIL: Optional[str] = None
+    ADMIN_EMAIL: Optional[str] = "christianlouis@gmail.com"
     ADMIN_PASSWORD: Optional[str] = None
 
     # Mail Server Presets

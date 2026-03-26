@@ -276,12 +276,12 @@ class GmailService:
             delivery is functioning as expected.  Feel free to delete it.
 
             Best regards,
-            Christian Loris
+            Christian Krakau-Louis
             DocuElevate
             """)
 
         msg = MIMEText(body, "plain", "utf-8")
-        msg["From"] = "Christian Loris <christian@docuelevate.org>"
+        msg["From"] = "Christian Krakau-Louis <christian@docuelevate.org>"
         msg["To"] = recipient_email
         msg["Subject"] = subject
         msg["Date"] = format_datetime(now)
