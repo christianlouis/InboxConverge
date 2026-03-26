@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "POP3 Forwarder - Automatic Email Forwarding to Gmail",
-  description: "Forward your POP3 emails to Gmail automatically with our secure and reliable service",
+  title: "InboxRescue — your old inboxes, delivered to Gmail",
+  description: "Poll your legacy POP3 and IMAP mailboxes and have everything land quietly in Gmail. Set it once, forget it exists.",
 };
 
 export default function RootLayout({

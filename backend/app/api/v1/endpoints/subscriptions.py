@@ -15,9 +15,18 @@ router = APIRouter()
 
 @router.get("/plans", response_model=List[SubscriptionPlanResponse])
 async def list_subscription_plans(db: AsyncSession = Depends(get_db)):
-    """List all available subscription plans"""
+    """
+    List subscription plans shown in marketing / pricing pages.
+
+    Zero-price plans (price_monthly == 0) are intentionally excluded so that
+    enterprise / white-label deployments that assign a free plan to all users
+    don't surface that plan in the public pricing UI.
+    """
     result = await db.execute(
-        select(SubscriptionPlan).where(SubscriptionPlan.is_active == True)  # noqa: E712
+        select(SubscriptionPlan).where(
+            SubscriptionPlan.is_active.is_(True),
+            SubscriptionPlan.price_monthly > 0,
+        )
     )
     return result.scalars().all()
 

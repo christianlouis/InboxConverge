@@ -65,7 +65,7 @@ def create_application() -> FastAPI:
     app = FastAPI(
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
-        description="Multi-tenant POP3/IMAP to Gmail forwarder with subscription management",
+        description="Poll your legacy POP3/IMAP inboxes and deliver everything to Gmail. For real people, not enterprises.",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
@@ -92,7 +92,7 @@ def create_application() -> FastAPI:
     async def root():
         """Root endpoint"""
         return {
-            "message": "POP3 Forwarder SaaS API",
+            "message": "InboxRescue API",
             "version": settings.APP_VERSION,
             "docs": "/api/docs",
         }

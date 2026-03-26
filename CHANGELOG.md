@@ -19,19 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /admin/users/{id}` – Get a single user's details.
   - `PUT /admin/users/{id}` – Update user details, plan, active status, and superuser flag.
   - `DELETE /admin/users/{id}` – Delete a user.
-  - `GET /admin/plans` – List all subscription plans (including inactive).
+  - `GET /admin/plans` – List all subscription plans (including zero-price / inactive).
   - `POST /admin/plans` – Create a new subscription plan.
   - `PUT /admin/plans/{id}` – Update a subscription plan.
   - `DELETE /admin/plans/{id}` – Delete a subscription plan.
 - **Admin badge in top bar**: Admin users see a purple shield icon and an "Admin" badge next to their email in the top navigation bar.
+- **`DEFAULT_USER_TIER` env var**: Controls the subscription tier assigned to every new user on registration. Defaults to `free`. Set to `enterprise` (or any other tier) for B2B / Google Workspace installations where all employees should start on a zero-rate plan.
+- **`ALLOWED_DOMAINS` env var**: Comma-separated list of permitted email domains (e.g. `company.com,subsidiary.com`). When set, only addresses from those domains may register or log in. Superusers always bypass this check. Empty (default) = no restriction (normal B2C mode).
+- **Dynamic pricing section on landing page**: The home page now fetches `GET /subscriptions/plans` and renders a pricing section only when paid plans exist. In enterprise / all-zero-rate deployments the pricing section is silently hidden — the page just shows features and a "Get started free" CTA.
+- **B2C copy and branding**: App renamed to **InboxRescue** throughout (was "POP3 Forwarder SaaS"). Landing page hero, feature cards, how-it-works, and footer rewritten in a personal, consumer-friendly tone. Pricing updated to €0.99 / €1.99 / €2.99 per month for Good / Better / Best plans.
 
 ### Fixed
 - Test email sender name corrected from "Christian Loris" to "Christian Krakau-Louis".
 - **Mailbox limit always hit at 1**: The `subscription_plans` table was never seeded, so the limit check fell back to the env-var default of `TIER_FREE_MAX_ACCOUNTS=1` for every user regardless of their tier. Fixed by:
-  1. Seeding four default `SubscriptionPlan` rows at startup — **Free**, **Good**, **Better**, **Best** — so admin-managed limits are stored in the DB from first boot.
+  1. Seeding four default `SubscriptionPlan` rows at startup — **Free**, **Good** (€0.99), **Better** (€1.99), **Best** (€2.99).
   2. Rewriting the limit check to look up the user's active plan from the DB first, falling back to env-var config only when no plan row exists.
   3. Bypassing the limit entirely for superusers (admins can always add mailboxes).
-  4. Adding plan limit fields (`max_mail_accounts`, `max_emails_per_day`, `check_interval_minutes`) to the `GET /subscriptions/current` response so the frontend can display them.
+  4. Adding plan limit fields (`max_mail_accounts`, `max_emails_per_day`, `check_interval_minutes`) to `GET /subscriptions/current`.
+- **Zero-price plans hidden from public marketing**: `GET /subscriptions/plans` now only returns plans with `price_monthly > 0`. Zero-rate plans (Free tier, custom enterprise plans) are still managed by admins but never shown in the public pricing UI.
 
 ### Fixed
 - Fixed `TypeError: can't subtract offset-naive and offset-aware datetimes` in `process_mail_account` task when computing `duration_seconds`. After a database refresh, `started_at` may be returned as a naive datetime; it is now normalized to UTC before subtraction.
