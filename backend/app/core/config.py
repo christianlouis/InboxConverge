@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    APP_NAME: str = "POP3 Forwarder SaaS"
+    APP_NAME: str = "InboxRescue"
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
@@ -94,8 +94,17 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Admin
-    ADMIN_EMAIL: Optional[str] = None
+    ADMIN_EMAIL: Optional[str] = "christianlouis@gmail.com"
     ADMIN_PASSWORD: Optional[str] = None
+
+    # User defaults & access control
+    # Tier assigned to every new user on registration: free | basic | pro | enterprise
+    DEFAULT_USER_TIER: str = "free"
+    # Comma-separated list of allowed email domains (empty = no restriction).
+    # When set, only addresses from these domains may register or log in.
+    # Useful for B2B / Google Workspace installations.
+    # Example: "company.com,subsidiary.com"
+    ALLOWED_DOMAINS: List[str] = []
 
     # Mail Server Presets
     MAIL_SERVER_PRESETS_FILE: str = "app/data/mail_server_presets.json"
@@ -107,6 +116,23 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [i.strip() for i in v.split(",")]
         return v
+
+    @field_validator("ALLOWED_DOMAINS", mode="before")
+    @classmethod
+    def assemble_allowed_domains(cls, v: str | List[str]) -> List[str]:
+        """Parse allowed domains from a comma-separated environment variable"""
+        if isinstance(v, str):
+            return [d.strip().lower() for d in v.split(",") if d.strip()]
+        return [d.lower() for d in v if d]
+
+    @field_validator("DEFAULT_USER_TIER")
+    @classmethod
+    def validate_default_user_tier(cls, v: str) -> str:
+        """Ensure DEFAULT_USER_TIER is one of the known tier values"""
+        valid = {"free", "basic", "pro", "enterprise"}
+        if v.lower() not in valid:
+            raise ValueError(f"DEFAULT_USER_TIER must be one of {valid}, got '{v}'")
+        return v.lower()
 
     @field_validator("SECRET_KEY")
     @classmethod

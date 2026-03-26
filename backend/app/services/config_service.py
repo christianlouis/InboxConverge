@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database_models import AppSetting
+from app.models.database_models import AppSetting, SubscriptionPlan, SubscriptionTier
 
 logger = logging.getLogger(__name__)
 
@@ -338,4 +338,87 @@ class ConfigService:
         if created:
             await db.commit()
         logger.info("Seeded %d default settings into the database", created)
+
+        # Seed default subscription plans
+        await ConfigService.seed_default_plans(db)
+
+        return created
+
+    @staticmethod
+    async def seed_default_plans(db: AsyncSession) -> int:
+        """
+        Populate the database with default subscription plans (skip existing tiers).
+
+        Limits mirror the env-var defaults so behaviour is unchanged on first boot
+        but can be overridden by admins via the plan management UI.
+
+        Returns the number of plans created.
+        """
+        from app.core.config import settings  # local import to avoid circular deps
+
+        default_plans = [
+            {
+                "tier": SubscriptionTier.FREE,
+                "name": "Free",
+                "description": "Dip your toes in. One old inbox pulled into Gmail, checked every 30 minutes. Free forever, no card needed.",
+                "price_monthly": 0.0,
+                "price_yearly": 0.0,
+                "max_mail_accounts": settings.TIER_FREE_MAX_ACCOUNTS,
+                "max_emails_per_day": 100,
+                "check_interval_minutes": 30,
+                "support_level": "community",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.BASIC,
+                "name": "Good",
+                "description": "Got a handful of dusty inboxes you just can't let go of? This one's for you. Less than a coffee per month.",
+                "price_monthly": 0.99,
+                "price_yearly": 9.90,
+                "max_mail_accounts": settings.TIER_BASIC_MAX_ACCOUNTS,
+                "max_emails_per_day": 1000,
+                "check_interval_minutes": 15,
+                "support_level": "email",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.PRO,
+                "name": "Better",
+                "description": "You're clearly the type who keeps every email address you've ever had. Respect. Checked every 5 minutes.",
+                "price_monthly": 1.99,
+                "price_yearly": 19.90,
+                "max_mail_accounts": settings.TIER_PRO_MAX_ACCOUNTS,
+                "max_emails_per_day": 10000,
+                "check_interval_minutes": 5,
+                "support_level": "email",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.ENTERPRISE,
+                "name": "Best",
+                "description": "Every old inbox you've ever had, all landing neatly in Gmail, checked every minute. The full works.",
+                "price_monthly": 2.99,
+                "price_yearly": 29.90,
+                "max_mail_accounts": settings.TIER_ENTERPRISE_MAX_ACCOUNTS,
+                "max_emails_per_day": 100000,
+                "check_interval_minutes": 1,
+                "support_level": "email",
+                "is_active": True,
+            },
+        ]
+
+        created = 0
+        for plan_data in default_plans:
+            result = await db.execute(
+                select(SubscriptionPlan).where(
+                    SubscriptionPlan.tier == plan_data["tier"]
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                db.add(SubscriptionPlan(**plan_data))
+                created += 1
+
+        if created:
+            await db.commit()
+        logger.info("Seeded %d default subscription plans into the database", created)
         return created

@@ -74,6 +74,7 @@ class UserDetailResponse(UserResponse):
     stripe_customer_id: Optional[str] = None
     subscription_expires_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
+    is_superuser: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -377,3 +378,59 @@ class GmailAuthorizeResponse(BaseModel):
 class GmailCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
+
+
+# Admin Schemas
+
+
+class AdminUserListResponse(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str] = None
+    is_active: bool
+    is_superuser: bool
+    subscription_tier: SubscriptionTier
+    subscription_status: str
+    google_id: Optional[str] = None
+    oauth_provider: Optional[str] = None
+    last_login_at: Optional[datetime] = None
+    created_at: datetime
+    mail_account_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminUserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    subscription_tier: Optional[SubscriptionTier] = None
+    subscription_status: Optional[str] = None
+
+
+class SubscriptionPlanCreate(BaseModel):
+    tier: SubscriptionTier
+    name: str
+    description: Optional[str] = None
+    price_monthly: float = 0.0
+    price_yearly: Optional[float] = None
+    max_mail_accounts: int = 1
+    max_emails_per_day: int = 1000
+    check_interval_minutes: int = 5
+    support_level: str = "community"
+    features: Optional[Dict[str, Any]] = None
+    is_active: bool = True
+
+
+class SubscriptionPlanUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price_monthly: Optional[float] = None
+    price_yearly: Optional[float] = None
+    max_mail_accounts: Optional[int] = None
+    max_emails_per_day: Optional[int] = None
+    check_interval_minutes: Optional[int] = None
+    support_level: Optional[str] = None
+    features: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None

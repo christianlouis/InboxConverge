@@ -231,6 +231,15 @@ because the API client layer is missing.
 - [ ] Notification preferences UI
 - [ ] Subscription management / billing UI
 
+### Admin Interface ✅
+- [x] Admin section in sidebar (visible to superusers only)
+- [x] Admin overview page (`/admin`) with system-wide stats
+- [x] User management page (`/admin/users`) — list, edit, delete users; assign plans; promote/demote admin
+- [x] Plan management page (`/admin/plans`) — full CRUD for subscription plans (mailboxes, emails/day, interval, pricing)
+- [x] `ADMIN_EMAIL` env var with default `christianlouis@gmail.com`; admin auto-promoted on login
+- [x] `is_superuser` exposed in `/users/me` response
+- [x] Admin badge (purple shield) shown in top bar for superusers
+
 ---
 
 ## 📅 Milestone Timeline

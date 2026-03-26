@@ -33,6 +33,48 @@ GOOGLE_LOGIN_SCOPES = [
 ]
 
 
+def _domain_of(email: str) -> str:
+    """Return the lowercased domain part of an email address."""
+    return email.split("@")[-1].lower()
+
+
+def _check_domain_allowed(email: str) -> None:
+    """
+    Raise 403 if ALLOWED_DOMAINS is configured and the email's domain is not
+    in the list.  Always passes when ALLOWED_DOMAINS is empty (no restriction).
+    """
+    if not settings.ALLOWED_DOMAINS:
+        return
+    domain = _domain_of(email)
+    if domain not in settings.ALLOWED_DOMAINS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Registrations are restricted to approved domains. "
+                f"'{domain}' is not authorised."
+            ),
+        )
+
+
+def _default_tier() -> SubscriptionTier:
+    """Return the SubscriptionTier that should be assigned to every new user."""
+    try:
+        return SubscriptionTier(settings.DEFAULT_USER_TIER)
+    except ValueError:
+        logger.warning(
+            "DEFAULT_USER_TIER '%s' is not a valid tier; falling back to FREE.",
+            settings.DEFAULT_USER_TIER,
+        )
+        return SubscriptionTier.FREE
+
+
+def _is_admin_email(email: str) -> bool:
+    return (
+        settings.ADMIN_EMAIL is not None
+        and email.lower() == settings.ADMIN_EMAIL.lower()
+    )
+
+
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
@@ -48,6 +90,9 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
+    # Domain restriction check (before creating the account)
+    _check_domain_allowed(user_in.email)
+
     # Create new user
     user = User(
         email=user_in.email,
@@ -55,8 +100,9 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
         hashed_password=(
             get_password_hash(user_in.password) if user_in.password else None
         ),
-        subscription_tier=SubscriptionTier.FREE,
+        subscription_tier=_default_tier(),
         is_active=True,
+        is_superuser=_is_admin_email(user_in.email),
     )
 
     db.add(user)
@@ -99,8 +145,18 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
 
+    # Domain restriction — superusers always bypass
+    if not user.is_superuser:
+        _check_domain_allowed(user.email)
+
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+
+    # Auto-promote to superuser if this is the configured admin email
+    if not user.is_superuser and _is_admin_email(user.email):
+        user.is_superuser = True  # type: ignore[assignment]
+        logger.info(f"Auto-promoted admin user: {user.email}")
+
     await db.commit()
 
     # Create tokens
@@ -149,17 +205,30 @@ async def google_oauth(
         # Update last login
         user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
+        # Domain restriction — superusers always bypass
+        if not user.is_superuser:
+            _check_domain_allowed(email)
+
+        # Auto-promote to superuser if this is the configured admin email
+        if not user.is_superuser and _is_admin_email(email):
+            user.is_superuser = True  # type: ignore[assignment]
+            logger.info(f"Auto-promoted admin user via Google OAuth: {user.email}")
+
         logger.info(f"Existing user logged in with Google: {user.email}")
     else:
+        # Domain restriction check before creating the account
+        _check_domain_allowed(email)
+
         # Create new user
         user = User(
             email=email,
             full_name=user_info.get("full_name"),
             google_id=google_id,
             oauth_provider="google",
-            subscription_tier=SubscriptionTier.FREE,
+            subscription_tier=_default_tier(),
             is_active=True,
             last_login_at=datetime.now(timezone.utc),
+            is_superuser=_is_admin_email(email),
         )
         db.add(user)
 

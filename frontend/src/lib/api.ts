@@ -38,6 +38,7 @@ export interface User {
   email: string;
   full_name: string | null;
   is_active: boolean;
+  is_superuser: boolean;
   subscription_tier: string;
   subscription_status: string;
   created_at: string;
@@ -358,6 +359,129 @@ export const smtpApi = {
 
   async remove(): Promise<void> {
     await api.delete('/users/smtp-config');
+  },
+};
+
+// ── Admin Types ─────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  full_name: string | null;
+  is_active: boolean;
+  is_superuser: boolean;
+  subscription_tier: string;
+  subscription_status: string;
+  google_id?: string | null;
+  oauth_provider?: string | null;
+  last_login_at?: string | null;
+  created_at: string;
+  mail_account_count: number;
+}
+
+export interface AdminUserUpdate {
+  full_name?: string | null;
+  email?: string;
+  is_active?: boolean;
+  is_superuser?: boolean;
+  subscription_tier?: string;
+  subscription_status?: string;
+}
+
+export interface SubscriptionPlan {
+  id: number;
+  tier: string;
+  name: string;
+  description?: string | null;
+  price_monthly: number;
+  price_yearly?: number | null;
+  max_mail_accounts: number;
+  max_emails_per_day: number;
+  check_interval_minutes: number;
+  support_level: string;
+  features?: Record<string, unknown> | null;
+  is_active: boolean;
+}
+
+export interface SubscriptionPlanCreate {
+  tier: string;
+  name: string;
+  description?: string;
+  price_monthly: number;
+  price_yearly?: number;
+  max_mail_accounts: number;
+  max_emails_per_day: number;
+  check_interval_minutes: number;
+  support_level: string;
+  features?: Record<string, unknown>;
+  is_active: boolean;
+}
+
+export interface SubscriptionPlanUpdate {
+  name?: string;
+  description?: string;
+  price_monthly?: number;
+  price_yearly?: number;
+  max_mail_accounts?: number;
+  max_emails_per_day?: number;
+  check_interval_minutes?: number;
+  support_level?: string;
+  features?: Record<string, unknown>;
+  is_active?: boolean;
+}
+
+export interface AdminStats {
+  total_users: number;
+  total_mail_accounts: number;
+  total_processing_runs: number;
+}
+
+// ── Admin API ───────────────────────────────────────────────────────────
+
+export const adminApi = {
+  async getStats(): Promise<AdminStats> {
+    const response = await api.get<AdminStats>('/admin/stats');
+    return response.data;
+  },
+
+  async listUsers(skip = 0, limit = 100): Promise<AdminUser[]> {
+    const response = await api.get<AdminUser[]>('/admin/users', {
+      params: { skip, limit },
+    });
+    return response.data;
+  },
+
+  async getUser(id: number): Promise<User> {
+    const response = await api.get<User>(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  async updateUser(id: number, data: AdminUserUpdate): Promise<User> {
+    const response = await api.put<User>(`/admin/users/${id}`, data);
+    return response.data;
+  },
+
+  async deleteUser(id: number): Promise<void> {
+    await api.delete(`/admin/users/${id}`);
+  },
+
+  async listPlans(): Promise<SubscriptionPlan[]> {
+    const response = await api.get<SubscriptionPlan[]>('/admin/plans');
+    return response.data;
+  },
+
+  async createPlan(data: SubscriptionPlanCreate): Promise<SubscriptionPlan> {
+    const response = await api.post<SubscriptionPlan>('/admin/plans', data);
+    return response.data;
+  },
+
+  async updatePlan(id: number, data: SubscriptionPlanUpdate): Promise<SubscriptionPlan> {
+    const response = await api.put<SubscriptionPlan>(`/admin/plans/${id}`, data);
+    return response.data;
+  },
+
+  async deletePlan(id: number): Promise<void> {
+    await api.delete(`/admin/plans/${id}`);
   },
 };
 
