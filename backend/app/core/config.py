@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    APP_NAME: str = "POP3 Forwarder SaaS"
+    APP_NAME: str = "InboxRescue"
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
