@@ -4,11 +4,11 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: pop3-postgres
+    container_name: inboxconverge-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: pop3_forwarder
+      POSTGRES_DB: inbox_converge
     ports:
       - "5432:5432"
     volumes:
@@ -22,7 +22,7 @@ services:
   # Redis for caching and Celery
   redis:
     image: redis:7-alpine
-    container_name: pop3-redis
+    container_name: inboxconverge-redis
     ports:
       - "6379:6379"
     volumes:
@@ -38,7 +38,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-backend
+    container_name: inboxconverge-backend
     ports:
       - "8000:8000"
     env_file:
@@ -58,7 +58,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-celery-worker
+    container_name: inboxconverge-celery-worker
     env_file:
       - ./backend/.env
     depends_on:
@@ -75,7 +75,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-celery-beat
+    container_name: inboxconverge-celery-beat
     env_file:
       - ./backend/.env
     depends_on:
@@ -92,11 +92,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: pop3-frontend
+    container_name: inboxconverge-frontend
     ports:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:8000
+      - CONTACT_EMAIL=christian@inboxconverge.com
+      - APP_URL=https://inboxconverge.com
+      - APP_NAME=InboxConverge
     depends_on:
       - backend
     restart: unless-stopped
@@ -104,7 +107,7 @@ services:
   # Prometheus metrics collection
   prometheus:
     image: prom/prometheus:v2.51.2
-    container_name: pop3-prometheus
+    container_name: inboxconverge-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -122,7 +125,7 @@ services:
   # Grafana dashboards
   grafana:
     image: grafana/grafana:10.4.3
-    container_name: pop3-grafana
+    container_name: inboxconverge-grafana
     ports:
       - "3001:3000"
     environment:

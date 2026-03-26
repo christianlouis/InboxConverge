@@ -15,7 +15,7 @@
 If you discover a security vulnerability, please report it responsibly:
 
 1. **Email**: Send details to the repository maintainer via the email listed on the [GitHub profile](https://github.com/christianlouis).
-2. **GitHub Private Vulnerability Reporting**: Use [GitHub's security advisory feature](https://github.com/christianlouis/pop_puller_to_gmail/security/advisories/new) to report privately.
+2. **GitHub Private Vulnerability Reporting**: Use [GitHub's security advisory feature](https://github.com/christianlouis/inboxconverge/security/advisories/new) to report privately.
 
 ### What to Include
 

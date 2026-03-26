@@ -8,13 +8,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY pop3_forwarder.py .
+COPY inboxconverge.py .
 
 # Create non-root user for security
-RUN useradd -m -u 1000 forwarder && \
-    chown -R forwarder:forwarder /app
+RUN useradd -m -u 1000 inboxconverge && \
+    chown -R inboxconverge:inboxconverge /app
 
-USER forwarder
+USER inboxconverge
 
 # Run the application
-CMD ["python", "-u", "pop3_forwarder.py"]
+CMD ["python", "-u", "inboxconverge.py"]

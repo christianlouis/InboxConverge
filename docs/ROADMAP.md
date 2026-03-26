@@ -1,7 +1,7 @@
 # Roadmap
 
 ## Vision
-Create a robust, scalable, and user-friendly POP3 to Gmail forwarding solution that serves as a complete replacement for Gmail's discontinued POP3 import feature.
+Create a robust, scalable, and user-friendly InboxConverge email-forwarding solution that serves as a complete replacement for Gmail's discontinued POP3 import feature.
 
 ---
 

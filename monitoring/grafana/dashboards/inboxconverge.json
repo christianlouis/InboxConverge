@@ -51,7 +51,7 @@
       }
     ]
   },
-  "description": "InboxRescue system health: mail processing, Gmail API, auth, and HTTP metrics",
+  "description": "InboxConverge system health: mail processing, Gmail API, auth, and HTTP metrics",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -1111,7 +1111,7 @@
   ],
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["inboxrescue", "monitoring", "email"],
+  "tags": ["inboxconverge", "monitoring", "email"],
   "templating": {
     "list": []
   },
@@ -1121,8 +1121,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "InboxRescue - System Health",
-  "uid": "inboxrescue-health",
+  "title": "InboxConverge - System Health",
+  "uid": "inboxconverge-health",
   "version": 1,
   "weekStart": ""
 }

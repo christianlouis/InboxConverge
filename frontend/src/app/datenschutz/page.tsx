@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
+const APP_NAME = process.env.APP_NAME ?? 'InboxConverge';
+
 export const metadata: Metadata = {
-  title: 'Datenschutz – POP3 Forwarder',
+  title: `Datenschutz – ${APP_NAME}`,
 };
 
 const LAST_UPDATED = 'March 26, 2026';
-const CONTACT_EMAIL = 'christianlouis@gmail.com';
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'christian@inboxconverge.com';
 
 export default function DatenschutzPage() {
   return (
@@ -82,7 +84,7 @@ export default function DatenschutzPage() {
             2. Geltungsbereich dieser Datenschutzerklärung
           </h2>
           <p className="text-gray-700">
-            Dieser Hinweis gilt für die POP3 Forwarder-Webanwendung. Er gilt
+            Dieser Hinweis gilt für die {APP_NAME}-Webanwendung. Er gilt
             für alle Nutzer weltweit, einschließlich derjenigen in der
             Europäischen Union (EU), dem Europäischen Wirtschaftsraum (EWR),
             Deutschland, dem Vereinigten Königreich (UK), der Schweiz, der

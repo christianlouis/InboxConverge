@@ -126,7 +126,7 @@ elif version == 'v2':
 def get_or_create_user_salt(user_id: int) -> bytes:
     # Use deterministic salt based on user_id + global salt
     # OR store random salt in database per user
-    return hashlib.sha256(f'pop3_forwarder_user_{user_id}'.encode()).digest()
+    return hashlib.sha256(f'inbox_converge_user_{user_id}'.encode()).digest()
 ```
 
 ## Security Best Practices

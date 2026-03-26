@@ -39,8 +39,8 @@ This project has been **completely transformed** from a single-user Docker scrip
 
 ```bash
 # Clone repository
-git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 
 # Configure environment
 cp backend/.env.example backend/.env
@@ -330,8 +330,8 @@ MIT License - See [LICENSE](../LICENSE) file for details.
 ## 🆘 Support
 
 - **Documentation**: See docs in repository
-- **Issues**: https://github.com/christianlouis/pop_puller_to_gmail/issues
-- **Discussions**: https://github.com/christianlouis/pop_puller_to_gmail/discussions
+- **Issues**: https://github.com/christianlouis/inboxconverge/issues
+- **Discussions**: https://github.com/christianlouis/inboxconverge/discussions
 - **Email**: support@example.com (for Enterprise customers)
 
 ## 🎉 Acknowledgments

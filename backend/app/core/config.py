@@ -27,8 +27,10 @@ class Settings(BaseSettings):
     )
 
     # Application
-    APP_NAME: str = "InboxRescue"
+    APP_NAME: str = "InboxConverge"
     APP_VERSION: str = "2.0.0"
+    APP_URL: str = "https://inboxconverge.com"
+    CONTACT_EMAIL: str = "christian@inboxconverge.com"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
 
@@ -38,7 +40,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = (
-        "postgresql+asyncpg://user:password@localhost:5432/pop3_forwarder"
+        "postgresql+asyncpg://user:password@localhost:5432/inbox_converge"
     )
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
@@ -94,7 +96,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Admin
-    ADMIN_EMAIL: Optional[str] = "christianlouis@gmail.com"
+    ADMIN_EMAIL: Optional[str] = "christian@inboxconverge.com"
     ADMIN_PASSWORD: Optional[str] = None
 
     # User defaults & access control

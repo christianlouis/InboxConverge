@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide walks you through deploying **POP3 to Gmail Forwarder** from scratch — whether you just want a single container pulling emails, a full multi-service SaaS stack with Docker Compose, or a production-grade Kubernetes setup.
+This guide walks you through deploying **InboxConverge** from scratch — whether you just want a single container pulling emails, a full multi-service SaaS stack with Docker Compose, or a production-grade Kubernetes setup.
 
 ---
 
@@ -52,13 +52,13 @@ You will also need:
 
 ## Option 1 — Legacy Single-Container Deployment
 
-The legacy mode runs a single Python script (`pop3_forwarder.py`) that polls POP3 mailboxes and forwards email via SMTP. No database, no web UI — just a container and an `.env` file.
+The legacy mode runs a single Python script (`inbox_converge.py`) that polls POP3 mailboxes and forwards email via SMTP. No database, no web UI — just a container and an `.env` file.
 
 ### 1. Create the environment file
 
 ```bash
-git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 cp .env.example .env
 ```
 
@@ -97,12 +97,12 @@ The repository ships `docker-compose.yml` for this mode. Here is the content for
 version: "3.8"
 
 services:
-  pop3-forwarder:
+  inbox-converge:
     # Build from source
     build: .
     # Or use the pre-built image:
-    # image: ghcr.io/christianlouis/pop_puller_to_gmail:latest
-    container_name: pop3-gmail-forwarder
+    # image: ghcr.io/christianlouis/inboxconverge:latest
+    container_name: inboxconverge
     restart: unless-stopped
     env_file:
       - .env
@@ -149,7 +149,7 @@ Save both values — you will need them below.
 ### 2. Create the backend environment file
 
 ```bash
-cd pop_puller_to_gmail
+cd inboxconverge
 cp backend/.env.example backend/.env
 ```
 
@@ -157,7 +157,7 @@ Edit `backend/.env`:
 
 ```ini
 # ── Database ──────────────────────────────────────────────
-DATABASE_URL=postgresql+asyncpg://postgres:change-me@postgres:5432/pop3_forwarder
+DATABASE_URL=postgresql+asyncpg://postgres:change-me@postgres:5432/inbox_converge
 
 # ── Security (paste the values you generated above) ──────
 SECRET_KEY=<your-64-char-hex-secret>
@@ -198,12 +198,12 @@ services:
   # ── PostgreSQL ───────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
-    container_name: pop3-postgres
+    container_name: inboxconverge-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: change-me          # must match DATABASE_URL
-      POSTGRES_DB: pop3_forwarder
+      POSTGRES_DB: inbox_converge
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -219,7 +219,7 @@ services:
   # ── Redis ────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: pop3-redis
+    container_name: inboxconverge-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -235,7 +235,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-backend
+    container_name: inboxconverge-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -260,7 +260,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-celery-worker
+    container_name: inboxconverge-celery-worker
     restart: unless-stopped
     env_file:
       - ./backend/.env
@@ -278,7 +278,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pop3-celery-beat
+    container_name: inboxconverge-celery-beat
     restart: unless-stopped
     env_file:
       - ./backend/.env
@@ -296,7 +296,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: pop3-frontend
+    container_name: inboxconverge-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -358,7 +358,7 @@ Below is a set of example Kubernetes manifests to get you started. Adapt namespa
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: pop3-forwarder
+  name: inbox-converge
 ```
 
 ### Secrets
@@ -369,13 +369,13 @@ Store sensitive values in a Kubernetes Secret. In production, consider using an 
 apiVersion: v1
 kind: Secret
 metadata:
-  name: pop3-forwarder-secrets
-  namespace: pop3-forwarder
+  name: inbox-converge-secrets
+  namespace: inbox-converge
 type: Opaque
 stringData:
   SECRET_KEY: "<your-64-char-hex-secret>"
   ENCRYPTION_KEY: "<your-64-char-hex-encryption-key>"
-  DATABASE_URL: "postgresql+asyncpg://postgres:change-me@postgres:5432/pop3_forwarder"
+  DATABASE_URL: "postgresql+asyncpg://postgres:change-me@postgres:5432/inbox_converge"
   REDIS_URL: "redis://redis:6379/0"
   CELERY_BROKER_URL: "redis://redis:6379/0"
   CELERY_RESULT_BACKEND: "redis://redis:6379/0"
@@ -396,7 +396,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 1
   selector:
@@ -416,11 +416,11 @@ spec:
             - name: POSTGRES_USER
               value: postgres
             - name: POSTGRES_DB
-              value: pop3_forwarder
+              value: inbox_converge
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: pop3-forwarder-secrets
+                  name: inbox-converge-secrets
                   key: POSTGRES_PASSWORD
           volumeMounts:
             - name: pgdata
@@ -439,7 +439,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   selector:
     app: postgres
@@ -451,7 +451,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -466,7 +466,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 1
   selector:
@@ -493,7 +493,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   selector:
     app: redis
@@ -509,7 +509,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 2
   selector:
@@ -522,22 +522,22 @@ spec:
     spec:
       initContainers:
         - name: run-migrations
-          image: ghcr.io/christianlouis/pop_puller_to_gmail-backend:latest
+          image: ghcr.io/christianlouis/inboxconverge-backend:latest
           command: ["alembic", "upgrade", "head"]
           envFrom:
             - secretRef:
-                name: pop3-forwarder-secrets
+                name: inbox-converge-secrets
           env:
             - name: DEBUG
               value: "false"
       containers:
         - name: backend
-          image: ghcr.io/christianlouis/pop_puller_to_gmail-backend:latest
+          image: ghcr.io/christianlouis/inboxconverge-backend:latest
           ports:
             - containerPort: 8000
           envFrom:
             - secretRef:
-                name: pop3-forwarder-secrets
+                name: inbox-converge-secrets
           env:
             - name: HOST
               value: "0.0.0.0"
@@ -567,7 +567,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   selector:
     app: backend
@@ -583,7 +583,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: celery-worker
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 2
   selector:
@@ -596,7 +596,7 @@ spec:
     spec:
       containers:
         - name: worker
-          image: ghcr.io/christianlouis/pop_puller_to_gmail-backend:latest
+          image: ghcr.io/christianlouis/inboxconverge-backend:latest
           command:
             - celery
             - -A
@@ -606,7 +606,7 @@ spec:
             - --concurrency=2
           envFrom:
             - secretRef:
-                name: pop3-forwarder-secrets
+                name: inbox-converge-secrets
           resources:
             requests:
               cpu: 250m
@@ -625,7 +625,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: celery-beat
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 1          # Must be exactly 1
   strategy:
@@ -640,7 +640,7 @@ spec:
     spec:
       containers:
         - name: beat
-          image: ghcr.io/christianlouis/pop_puller_to_gmail-backend:latest
+          image: ghcr.io/christianlouis/inboxconverge-backend:latest
           command:
             - celery
             - -A
@@ -649,7 +649,7 @@ spec:
             - --loglevel=info
           envFrom:
             - secretRef:
-                name: pop3-forwarder-secrets
+                name: inbox-converge-secrets
           resources:
             requests:
               cpu: 100m
@@ -666,7 +666,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   replicas: 2
   selector:
@@ -679,7 +679,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/christianlouis/pop_puller_to_gmail-frontend:latest
+          image: ghcr.io/christianlouis/inboxconverge-frontend:latest
           ports:
             - containerPort: 3000
           env:
@@ -697,7 +697,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
-  namespace: pop3-forwarder
+  namespace: inbox-converge
 spec:
   selector:
     app: frontend
@@ -714,8 +714,8 @@ The Ingress below assumes you have an Ingress controller installed (e.g., [ingre
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: pop3-forwarder-ingress
-  namespace: pop3-forwarder
+  name: inbox-converge-ingress
+  namespace: inbox-converge
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
@@ -725,7 +725,7 @@ spec:
     - hosts:
         - your-domain.com
         - api.your-domain.com
-      secretName: pop3-forwarder-tls
+      secretName: inbox-converge-tls
   rules:
     - host: your-domain.com
       http:
@@ -754,7 +754,7 @@ spec:
 If you manage many environments (staging, production, etc.) consider wrapping the manifests above into a Helm chart:
 
 ```text
-helm/pop3-forwarder/
+helm/inbox-converge/
 ├── Chart.yaml
 ├── values.yaml            # defaults for all environments
 ├── values-staging.yaml
@@ -782,8 +782,8 @@ replicaCount:
   frontend: 2
 
 image:
-  backend: ghcr.io/christianlouis/pop_puller_to_gmail-backend
-  frontend: ghcr.io/christianlouis/pop_puller_to_gmail-frontend
+  backend: ghcr.io/christianlouis/inboxconverge-backend
+  frontend: ghcr.io/christianlouis/inboxconverge-frontend
   tag: latest
 
 ingress:
@@ -862,7 +862,7 @@ In production you should place a reverse proxy in front of the backend and front
 ### Example: nginx
 
 ```nginx
-# /etc/nginx/sites-available/pop3-forwarder
+# /etc/nginx/sites-available/inbox-converge
 
 # Frontend
 server {
@@ -969,7 +969,7 @@ If you prefer Traefik, add it as a service in your Compose file and use labels o
 ## Upgrading
 
 ```bash
-cd pop_puller_to_gmail
+cd inboxconverge
 
 # Pull latest code
 git pull origin main

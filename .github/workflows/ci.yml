@@ -77,7 +77,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: pop3_forwarder_test
+          POSTGRES_DB: inbox_converge_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -113,7 +113,7 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pop3_forwarder_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/inbox_converge_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci-cd-at-least-32-chars
           ENCRYPTION_KEY: test-encryption-key-for-ci-cd-at-least-32-chars
@@ -173,9 +173,9 @@ jobs:
       matrix:
         include:
           - context: ./backend
-            image_name: gmail-puller/backend
+            image_name: inboxconverge/backend
           - context: ./frontend
-            image_name: gmail-puller/frontend
+            image_name: inboxconverge/frontend
 
     steps:
       - name: Checkout repository

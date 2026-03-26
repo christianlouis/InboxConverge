@@ -1,6 +1,6 @@
 # Deployment Checklist and Next Steps
 
-This document provides a checklist for deploying the multi-tenant POP3 Forwarder with web interface.
+This document provides a checklist for deploying the multi-tenant InboxConverge with web interface.
 
 ## 🚀 Pre-Deployment Checklist
 
@@ -48,7 +48,7 @@ This document provides a checklist for deploying the multi-tenant POP3 Forwarder
 
 #### Database
 - [ ] PostgreSQL 15+ instance running
-- [ ] Database created: `pop3_forwarder`
+- [ ] Database created: `inbox_converge`
 - [ ] Connection details configured in backend/.env
 - [ ] Backups configured
 
@@ -89,8 +89,8 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 ```bash
 # On production server
 cd /opt
-sudo git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+sudo git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 ```
 
 ### Step 2: Configure Environment
@@ -195,9 +195,9 @@ curl -X POST https://api.yourdomain.com/api/v1/auth/register \
 # Automated daily backup script
 cat > /usr/local/bin/backup-pop3-db.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR=/var/backups/pop3_forwarder
+BACKUP_DIR=/var/backups/inbox_converge
 DATE=$(date +%Y%m%d_%H%M%S)
-docker exec pop3-postgres pg_dump -U postgres pop3_forwarder | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
+docker exec inboxconverge-postgres pg_dump -U postgres inbox_converge | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
 find $BACKUP_DIR -type f -mtime +30 -delete
 EOF
 
@@ -394,4 +394,4 @@ Use this checklist after deployment:
 
 ## 🎉 Congratulations!
 
-If all checkboxes above are complete, your multi-tenant POP3 Forwarder with web interface is successfully deployed and ready to serve users!
+If all checkboxes above are complete, your multi-tenant InboxConverge with web interface is successfully deployed and ready to serve users!

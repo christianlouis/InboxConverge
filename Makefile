@@ -120,12 +120,12 @@ run-beat: ## Run Celery beat scheduler
 run-flower: ## Run Flower (Celery monitoring)
 	cd backend && celery -A app.core.celery_app flower --port=5555
 
-run-legacy: ## Run legacy pop3_forwarder script
-	python pop3_forwarder.py
+run-legacy: ## Run legacy inboxconverge script
+	python inboxconverge.py
 
 # Database Shell
 shell: ## Open database shell
-	docker-compose exec db psql -U postgres -d pop3_forwarder
+	docker-compose exec db psql -U postgres -d inbox_converge
 
 shell-python: ## Open Python shell with app context
 	cd backend && python -c "from app.core.database import SessionLocal; db = SessionLocal(); print('Database session available as db')"

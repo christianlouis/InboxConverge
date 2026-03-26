@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Create Celery app
 celery_app = Celery(
-    "pop3_forwarder",
+    "inboxconverge",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=["app.workers.tasks"],

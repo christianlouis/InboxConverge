@@ -1,6 +1,6 @@
 # Implementation Guide
 
-This guide provides step-by-step instructions for setting up and deploying the multi-tenant POP3 Forwarder SaaS application.
+This guide provides step-by-step instructions for setting up and deploying the multi-tenant InboxConverge application.
 
 ## Table of Contents
 
@@ -36,8 +36,8 @@ This guide provides step-by-step instructions for setting up and deploying the m
 
 ```bash
 # Clone repository
-git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 
 # Create backend environment file
 cp backend/.env.example backend/.env
@@ -49,7 +49,7 @@ Edit `backend/.env` with your settings:
 
 ```bash
 # Minimum required for development
-DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/pop3_forwarder
+DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/inbox_converge
 SECRET_KEY=$(openssl rand -hex 32)
 ENCRYPTION_KEY=$(openssl rand -hex 32)
 GOOGLE_CLIENT_ID=your-client-id
@@ -176,7 +176,7 @@ ADMIN_EMAIL=admin@yourdomain.com
 Use nginx or Traefik as reverse proxy:
 
 ```nginx
-# /etc/nginx/sites-available/pop3-forwarder
+# /etc/nginx/sites-available/inbox-converge
 server {
     listen 443 ssl http2;
     server_name api.yourdomain.com;
@@ -202,7 +202,7 @@ cat > /etc/cron.daily/backup-postgres << 'EOF'
 #!/bin/bash
 BACKUP_DIR=/var/backups/postgres
 DATE=$(date +%Y%m%d_%H%M%S)
-docker exec pop3-postgres pg_dump -U postgres pop3_forwarder | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
+docker exec inboxconverge-postgres pg_dump -U postgres inbox_converge | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
 find $BACKUP_DIR -type f -mtime +7 -delete  # Keep 7 days
 EOF
 
@@ -348,10 +348,10 @@ docker-compose -f docker-compose.new.yml exec celery-worker celery -A app.worker
 
 ```bash
 # Check connections
-docker exec pop3-postgres psql -U postgres -d pop3_forwarder -c "SELECT count(*) FROM pg_stat_activity;"
+docker exec inboxconverge-postgres psql -U postgres -d inbox_converge -c "SELECT count(*) FROM pg_stat_activity;"
 
 # Check table sizes
-docker exec pop3-postgres psql -U postgres -d pop3_forwarder -c "
+docker exec inboxconverge-postgres psql -U postgres -d inbox_converge -c "
 SELECT 
     schemaname,
     tablename,
@@ -376,7 +376,7 @@ docker-compose -f docker-compose.new.yml ps postgres
 docker-compose -f docker-compose.new.yml logs postgres
 
 # Test connection
-docker exec pop3-postgres psql -U postgres -c "SELECT version();"
+docker exec inboxconverge-postgres psql -U postgres -c "SELECT version();"
 ```
 
 #### Celery Worker Not Processing
@@ -480,8 +480,8 @@ redis:
 For additional help:
 
 - **Documentation**: See [ARCHITECTURE.md](ARCHITECTURE.md)
-- **Issues**: https://github.com/christianlouis/pop_puller_to_gmail/issues
-- **Discussions**: https://github.com/christianlouis/pop_puller_to_gmail/discussions
+- **Issues**: https://github.com/christianlouis/inboxconverge/issues
+- **Discussions**: https://github.com/christianlouis/inboxconverge/discussions
 
 ---
 

@@ -1,4 +1,4 @@
-# POP3 Forwarder SaaS - Multi-Tenant Architecture
+# InboxConverge - Multi-Tenant Architecture
 
 This document describes the new multi-tenant SaaS architecture for the POP3/IMAP email forwarder.
 
@@ -20,7 +20,7 @@ The project has been transformed from a single-user Docker application into a fu
 ## 📁 Project Structure
 
 ```
-pop_puller_to_gmail/
+inboxconverge/
 ├── backend/                    # FastAPI backend application
 │   ├── app/
 │   │   ├── api/               # API endpoints
@@ -50,7 +50,7 @@ pop_puller_to_gmail/
 │   └── .env.example          # Environment template
 ├── frontend/                  # React/Next.js frontend (to be implemented)
 ├── docker-compose.new.yml    # Docker Compose for all services
-├── pop3_forwarder.py         # Legacy single-user script
+├── inbox_converge.py         # Legacy single-user script
 └── README.md                 # This file
 ```
 
@@ -68,8 +68,8 @@ pop_puller_to_gmail/
 
 1. **Clone and navigate to repository**
    ```bash
-   git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-   cd pop_puller_to_gmail
+   git clone https://github.com/christianlouis/inboxconverge.git
+   cd inboxconverge
    ```
 
 2. **Configure backend environment**
@@ -329,7 +329,7 @@ Coming soon: Kubernetes manifests and Helm charts.
 
 ## 🔄 Migration from Legacy Version
 
-To migrate from the single-user `pop3_forwarder.py`:
+To migrate from the single-user `inbox_converge.py`:
 
 1. **Export existing configuration** from `.env` file
 2. **Create user account** via API or admin panel
@@ -404,8 +404,8 @@ MIT License - See [LICENSE](../LICENSE) file
 
 ## 🆘 Support
 
-- **Issues**: https://github.com/christianlouis/pop_puller_to_gmail/issues
-- **Discussions**: https://github.com/christianlouis/pop_puller_to_gmail/discussions
+- **Issues**: https://github.com/christianlouis/inboxconverge/issues
+- **Discussions**: https://github.com/christianlouis/inboxconverge/discussions
 - **Email**: support@example.com
 
 ## 🙏 Acknowledgments

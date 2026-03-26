@@ -1,9 +1,9 @@
-# POP3 to Gmail Forwarder
+# InboxConverge
 
-[![CI Tests](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/test.yml/badge.svg)](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/test.yml)
-[![Lint](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/lint.yml/badge.svg)](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/lint.yml)
-[![Security Scan](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/security.yml/badge.svg)](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/security.yml)
-[![Docker Build](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/docker-build.yml/badge.svg)](https://github.com/christianlouis/pop_puller_to_gmail/actions/workflows/docker-build.yml)
+[![CI Tests](https://github.com/christianlouis/inboxconverge/actions/workflows/test.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/test.yml)
+[![Lint](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml)
+[![Security Scan](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml)
+[![Docker Build](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
@@ -31,8 +31,8 @@ The repository also includes a multi-tenant SaaS backend built with FastAPI, Pos
 
 ```bash
 # Pull and configure
-curl -O https://raw.githubusercontent.com/christianlouis/pop_puller_to_gmail/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/christianlouis/pop_puller_to_gmail/main/.env.example
+curl -O https://raw.githubusercontent.com/christianlouis/inboxconverge/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/christianlouis/inboxconverge/main/.env.example
 
 # Edit .env with your credentials
 nano .env
@@ -44,8 +44,8 @@ docker-compose up -d
 ### Building from Source
 
 ```bash
-git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 cp .env.example .env   # then edit .env
 docker-compose up -d
 ```
@@ -257,5 +257,5 @@ This project is licensed under the MIT License — see [LICENSE](LICENSE) for de
 
 ## Support
 
-- [Issue Tracker](https://github.com/christianlouis/pop_puller_to_gmail/issues)
-- [Discussions](https://github.com/christianlouis/pop_puller_to_gmail/discussions)
+- [Issue Tracker](https://github.com/christianlouis/inboxconverge/issues)
+- [Discussions](https://github.com/christianlouis/inboxconverge/discussions)
