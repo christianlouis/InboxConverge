@@ -33,7 +33,7 @@ repos:
       - id: black
         language_version: python3.11
         args: [--line-length=100]
-        files: ^(backend/|pop3_forwarder\.py)
+        files: ^(backend/|inboxconverge\.py)
 
   # Python linting with Ruff (replaces flake8, isort, etc.)
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -41,7 +41,7 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        files: ^(backend/|pop3_forwarder\.py)
+        files: ^(backend/|inboxconverge\.py)
 
   # Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy

@@ -21,7 +21,7 @@ assignees: ''
 <!-- What actually happened -->
 
 ## Environment
-- **Component**: [e.g., Backend API, Worker, Docker, pop3_forwarder.py]
+- **Component**: [e.g., Backend API, Worker, Docker, inbox_converge.py]
 - **Version**: [e.g., v1.0.0, main branch]
 - **Deployment**: [e.g., Docker, Kubernetes, local]
 - **OS**: [e.g., Ubuntu 22.04, macOS, Windows]

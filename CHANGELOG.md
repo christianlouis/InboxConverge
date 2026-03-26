@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Project renamed to InboxConverge**: All user-visible strings, Docker container names, database defaults, Docker image paths, monitoring job names, Grafana dashboard titles, and documentation updated from the legacy names (`POP3 to Gmail Forwarder`, `InboxRescue`, `gmail-puller`, `pop3_forwarder`, etc.) to **InboxConverge** / `inboxconverge`.
+- **Domain updated to `inboxconverge.com`**: All contact and administrative email addresses now default to `@inboxconverge.com` (e.g. `christian@inboxconverge.com`).
+- **Configurable contact details**: Two new environment variables make contact information overridable at deployment time:
+  - `CONTACT_EMAIL` (default: `christian@inboxconverge.com`) — used by the frontend legal pages (Impressum, Datenschutz) and surfaced in the backend `Settings`.
+  - `APP_URL` (default: `https://inboxconverge.com`) — the canonical public URL of the deployment.
+  - `NEXT_PUBLIC_APP_NAME` (default: `InboxConverge`) — the application name shown in frontend legal-page titles; readable by Next.js server components at runtime.
+- **Legacy script renamed**: `pop3_forwarder.py` → `inboxconverge.py`; root `Dockerfile` and `Makefile` updated accordingly.
+- **Grafana dashboard file renamed**: `monitoring/grafana/dashboards/inboxrescue.json` → `inboxconverge.json`.
+- **Note on encryption salt**: The internal PBKDF2 salt `b"pop3_forwarder_0"` in `backend/app/core/security.py` is intentionally **not** renamed — changing it would invalidate all existing encrypted credentials stored in the database.
+
 ### Added
 - **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
   - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
@@ -17,14 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All metrics** defined as module-level singletons in `backend/app/core/metrics.py` (imported by HTTP middleware, task workers, GmailService, and auth endpoints).
 - **Prometheus service** added to `docker-compose.new.yml` (port 9090, 30-day retention, config from `monitoring/prometheus.yml`).
 - **Grafana service** added to `docker-compose.new.yml` (port 3001, auto-provisioned datasource + pre-built dashboard). Default credentials: `admin` / `admin`.
-- **Pre-built Grafana dashboard** (`monitoring/grafana/dashboards/inboxrescue.json`) with five sections: Mail Processing, Gmail API, Authentication & OAuth, HTTP API, and Celery Workers. Dashboard auto-refreshes every 30 s.
+- **Pre-built Grafana dashboard** (`monitoring/grafana/dashboards/inboxconverge.json`) with five sections: Mail Processing, Gmail API, Authentication & OAuth, HTTP API, and Celery Workers. Dashboard auto-refreshes every 30 s.
 
 
 - **Admin interface**: Superusers now have access to a dedicated Admin section in the sidebar with three pages:
   - **Admin Overview** (`/admin`): System-wide stats (total users, mail accounts, processing runs).
   - **Manage Users** (`/admin/users`): Table of all registered users with their subscription tier, status, mail account count, and last login. Admins can edit any user's name, email, plan, active status, and promote/demote admin (superuser) privileges. Users can be deleted (with confirmation).
   - **Manage Plans** (`/admin/plans`): Full CRUD for subscription plans—create, edit, and delete plans with fields for tier, name, pricing, max mailboxes, max emails/day, check interval, and support level.
-- **Auto-promotion of admin email**: When the user whose email matches the `ADMIN_EMAIL` environment variable logs in or registers (via email/password or Google OAuth), they are automatically promoted to superuser. Default value is `christianlouis@gmail.com` (configurable via the `ADMIN_EMAIL` env var).
+- **Auto-promotion of admin email**: When the user whose email matches the `ADMIN_EMAIL` environment variable logs in or registers (via email/password or Google OAuth), they are automatically promoted to superuser. Default value is `christian@inboxconverge.com` (configurable via the `ADMIN_EMAIL` env var).
 - **`is_superuser` field in API responses**: `GET /users/me` and all admin user endpoints now include `is_superuser` so the frontend can conditionally show admin UI.
 - **New admin API endpoints** (all require superuser role):
   - `GET /admin/users` – List all users with mail account counts.
@@ -39,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`DEFAULT_USER_TIER` env var**: Controls the subscription tier assigned to every new user on registration. Defaults to `free`. Set to `enterprise` (or any other tier) for B2B / Google Workspace installations where all employees should start on a zero-rate plan.
 - **`ALLOWED_DOMAINS` env var**: Comma-separated list of permitted email domains (e.g. `company.com,subsidiary.com`). When set, only addresses from those domains may register or log in. Superusers always bypass this check. Empty (default) = no restriction (normal B2C mode).
 - **Dynamic pricing section on landing page**: The home page now fetches `GET /subscriptions/plans` and renders a pricing section only when paid plans exist. In enterprise / all-zero-rate deployments the pricing section is silently hidden — the page just shows features and a "Get started free" CTA.
-- **B2C copy and branding**: App renamed to **InboxRescue** throughout (was "POP3 Forwarder SaaS"). Landing page hero, feature cards, how-it-works, and footer rewritten in a personal, consumer-friendly tone. Pricing updated to €0.99 / €1.99 / €2.99 per month for Good / Better / Best plans.
+- **B2C copy and branding**: App renamed to **InboxConverge** throughout (was "InboxConverge"). Landing page hero, feature cards, how-it-works, and footer rewritten in a personal, consumer-friendly tone. Pricing updated to €0.99 / €1.99 / €2.99 per month for Good / Better / Best plans.
 
 ### Fixed
 - Test email sender name corrected from "Christian Loris" to "Christian Krakau-Louis".
@@ -52,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed `TypeError: can't subtract offset-naive and offset-aware datetimes` in `process_mail_account` task when computing `duration_seconds`. After a database refresh, `started_at` may be returned as a naive datetime; it is now normalized to UTC before subtraction.
-- **Admin user not seeing admin dashboard**: Added startup auto-promotion in `main.py` lifespan handler — on every application start, if the user matching `ADMIN_EMAIL` exists in the database but does not yet have `is_superuser=True`, they are promoted immediately. This fixes accounts created before the auto-promotion-on-login code was deployed (e.g. `christianlouis@gmail.com` was logged in but saw no admin section).
+- **Admin user not seeing admin dashboard**: Added startup auto-promotion in `main.py` lifespan handler — on every application start, if the user matching `ADMIN_EMAIL` exists in the database but does not yet have `is_superuser=True`, they are promoted immediately. This fixes accounts created before the auto-promotion-on-login code was deployed (e.g. `christian@inboxconverge.com` was logged in but saw no admin section).
 - **Blank page on direct navigation to `/admin`, `/admin/users`, `/admin/plans`**: All three admin pages had `if (!user?.is_superuser) return null` before the `<AuthGuard>` was ever rendered. On a direct page load or refresh the Zustand store initialises with `user = null`, so the guard fired immediately and returned an empty render — `AuthGuard` was never mounted, its `checkAuth` effect never ran, and the user data was never fetched. Fixed by removing the early return and moving the superuser guard inside the `<AuthGuard>/<DashboardLayout>` tree, so authentication always runs first.
 
 ### Security
@@ -212,7 +223,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-12-15 (Legacy Version)
 
 ### Added
-- Initial release of single-user pop3_forwarder.py script
+- Initial release of single-user inbox_converge.py script
 - Docker support with docker-compose
 - Multiple POP3 account support
 - Gmail forwarding via SMTP

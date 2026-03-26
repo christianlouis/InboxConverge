@@ -16,7 +16,7 @@ from app.core.security import get_password_hash, create_access_token
 
 # Test database URL (use different database for tests)
 TEST_DATABASE_URL = settings.DATABASE_URL.replace(
-    "/pop3_forwarder", "/pop3_forwarder_test"
+    "/inbox_converge", "/inbox_converge_test"
 )
 
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Security analysis completed on February 1, 2026 for the Multi-Tenant POP3 Forwarder SaaS application.
+Security analysis completed on February 1, 2026 for the Multi-Tenant InboxConverge application.
 
 ## CodeQL Security Scan
 

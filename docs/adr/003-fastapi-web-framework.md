@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: cleanup
 
 app = FastAPI(
-    title="POP3 Forwarder API",
+    title="InboxConverge API",
     lifespan=lifespan,
     openapi_url="/api/openapi.json",
     docs_url="/api/docs",

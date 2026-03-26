@@ -1,5 +1,5 @@
 """
-Prometheus metrics definitions for InboxRescue.
+Prometheus metrics definitions for InboxConverge.
 
 All application metrics are defined here as module-level singletons so that
 every subsystem (HTTP layer, Celery workers, Gmail service, auth) imports

@@ -1,6 +1,6 @@
 # Migration Guide: Single-User to Multi-Tenant SaaS
 
-This guide helps you migrate from the legacy single-user `pop3_forwarder.py` script to the new multi-tenant SaaS application.
+This guide helps you migrate from the legacy single-user `inbox_converge.py` script to the new multi-tenant SaaS application.
 
 ## Overview
 
@@ -230,7 +230,7 @@ docker-compose -f docker-compose.yml down
 
 # Archive old configuration
 mkdir -p archive
-mv pop3_forwarder.py archive/
+mv inbox_converge.py archive/
 mv .env.legacy.backup archive/
 mv docker-compose.yml archive/docker-compose.legacy.yml
 

@@ -148,7 +148,7 @@ def create_application() -> FastAPI:
     async def root():
         """Root endpoint"""
         return {
-            "message": "InboxRescue API",
+            "message": "InboxConverge API",
             "version": settings.APP_VERSION,
             "docs": "/api/docs",
         }

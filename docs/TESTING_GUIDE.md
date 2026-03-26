@@ -25,7 +25,7 @@ This guide will help you test the complete multi-tenant web interface with the b
 3. Edit the `.env` file and update the following critical values:
    ```bash
    # Database - should point to Docker service
-   DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/pop3_forwarder
+   DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/inbox_converge
    
    # Redis - should point to Docker service
    REDIS_URL=redis://redis:6379/0

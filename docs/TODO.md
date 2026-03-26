@@ -2,6 +2,12 @@
 
 Comprehensive task breakdown for repository improvements and production readiness.
 
+## ✅ Recently Completed
+
+- [x] Rename entire project to **InboxConverge**: all user-visible strings, Docker container/image names, DB defaults, monitoring, and docs updated.
+- [x] Domain updated to `inboxconverge.com`; contact email defaults to `christian@inboxconverge.com`.
+- [x] New configurable env vars: `CONTACT_EMAIL`, `APP_URL`, `NEXT_PUBLIC_APP_NAME`.
+
 ## 🔴 Critical - Security (In Progress)
 
 ### Completed ✅
@@ -245,7 +251,7 @@ because the API client layer is missing.
 - [x] Admin overview page (`/admin`) with system-wide stats
 - [x] User management page (`/admin/users`) — list, edit, delete users; assign plans; promote/demote admin
 - [x] Plan management page (`/admin/plans`) — full CRUD for subscription plans (mailboxes, emails/day, interval, pricing)
-- [x] `ADMIN_EMAIL` env var with default `christianlouis@gmail.com`; admin auto-promoted on login and on every application startup (fixes pre-existing accounts)
+- [x] `ADMIN_EMAIL` env var with default `christian@inboxconverge.com`; admin auto-promoted on login and on every application startup (fixes pre-existing accounts)
 - [x] `is_superuser` exposed in `/users/me` response
 - [x] Admin badge (purple shield) shown in top bar for superusers
 - [x] Fix blank page on direct navigation to `/admin*`: moved superuser guard inside `<AuthGuard>` so auth check always runs on fresh load

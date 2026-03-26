@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-POP3 to Gmail Forwarder
+InboxConverge
 Fetches emails from POP3 mailboxes and forwards them to Gmail
 """
 
@@ -80,7 +80,7 @@ class POP3Account:
 
 
 class EmailForwarder:
-    """Main class for forwarding emails from POP3 to Gmail"""
+    """Main class for forwarding emails from POP3 to Gmail via InboxConverge"""
     
     def __init__(self):
         self.smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
@@ -241,7 +241,7 @@ class EmailForwarder:
             payload = json.dumps({
                 "From": self.postmark_from,
                 "To": self.postmark_to,
-                "Subject": f"[POP3 Forwarder Alert] {subject}",
+                "Subject": f"[InboxConverge Alert] {subject}",
                 "TextBody": f"Error occurred at {datetime.now().isoformat()}\n\n{error_message}",
                 "MessageStream": "outbound"
             })
@@ -312,7 +312,7 @@ class EmailForwarder:
 
 def main():
     """Main entry point"""
-    logger.info("POP3 to Gmail Forwarder starting...")
+    logger.info("InboxConverge starting...")
     
     forwarder = EmailForwarder()
     
