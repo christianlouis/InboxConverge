@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Upgraded `python-jose[cryptography]` from `3.3.0` to `3.4.0` to fix an algorithm-confusion vulnerability with OpenSSH ECDSA keys (CVE affects all versions < 3.4.0).
+
 ### Added
+- **Gmail Debug Email**: New "Send Debug Email" button in the Gmail API settings section. When clicked, it injects a test email into the user's Gmail inbox via the Gmail API. The message appears to be from `christian@docuelevate.org`, includes the current date in the subject line, and is automatically labelled with `test` and `imported` (labels are created on first use) and placed in the inbox. Useful for verifying end-to-end Gmail API delivery without requiring a full mail-account polling cycle.
+- `GmailService.get_or_create_label()` async method: lists the user's Gmail labels and returns the matching label ID, creating the label if it does not yet exist.
+- `GmailService.inject_debug_email()` async method: builds a properly formatted RFC 2822 test message and calls `inject_email()` with the INBOX, `test`, and `imported` label IDs.
+- `POST /providers/gmail/debug-email` backend endpoint: requires a valid Gmail credential, injects the debug email, and persists any auto-refreshed access token.
+- `gmailApi.sendDebugEmail()` frontend API helper and `GmailDebugEmailResponse` TypeScript interface.
 - **Unified Google OAuth flow**: Google Sign-In now requests all Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`) in the same consent screen, so users no longer need a separate "Connect Gmail" step after signing in with Google. Gmail credentials are stored automatically on successful sign-in.
 - `include_granted_scopes=true` added to both the login and Gmail authorize URLs so scope additions take effect for users who previously connected.
 
 ### Changed
+- `providers.py` now imports both `encrypt_credential` and `decrypt_credential` from `app.core.security`.
+- `gmail_service.py` now imports `textwrap`, `MIMEText`, `format_datetime`, and `datetime`/`timezone` for the debug email builder.
 - `GMAIL_API_SCOPES` (providers endpoint) and `GMAIL_SCOPES` (GmailService) now include `gmail.readonly`, required for `users().getProfile()` access verification (fixes 403 insufficientPermissions errors).
 - Google Sign-In authorize URL (`GET /auth/google/authorize-url`) now requests all six scopes with `access_type=offline`, `prompt=consent`, and `include_granted_scopes=true` so a refresh token is always issued.
 - Gmail "Connect Gmail" button in Settings now redirects to `/auth/callback?state=gmail_connect` instead of the dedicated `/auth/gmail-callback` page, reducing the number of redirect URIs that must be registered in Google Cloud Console to one (`{origin}/auth/callback`).

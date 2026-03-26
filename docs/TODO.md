@@ -185,6 +185,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Gmail API one-click OAuth grant flow with token refresh and revocation handling
 - [x] Unified Google OAuth flow: sign-in requests all Gmail scopes; single `/auth/callback` redirect URI needed in Google Console
 - [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
+- [x] **Debug email**: "Send Debug Email" button in Settings injects a test message (from christian@docuelevate.org, dated today, labelled `test` + `imported`, placed in inbox) to verify end-to-end Gmail API delivery
 - [ ] Implement GDPR data export endpoint
 - [ ] Complete notification service integration (Apprise)
 - [ ] Add advanced email filtering

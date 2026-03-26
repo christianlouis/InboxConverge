@@ -11,7 +11,7 @@ import logging
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
-from app.core.security import encrypt_credential
+from app.core.security import encrypt_credential, decrypt_credential
 from app.core.config import settings
 from app.models.database_models import User, GmailCredential
 from app.models.schemas import (
@@ -22,7 +22,7 @@ from app.models.schemas import (
     GmailAuthorizeResponse,
     GmailCallbackRequest,
 )
-from app.services.gmail_service import GmailService, GMAIL_SCOPES
+from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -317,6 +317,77 @@ async def get_gmail_authorize_url(
         "&state=gmail_connect"
     )
     return GmailAuthorizeResponse(authorization_url=url)
+
+
+@router.post("/gmail/debug-email", status_code=status.HTTP_200_OK)
+async def send_gmail_debug_email(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Inject a debug/test email into the current user's Gmail inbox.
+
+    The message appears to have been sent by christian@docuelevate.org,
+    carries today's date in the subject, and is tagged with the custom
+    labels "test" and "imported" as well as placed in the inbox.
+
+    Useful for verifying that Gmail API delivery is working end-to-end
+    without requiring an active mail-account polling cycle.
+    """
+    result = await db.execute(
+        select(GmailCredential).where(
+            GmailCredential.user_id == current_user.id,
+            GmailCredential.is_valid == True,  # noqa: E712
+        )
+    )
+    credential = result.scalar_one_or_none()
+
+    if not credential:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid Gmail credentials found. Connect Gmail first.",
+        )
+
+    access_token = decrypt_credential(credential.encrypted_access_token)  # type: ignore[arg-type]
+    refresh_token = (
+        decrypt_credential(credential.encrypted_refresh_token)  # type: ignore[arg-type]
+        if credential.encrypted_refresh_token
+        else None
+    )
+
+    gmail_service = GmailService(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+    )
+
+    try:
+        inject_result = await gmail_service.inject_debug_email(
+            recipient_email=credential.gmail_email,  # type: ignore[arg-type]
+        )
+    except GmailInjectionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gmail injection failed: {exc}",
+        )
+
+    # Persist refreshed token if the google-auth library renewed it
+    refreshed = gmail_service.get_refreshed_token()
+    if refreshed:
+        credential.encrypted_access_token = encrypt_credential(  # type: ignore[assignment]
+            refreshed["access_token"]
+        )
+        if refreshed.get("expiry"):
+            credential.token_expiry = refreshed["expiry"]  # type: ignore[assignment]
+        await db.commit()
+
+    return {
+        "message": "Debug email injected successfully",
+        "message_id": inject_result.get("message_id"),
+        "thread_id": inject_result.get("thread_id"),
+        "label_ids": inject_result.get("label_ids", []),
+    }
 
 
 @router.post(
