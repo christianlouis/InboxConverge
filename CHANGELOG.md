@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Test email sender name corrected from "Christian Loris" to "Christian Krakau-Louis".
+- **Mailbox limit always hit at 1**: The `subscription_plans` table was never seeded, so the limit check fell back to the env-var default of `TIER_FREE_MAX_ACCOUNTS=1` for every user regardless of their tier. Fixed by:
+  1. Seeding four default `SubscriptionPlan` rows at startup — **Free**, **Good**, **Better**, **Best** — so admin-managed limits are stored in the DB from first boot.
+  2. Rewriting the limit check to look up the user's active plan from the DB first, falling back to env-var config only when no plan row exists.
+  3. Bypassing the limit entirely for superusers (admins can always add mailboxes).
+  4. Adding plan limit fields (`max_mail_accounts`, `max_emails_per_day`, `check_interval_minutes`) to the `GET /subscriptions/current` response so the frontend can display them.
 
 ### Fixed
 - Fixed `TypeError: can't subtract offset-naive and offset-aware datetimes` in `process_mail_account` task when computing `duration_seconds`. After a database refresh, `started_at` may be returned as a naive datetime; it is now normalized to UTC before subtraction.

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.database_models import AppSetting
+from app.models.database_models import AppSetting, SubscriptionPlan, SubscriptionTier
 
 logger = logging.getLogger(__name__)
 
@@ -338,4 +338,87 @@ class ConfigService:
         if created:
             await db.commit()
         logger.info("Seeded %d default settings into the database", created)
+
+        # Seed default subscription plans
+        await ConfigService.seed_default_plans(db)
+
+        return created
+
+    @staticmethod
+    async def seed_default_plans(db: AsyncSession) -> int:
+        """
+        Populate the database with default subscription plans (skip existing tiers).
+
+        Limits mirror the env-var defaults so behaviour is unchanged on first boot
+        but can be overridden by admins via the plan management UI.
+
+        Returns the number of plans created.
+        """
+        from app.core.config import settings  # local import to avoid circular deps
+
+        default_plans = [
+            {
+                "tier": SubscriptionTier.FREE,
+                "name": "Free",
+                "description": "Try it out – one mailbox, no credit card required.",
+                "price_monthly": 0.0,
+                "price_yearly": 0.0,
+                "max_mail_accounts": settings.TIER_FREE_MAX_ACCOUNTS,
+                "max_emails_per_day": 100,
+                "check_interval_minutes": 30,
+                "support_level": "community",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.BASIC,
+                "name": "Good",
+                "description": "Great for personal use – a handful of mailboxes checked regularly.",
+                "price_monthly": 4.99,
+                "price_yearly": 49.90,
+                "max_mail_accounts": settings.TIER_BASIC_MAX_ACCOUNTS,
+                "max_emails_per_day": 1000,
+                "check_interval_minutes": 15,
+                "support_level": "email",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.PRO,
+                "name": "Better",
+                "description": "Power users and small teams – more mailboxes, faster checks.",
+                "price_monthly": 12.99,
+                "price_yearly": 129.90,
+                "max_mail_accounts": settings.TIER_PRO_MAX_ACCOUNTS,
+                "max_emails_per_day": 10000,
+                "check_interval_minutes": 5,
+                "support_level": "email",
+                "is_active": True,
+            },
+            {
+                "tier": SubscriptionTier.ENTERPRISE,
+                "name": "Best",
+                "description": "Organisations and heavy workloads – maximum mailboxes, near-real-time checks.",
+                "price_monthly": 29.99,
+                "price_yearly": 299.90,
+                "max_mail_accounts": settings.TIER_ENTERPRISE_MAX_ACCOUNTS,
+                "max_emails_per_day": 100000,
+                "check_interval_minutes": 1,
+                "support_level": "priority",
+                "is_active": True,
+            },
+        ]
+
+        created = 0
+        for plan_data in default_plans:
+            result = await db.execute(
+                select(SubscriptionPlan).where(
+                    SubscriptionPlan.tier == plan_data["tier"]
+                )
+            )
+            if result.scalar_one_or_none() is None:
+                db.add(SubscriptionPlan(**plan_data))
+                created += 1
+
+        if created:
+            await db.commit()
+        logger.info("Seeded %d default subscription plans into the database", created)
         return created

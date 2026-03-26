@@ -32,11 +32,13 @@ const DEFAULT_FORM: SubscriptionPlanCreate = {
 function PlanFormModal({
   plan,
   onClose,
-  onSave,
+  onCreate,
+  onUpdate,
 }: {
   plan: SubscriptionPlan | null;
   onClose: () => void;
-  onSave: (data: SubscriptionPlanCreate | SubscriptionPlanUpdate) => void;
+  onCreate?: (data: SubscriptionPlanCreate) => void;
+  onUpdate?: (data: SubscriptionPlanUpdate) => void;
 }) {
   const isEdit = plan !== null;
   const [form, setForm] = useState<SubscriptionPlanCreate>(
@@ -204,7 +206,15 @@ function PlanFormModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave(form)}
+            onClick={() => {
+              if (isEdit && onUpdate) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { tier: _tier, ...updateFields } = form;
+                onUpdate(updateFields);
+              } else if (!isEdit && onCreate) {
+                onCreate(form);
+              }
+            }}
             className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
           >
             {isEdit ? 'Save Changes' : 'Create Plan'}
@@ -395,15 +405,15 @@ export default function AdminPlansPage() {
           <PlanFormModal
             plan={null}
             onClose={() => setShowCreate(false)}
-            onSave={(data) => createMutation.mutate(data as SubscriptionPlanCreate)}
+            onCreate={(data) => createMutation.mutate(data)}
           />
         )}
         {editingPlan && (
           <PlanFormModal
             plan={editingPlan}
             onClose={() => setEditingPlan(null)}
-            onSave={(data) =>
-              updateMutation.mutate({ id: editingPlan.id, data: data as SubscriptionPlanUpdate })
+            onUpdate={(data) =>
+              updateMutation.mutate({ id: editingPlan.id, data })
             }
           />
         )}
