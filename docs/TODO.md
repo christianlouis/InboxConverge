@@ -197,7 +197,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
 - [x] **Debug email**: "Send Debug Email" button in Settings injects a test message (from christian@docuelevate.org, dated today, labelled `test` + `imported`, placed in inbox) to verify end-to-end Gmail API delivery
 - [ ] Implement GDPR data export endpoint
-- [ ] Complete notification service integration (Apprise)
+- [x] Complete notification service integration (Apprise)
 - [ ] Add advanced email filtering
 - [ ] Implement OAuth2 for Gmail (instead of App Passwords)
 - [ ] Add attachment handling improvements
@@ -238,6 +238,9 @@ because the API client layer is missing.
 - [ ] Error boundary components
 - [ ] Loading skeletons / proper loading states
 - [ ] Notification preferences UI
+- [x] Notification channels page (`/notifications`) with full CRUD, wizard, and test button
+- [x] Apprise-powered notification wizard for Telegram, Discord, Slack, Email, Webhook, and custom URLs
+- [x] Admin system alert channels section (`/admin` page) with full CRUD and test
 - [ ] Subscription management / billing UI
 
 ### Admin Interface ✅

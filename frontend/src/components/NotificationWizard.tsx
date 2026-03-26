@@ -115,7 +115,7 @@ function buildAppriseUrl(channel: string, fields: Record<string, string>): strin
     }
     case 'email':
       if (!fields.username || !fields.password || !fields.host) return '';
-      return `mailtos://${encodeURIComponent(fields.username)}:${encodeURIComponent(fields.password)}@${fields.host}${
+      return `mailto://${encodeURIComponent(fields.username)}:${encodeURIComponent(fields.password)}@${fields.host}${
         fields.port ? `:${fields.port}` : ''
       }`;
     case 'webhook':

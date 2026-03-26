@@ -225,7 +225,10 @@ class NotificationConfigBase(BaseModel):
     channel: NotificationChannel
     apprise_url: Optional[str] = Field(None, description="Apprise notification URL")
     is_enabled: bool = True
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Legacy channel-specific configuration (deprecated in favour of apprise_url)",
+    )
     notify_on_errors: bool = True
     notify_on_success: bool = False
     notify_threshold: int = Field(default=3, gt=0, le=100)

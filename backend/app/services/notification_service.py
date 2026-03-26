@@ -60,7 +60,7 @@ async def send_user_notification(
             continue
 
         try:
-            success = await _send_apprise(str(config.apprise_url), title, body)
+            success = await _send_apprise(config.apprise_url or "", title, body)
             if success:
                 sent += 1
         except Exception as exc:
@@ -99,7 +99,7 @@ async def send_admin_notification(
     sent = 0
     for config in configs:
         try:
-            success = await _send_apprise(str(config.apprise_url), title, body)
+            success = await _send_apprise(config.apprise_url or "", title, body)
             if success:
                 sent += 1
         except Exception as exc:
