@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /processing-runs` (was: `GET /processing-runs/processing-runs`)
   - `GET /processing-runs/{id}` (was: `GET /processing-runs/processing-runs/{id}`)
   - `GET /processing-runs/{id}/logs` (was: `GET /processing-runs/processing-runs/{id}/logs`)
+- **`NotificationConfigCreate` schema test failure**: `NotificationConfigBase.name` was a required field (`...`) but the unit test and the database column both use a default of `"My Notification"`. Changed the Pydantic field to `default="My Notification"` to match the DB default and allow callers to omit the field.
 
 ### Added
 - **Semantic Release** (`release.yml`): Automated versioning and GitHub Release creation on every push to `main` using `python-semantic-release`. Reads conventional-commit prefixes (`feat:`, `fix:`, etc.) to determine the next version and updates `CHANGELOG.md`.
