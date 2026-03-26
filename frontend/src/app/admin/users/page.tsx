@@ -162,142 +162,149 @@ export default function AdminUsersPage() {
     },
   });
 
-  if (!currentUser?.is_superuser) return null;
-
+  // AuthGuard must always render (see admin/page.tsx for explanation).
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-purple-600" />
-              Manage Users
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              View all registered users, assign plans, and manage admin privileges.
-            </p>
+        {!currentUser?.is_superuser ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
           </div>
-
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+        ) : (
+          <>
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Shield className="h-6 w-6 text-purple-600" />
+                  Manage Users
+                </h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  View all registered users, assign plans, and manage admin privileges.
+                </p>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {['User', 'Plan', 'Status', 'Accounts', 'Last Login', 'Role', 'Actions'].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(users ?? []).map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{u.full_name || '—'}</p>
-                            <p className="text-xs text-gray-500">{u.email}</p>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                            {u.subscription_tier}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              u.is_active
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {u.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 text-center">
-                          {u.mail_account_count}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
-                          {u.last_login_at
-                            ? new Date(u.last_login_at).toLocaleDateString()
-                            : '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {u.is_superuser ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              <Shield className="h-3 w-3" />
-                              Admin
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-400">User</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setEditingUser(u)}
-                              className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-50"
-                              title="Edit user"
+
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['User', 'Plan', 'Status', 'Accounts', 'Last Login', 'Role', 'Actions'].map((h) => (
+                            <th
+                              key={h}
+                              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                             >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            {u.id !== currentUser?.id && (
-                              deleteConfirm === u.id ? (
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => deleteMutation.mutate(u.id)}
-                                    className="p-1.5 text-white bg-red-600 rounded hover:bg-red-700"
-                                    title="Confirm delete"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => setDeleteConfirm(null)}
-                                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
-                                    title="Cancel"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
-                                </div>
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {(users ?? []).map((u) => (
+                          <tr key={u.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{u.full_name || '—'}</p>
+                                <p className="text-xs text-gray-500">{u.email}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                                {u.subscription_tier}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  u.is_active
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {u.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {u.mail_account_count}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {u.last_login_at
+                                ? new Date(u.last_login_at).toLocaleDateString()
+                                : '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              {u.is_superuser ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  <Shield className="h-3 w-3" />
+                                  Admin
+                                </span>
                               ) : (
+                                <span className="text-xs text-gray-400">User</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
                                 <button
-                                  onClick={() => setDeleteConfirm(u.id)}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
-                                  title="Delete user"
+                                  onClick={() => setEditingUser(u)}
+                                  className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-50"
+                                  title="Edit user"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Pencil className="h-4 w-4" />
                                 </button>
-                              )
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(users ?? []).length === 0 && (
-                  <div className="text-center py-12 text-gray-500 text-sm">No users found.</div>
+                                {u.id !== currentUser?.id && (
+                                  deleteConfirm === u.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => deleteMutation.mutate(u.id)}
+                                        className="p-1.5 text-white bg-red-600 rounded hover:bg-red-700"
+                                        title="Confirm delete"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => setDeleteConfirm(null)}
+                                        className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+                                        title="Cancel"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setDeleteConfirm(u.id)}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                      title="Delete user"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {(users ?? []).length === 0 && (
+                      <div className="text-center py-12 text-gray-500 text-sm">No users found.</div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {editingUser && (
-          <EditUserModal
-            user={editingUser}
-            onClose={() => setEditingUser(null)}
-            onSave={(data) => updateMutation.mutate({ id: editingUser.id, data })}
-          />
+            {editingUser && (
+              <EditUserModal
+                user={editingUser}
+                onClose={() => setEditingUser(null)}
+                onSave={(data) => updateMutation.mutate({ id: editingUser.id, data })}
+              />
+            )}
+          </>
         )}
       </DashboardLayout>
     </AuthGuard>

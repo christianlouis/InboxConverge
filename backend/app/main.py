@@ -58,6 +58,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.warning("Could not seed default settings: %s", exc, exc_info=True)
 
+    # Ensure the configured ADMIN_EMAIL user has is_superuser=True.
+    # This runs on every startup so that existing accounts created before the
+    # auto-promotion login logic existed are also promoted correctly.
+    if settings.ADMIN_EMAIL:
+        try:
+            from sqlalchemy import select, func
+            from app.core.database import async_session_maker
+            from app.models.database_models import User
+
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(User).where(
+                        func.lower(User.email) == settings.ADMIN_EMAIL.lower()
+                    )
+                )
+                admin_user = result.scalar_one_or_none()
+                if admin_user and not admin_user.is_superuser:
+                    admin_user.is_superuser = True  # type: ignore[assignment]
+                    await db.commit()
+                    logger.info(
+                        "Auto-promoted admin user to superuser on startup: %s",
+                        admin_user.email,
+                    )
+        except Exception as exc:
+            logger.warning(
+                "Could not auto-promote admin user on startup: %s", exc, exc_info=True
+            )
+
     yield
     # Shutdown
     logger.info("Shutting down application")

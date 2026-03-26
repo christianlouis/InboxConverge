@@ -270,152 +270,159 @@ export default function AdminPlansPage() {
     },
   });
 
-  if (!user?.is_superuser) return null;
-
+  // AuthGuard must always render (see admin/page.tsx for explanation).
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Shield className="h-6 w-6 text-purple-600" />
-                Manage Plans
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Configure subscription plans, limits, and pricing.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
-            >
-              <Plus className="h-4 w-4" />
-              New Plan
-            </button>
+        {!user?.is_superuser ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
           </div>
-
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+        ) : (
+          <>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <Shield className="h-6 w-6 text-purple-600" />
+                    Manage Plans
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Configure subscription plans, limits, and pricing.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Plan
+                </button>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {['Tier', 'Name', 'Price/mo', 'Mailboxes', 'Emails/day', 'Interval', 'Support', 'Status', 'Actions'].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(plans ?? []).map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                            {p.tier}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">
-                          ${p.price_monthly.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 text-center">
-                          {p.max_mail_accounts}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 text-center">
-                          {p.max_emails_per_day.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 text-center">
-                          {p.check_interval_minutes}m
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 capitalize">
-                          {p.support_level}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              p.is_active
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {p.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setEditingPlan(p)}
-                              className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-50"
-                              title="Edit plan"
+
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {['Tier', 'Name', 'Price/mo', 'Mailboxes', 'Emails/day', 'Interval', 'Support', 'Status', 'Actions'].map((h) => (
+                            <th
+                              key={h}
+                              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                             >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            {deleteConfirm === p.id ? (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => deleteMutation.mutate(p.id)}
-                                  className="p-1.5 text-white bg-red-600 rounded hover:bg-red-700"
-                                  title="Confirm delete"
-                                >
-                                  <Check className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirm(null)}
-                                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
-                                  title="Cancel"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirm(p.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
-                                title="Delete plan"
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {(plans ?? []).map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                                {p.tier}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-500">
+                              ${p.price_monthly.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {p.max_mail_accounts}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {p.max_emails_per_day.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {p.check_interval_minutes}m
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-500 capitalize">
+                              {p.support_level}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  p.is_active
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-500'
+                                }`}
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(plans ?? []).length === 0 && (
-                  <div className="text-center py-12 text-gray-500 text-sm">
-                    No plans found. Create one to get started.
+                                {p.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setEditingPlan(p)}
+                                  className="p-1.5 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-50"
+                                  title="Edit plan"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                {deleteConfirm === p.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => deleteMutation.mutate(p.id)}
+                                      className="p-1.5 text-white bg-red-600 rounded hover:bg-red-700"
+                                      title="Confirm delete"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirm(null)}
+                                      className="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+                                      title="Cancel"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirm(p.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"
+                                    title="Delete plan"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {(plans ?? []).length === 0 && (
+                      <div className="text-center py-12 text-gray-500 text-sm">
+                        No plans found. Create one to get started.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {showCreate && (
-          <PlanFormModal
-            plan={null}
-            onClose={() => setShowCreate(false)}
-            onCreate={(data) => createMutation.mutate(data)}
-          />
-        )}
-        {editingPlan && (
-          <PlanFormModal
-            plan={editingPlan}
-            onClose={() => setEditingPlan(null)}
-            onUpdate={(data) =>
-              updateMutation.mutate({ id: editingPlan.id, data })
-            }
-          />
+            {showCreate && (
+              <PlanFormModal
+                plan={null}
+                onClose={() => setShowCreate(false)}
+                onCreate={(data) => createMutation.mutate(data)}
+              />
+            )}
+            {editingPlan && (
+              <PlanFormModal
+                plan={editingPlan}
+                onClose={() => setEditingPlan(null)}
+                onUpdate={(data) =>
+                  updateMutation.mutate({ id: editingPlan.id, data })
+                }
+              />
+            )}
+          </>
         )}
       </DashboardLayout>
     </AuthGuard>
