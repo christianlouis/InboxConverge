@@ -164,12 +164,21 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## 📊 Medium Priority - Observability
 
+### Completed ✅
+- [x] Add Prometheus metrics endpoint (`/metrics`) to FastAPI backend
+- [x] Instrument HTTP layer (request count + latency histograms per method/endpoint/status)
+- [x] Instrument mail-processing tasks (runs, emails fetched/forwarded/failed, duration)
+- [x] Instrument Gmail API operations (inject, verify, get_profile, get_label — count + latency)
+- [x] Track OAuth token refreshes and credential invalidation events
+- [x] Instrument auth endpoints (logins, registrations, OAuth callbacks — by method/status)
+- [x] Instrument Celery tasks (count + duration per task name)
+- [x] Add Prometheus scrape config (`monitoring/prometheus.yml`)
+- [x] Add Grafana auto-provisioned datasource and pre-built dashboard (`monitoring/grafana/`)
+- [x] Add Prometheus + Grafana services to `docker-compose.new.yml` (Grafana on port 3001)
+
 ### Not Started 📋
-- [ ] Add Prometheus metrics endpoints
 - [ ] Integrate Sentry for error tracking
 - [ ] Add structured logging with correlation IDs
-- [ ] Create Grafana dashboard templates
-- [ ] Document monitoring setup
 - [ ] Add APM (Application Performance Monitoring)
 - [ ] Set up uptime monitoring
 - [ ] Create runbook for common issues

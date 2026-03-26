@@ -10,6 +10,7 @@ import asyncio
 import base64
 import logging
 import textwrap
+import time
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.utils import format_datetime
@@ -18,6 +19,12 @@ from typing import Optional, Dict, Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+from app.core.metrics import (
+    GMAIL_API_REQUESTS_TOTAL,
+    GMAIL_API_DURATION_SECONDS,
+    GMAIL_TOKEN_REFRESHES_TOTAL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +123,7 @@ class GmailService:
 
         loop = asyncio.get_event_loop()
 
+        _start = time.perf_counter()
         try:
             result = await loop.run_in_executor(
                 None,
@@ -124,6 +132,10 @@ class GmailService:
                 .insert(userId="me", body=message_body)
                 .execute(),
             )
+
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="success").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
 
             logger.info(
                 f"Injected email into Gmail: id={result.get('id')}"
@@ -137,6 +149,9 @@ class GmailService:
             }
 
         except HttpError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
             error_msg = (
                 f"Gmail API error: {e.reason if hasattr(e, 'reason') else str(e)}"
             )
@@ -144,6 +159,9 @@ class GmailService:
             # Surface 401 so callers can mark credentials as invalid
             raise GmailInjectionError(error_msg)
         except Exception as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
             error_msg = f"Failed to inject email into Gmail: {str(e)}"
             logger.error(error_msg)
             raise GmailInjectionError(error_msg)
@@ -157,15 +175,22 @@ class GmailService:
         """
         loop = asyncio.get_event_loop()
 
+        _start = time.perf_counter()
         try:
             result = await loop.run_in_executor(
                 None,
                 lambda: self.service.users().getProfile(userId="me").execute(),
             )
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="verify", status="success").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="verify").observe(_dur)
             email = result.get("emailAddress", "unknown")
             logger.info(f"Gmail API access verified for: {email}")
             return True
         except Exception as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="verify", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="verify").observe(_dur)
             logger.error(f"Gmail API access verification failed: {e}")
             return False
 
@@ -178,13 +203,24 @@ class GmailService:
         """
         loop = asyncio.get_event_loop()
 
+        _start = time.perf_counter()
         try:
             result = await loop.run_in_executor(
                 None,
                 lambda: self.service.users().getProfile(userId="me").execute(),
             )
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(
+                operation="get_profile", status="success"
+            ).inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_profile").observe(_dur)
             return result.get("emailAddress")
         except Exception as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(
+                operation="get_profile", status="error"
+            ).inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_profile").observe(_dur)
             logger.error(f"Failed to get Gmail email address: {e}")
             return None
 
@@ -207,6 +243,7 @@ class GmailService:
         """
         loop = asyncio.get_event_loop()
 
+        _start = time.perf_counter()
         try:
             labels_resp = await loop.run_in_executor(
                 None,
@@ -214,6 +251,13 @@ class GmailService:
             )
             for label in labels_resp.get("labels", []):
                 if label.get("name", "").lower() == name.lower():
+                    _dur = time.perf_counter() - _start
+                    GMAIL_API_REQUESTS_TOTAL.labels(
+                        operation="get_label", status="success"
+                    ).inc()
+                    GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(
+                        _dur
+                    )
                     return label["id"]
 
             # Label not found – create it
@@ -224,14 +268,25 @@ class GmailService:
                 .create(userId="me", body={"name": name})
                 .execute(),
             )
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(
+                operation="get_label", status="success"
+            ).inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
             logger.info(f"Created Gmail label '{name}' with id={created['id']}")
             return created["id"]
 
         except HttpError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
             error_msg = f"Gmail API error while managing label '{name}': {e.reason if hasattr(e, 'reason') else str(e)}"
             logger.error(error_msg)
             raise GmailInjectionError(error_msg)
         except Exception as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
             error_msg = f"Failed to get/create Gmail label '{name}': {str(e)}"
             logger.error(error_msg)
             raise GmailInjectionError(error_msg)
@@ -316,6 +371,7 @@ class GmailService:
         """
         current_token = self.credentials.token
         if current_token and current_token != self._initial_access_token:
+            GMAIL_TOKEN_REFRESHES_TOTAL.inc()
             return {
                 "access_token": current_token,
                 "expiry": self.credentials.expiry,
