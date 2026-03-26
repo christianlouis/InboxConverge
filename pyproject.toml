@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inboxconverge"
+dynamic = ["version"]
+description = "Multi-account email forwarding and processing service"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Christian Louis", email = "christianlouis@users.noreply.github.com"}
+]
+
+[project.urls]
+Homepage = "https://github.com/christianlouis/InboxConverge"
+Repository = "https://github.com/christianlouis/InboxConverge"
+Issues = "https://github.com/christianlouis/InboxConverge/issues"
+Changelog = "https://github.com/christianlouis/InboxConverge/blob/main/CHANGELOG.md"
+
+[tool.semantic_release]
+version_source = "tag"
+commit_version_number = true
+tag_format = "v{version}"
+major_on_zero = false
+allow_zero_version = true
+
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
+
+[tool.semantic_release.changelog]
+mode = "update"
+exclude_commit_patterns = [
+    "^chore\\(release\\):",
+    "^Merge",
+    "^Bump version",
+]
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "feat",
+    "fix",
+    "docs",
+    "style",
+    "refactor",
+    "perf",
+    "test",
+    "build",
+    "ci",
+    "chore",
+]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+default_bump_level = 0
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+ignore_token_for_push = false
+
+[tool.semantic_release.remote.token]
+env = "GH_TOKEN"
+
+[tool.semantic_release.publish]
+dist_glob_patterns = []
+upload_to_vcs_release = true
+upload_to_pypi = false
+upload_to_repository = false

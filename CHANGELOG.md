@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Black formatting**: `backend/app/api/v1/endpoints/admin.py` was not formatted correctly; reformatted to pass `black --check`.
+- **`/processing-runs` endpoint 404s**: Routes in `logs.py` had a redundant `/processing-runs` path segment (the router was already mounted at `/processing-runs` in `api.py`). All three user-facing log endpoints now return correct results:
+  - `GET /processing-runs` (was: `GET /processing-runs/processing-runs`)
+  - `GET /processing-runs/{id}` (was: `GET /processing-runs/processing-runs/{id}`)
+  - `GET /processing-runs/{id}/logs` (was: `GET /processing-runs/processing-runs/{id}/logs`)
+
+### Added
+- **Semantic Release** (`release.yml`): Automated versioning and GitHub Release creation on every push to `main` using `python-semantic-release`. Reads conventional-commit prefixes (`feat:`, `fix:`, etc.) to determine the next version and updates `CHANGELOG.md`.
+- **`pyproject.toml`**: Project metadata and `[tool.semantic_release]` configuration for `python-semantic-release`.
+- **GitOps auto-deployment** (step in `ci.yml`): After a successful Docker build on `main`, a new `update-k8s-manifest` job checks out `christianlouis/k8s-cluster-state` (using the `GH_PAT` secret) and updates the backend and frontend image tags in `apps/gmail-puller/preprod/gmail-puller-stack.yaml` to the new `main-<sha>` image, then commits and pushes.
+
 ### Changed
 - **Project renamed to InboxConverge**: All user-visible strings, Docker container names, database defaults, Docker image paths, monitoring job names, Grafana dashboard titles, and documentation updated from the legacy names (`POP3 to Gmail Forwarder`, `InboxRescue`, `gmail-puller`, `pop3_forwarder`, etc.) to **InboxConverge** / `inboxconverge`.
 - **Domain updated to `inboxconverge.com`**: All contact and administrative email addresses now default to `@inboxconverge.com` (e.g. `christian@inboxconverge.com`).

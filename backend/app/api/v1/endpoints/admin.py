@@ -407,6 +407,8 @@ async def test_admin_notification_config(
     """Test an admin notification channel by sending a test message (admin only)"""
     success, message = await test_notification(request.apprise_url)
     return NotificationTestResponse(success=success, message=message)
+
+
 # ── Admin Logs ─────────────────────────────────────────────────────────────────
 
 

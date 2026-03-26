@@ -7,6 +7,11 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Rename entire project to **InboxConverge**: all user-visible strings, Docker container/image names, DB defaults, monitoring, and docs updated.
 - [x] Domain updated to `inboxconverge.com`; contact email defaults to `christian@inboxconverge.com`.
 - [x] New configurable env vars: `CONTACT_EMAIL`, `APP_URL`, `NEXT_PUBLIC_APP_NAME`.
+- [x] Fixed Black formatting failure in CI (`admin.py` reformatted).
+- [x] Fixed `/processing-runs` endpoint 404s caused by duplicate path prefix in `logs.py`.
+- [x] Added Semantic Release workflow (`release.yml`) for automatic versioning and GitHub Releases.
+- [x] Added `pyproject.toml` with `[tool.semantic_release]` configuration.
+- [x] Added GitOps auto-deployment step in `ci.yml` to update preprod k8s manifest in `k8s-cluster-state` repo.
 
 ## 🔴 Critical - Security (In Progress)
 
