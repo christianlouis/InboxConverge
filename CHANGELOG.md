@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Apprise alerting**: New `NotificationService` using [Apprise](https://github.com/caronc/apprise) for multi-channel push notifications (Telegram, Slack, Discord, webhooks, and 80+ other services via a single URL scheme).
+  - `send_user_notification` — sends to all enabled per-user Apprise channels on processing errors or failures.
+  - `send_admin_notification` — sends to all enabled admin-wide channels for system events.
+  - `test_notification` — validates an Apprise URL by dispatching a test message.
+- **`NotificationConfig` model**: Added `name` (friendly label) and `apprise_url` (nullable Apprise URL) columns.
+- **`AdminNotificationConfig` model**: New table (`admin_notification_configs`) for system-wide admin alert channels with `name`, `apprise_url`, `is_enabled`, `notify_on_errors`, `notify_on_system_events`, and `description` fields.
+- **Notifications API** (`/api/v1/notifications`): Full CRUD endpoints (GET/POST/PUT/DELETE) plus a `/test` endpoint for user notification configs.
+- **Admin Notifications API** (`/api/v1/admin/notifications`): Full CRUD + `/test` endpoints for admin notification configs, superuser-only.
+- **Task integration**: `process_mail_account` now calls `send_user_notification` on Gmail credential revocation, per-email forwarding failures, and unhandled processing exceptions.
+
+### Changed
+- `NotificationConfigBase` schema: `name` is now a required field; `apprise_url` is an optional field; `config` (channel-specific JSON) is now optional with a default of `{}` (previously required). Existing clients must be updated to supply `name`.
+
+
 - **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
   - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
   - **Mail processing** — `mail_processing_runs_total` (counter, by `status`: `completed` / `partial_failure` / `failed`), `mail_processing_emails_total` (counter, by `operation`: `fetched` / `forwarded` / `failed`), `mail_processing_duration_seconds` (histogram), `active_mail_accounts_total` (gauge — set each scheduler cycle).

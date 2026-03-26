@@ -33,6 +33,7 @@ from app.models.database_models import (
 from app.services.mail_processor import MailProcessor
 from app.services.gmail_service import GmailService
 from app.services.config_service import ConfigService
+from app.services.notification_service import send_user_notification
 from app.core.config import settings
 from sqlalchemy import select, delete
 
@@ -239,6 +240,18 @@ async def process_mail_account(account_id: int):
                             f"Gmail credentials revoked for user {account.user_id}. "
                             "User must re-authorise."
                         )
+                        try:
+                            await send_user_notification(
+                                db=db,
+                                user_id=account.user_id,
+                                title="InboxRescue: Gmail Authorization Expired",
+                                body=f"Your Gmail credentials for account '{account.name}' have been revoked. Please re-authorize Gmail access in Settings.",
+                                notify_on_error=True,
+                            )
+                        except Exception as notify_exc:
+                            logger.warning(
+                                f"Failed to send revocation notification: {notify_exc}"
+                            )
                     logger.error(f"Error delivering email: {e}")
                     emails_failed += 1
 
@@ -286,6 +299,16 @@ async def process_mail_account(account_id: int):
                 account.status = AccountStatus.ERROR  # type: ignore[assignment]
                 account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 account.last_error_message = f"{emails_failed} emails failed to forward"  # type: ignore[assignment]
+                try:
+                    await send_user_notification(
+                        db=db,
+                        user_id=account.user_id,
+                        title="InboxRescue: Mail Forwarding Failures",
+                        body=f"Mail account '{account.name}': {emails_failed} email(s) failed to forward.",
+                        notify_on_error=True,
+                    )
+                except Exception as notify_exc:
+                    logger.warning(f"Failed to send notification: {notify_exc}")
 
             await db.commit()
 
@@ -337,6 +360,20 @@ async def process_mail_account(account_id: int):
                     account.status = AccountStatus.ERROR  # type: ignore[assignment]
                     account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                     account.last_error_message = str(e)  # type: ignore[assignment]
+
+                    # Notify user about the error
+                    try:
+                        await send_user_notification(
+                            db=db,
+                            user_id=account.user_id,
+                            title="InboxRescue: Mail Processing Error",
+                            body=f"Error processing mail account '{account.name}': {e}",
+                            notify_on_error=True,
+                        )
+                    except Exception as notify_exc:
+                        logger.warning(
+                            f"Failed to send error notification: {notify_exc}"
+                        )
 
                 await db.commit()
 

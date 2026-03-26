@@ -13,6 +13,7 @@ from app.models.database_models import (
     ProcessingRun,
     SubscriptionPlan,
     SubscriptionTier,
+    AdminNotificationConfig,
 )
 from app.models.schemas import (
     AdminUserListResponse,
@@ -21,7 +22,13 @@ from app.models.schemas import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
     SubscriptionPlanUpdate,
+    AdminNotificationConfigCreate,
+    AdminNotificationConfigUpdate,
+    AdminNotificationConfigResponse,
+    NotificationTestRequest,
+    NotificationTestResponse,
 )
+from app.services.notification_service import test_notification
 
 router = APIRouter()
 
@@ -282,3 +289,114 @@ async def delete_plan(
         )
     await db.delete(plan)
     await db.commit()
+
+
+# ── Admin notification config management ──────────────────────────────────────
+
+
+@router.get("/notifications", response_model=List[AdminNotificationConfigResponse])
+async def list_admin_notification_configs(
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all admin notification configurations (admin only)"""
+    result = await db.execute(select(AdminNotificationConfig))
+    return result.scalars().all()
+
+
+@router.post(
+    "/notifications",
+    response_model=AdminNotificationConfigResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_admin_notification_config(
+    config_in: AdminNotificationConfigCreate,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new admin notification configuration (admin only)"""
+    config = AdminNotificationConfig(**config_in.dict())
+    db.add(config)
+    await db.commit()
+    await db.refresh(config)
+    return config
+
+
+@router.get(
+    "/notifications/{config_id}", response_model=AdminNotificationConfigResponse
+)
+async def get_admin_notification_config(
+    config_id: int,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific admin notification configuration (admin only)"""
+    result = await db.execute(
+        select(AdminNotificationConfig).where(AdminNotificationConfig.id == config_id)
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin notification config not found",
+        )
+    return config
+
+
+@router.put(
+    "/notifications/{config_id}", response_model=AdminNotificationConfigResponse
+)
+async def update_admin_notification_config(
+    config_id: int,
+    config_in: AdminNotificationConfigUpdate,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an admin notification configuration (admin only)"""
+    result = await db.execute(
+        select(AdminNotificationConfig).where(AdminNotificationConfig.id == config_id)
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin notification config not found",
+        )
+
+    update_data = config_in.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(config, field, value)
+
+    await db.commit()
+    await db.refresh(config)
+    return config
+
+
+@router.delete("/notifications/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_admin_notification_config(
+    config_id: int,
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an admin notification configuration (admin only)"""
+    result = await db.execute(
+        select(AdminNotificationConfig).where(AdminNotificationConfig.id == config_id)
+    )
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin notification config not found",
+        )
+    await db.delete(config)
+    await db.commit()
+
+
+@router.post("/notifications/test", response_model=NotificationTestResponse)
+async def test_admin_notification_config(
+    request: NotificationTestRequest,
+    current_user: User = Depends(get_current_superuser),
+):
+    """Test an admin notification channel by sending a test message (admin only)"""
+    success, message = await test_notification(request.apprise_url)
+    return NotificationTestResponse(success=success, message=message)
