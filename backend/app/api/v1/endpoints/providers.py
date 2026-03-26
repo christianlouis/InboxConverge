@@ -257,7 +257,7 @@ async def save_gmail_credential(
             gmail_email=credential_in.gmail_email,
             encrypted_access_token=encrypted_access,
             encrypted_refresh_token=encrypted_refresh,
-            scopes=build_gmail_credential_scopes(None, None),
+            scopes=build_gmail_credential_scopes(),
             is_valid=True,
             last_verified_at=datetime.now(timezone.utc),
         )

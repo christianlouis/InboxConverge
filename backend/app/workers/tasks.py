@@ -203,11 +203,7 @@ async def process_mail_account(account_id: int):
                     if use_gmail_api and gmail_service:
                         # Inject via Gmail API (preferred)
                         label_ids = await gmail_service.build_import_label_ids(
-                            import_label_templates=(
-                                gmail_cred.import_label_templates
-                                if gmail_cred
-                                else None
-                            ),
+                            import_label_templates=gmail_cred.import_label_templates,
                             source_email=account.email_address,  # type: ignore[arg-type]
                         )
                         await gmail_service.inject_email(
