@@ -38,7 +38,6 @@ env/
 
 # Logs
 *.log
-logs/
 
 # OS
 .DS_Store
@@ -55,7 +54,6 @@ htmlcov/
 
 # Backend specific
 backend/.env
-backend/alembic/versions/*_*.py
 backend/*.db
 backend/*.sqlite
 

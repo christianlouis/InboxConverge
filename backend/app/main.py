@@ -2,6 +2,8 @@
 Main FastAPI application.
 """
 
+import asyncio
+import os
 import re
 import time
 from contextlib import asynccontextmanager
@@ -10,11 +12,19 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import logging
+from alembic.config import Config as AlembicConfig
+from alembic import command as alembic_command
 
 from app.core.config import settings
 from app.core.middleware import SecurityHeadersMiddleware, CSRFProtectionMiddleware
 from app.core.metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS
 from app.api.v1.api import api_router
+
+# Absolute path to alembic.ini – one level above this file's directory
+# (backend/app/main.py → backend/alembic.ini)
+_ALEMBIC_INI = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+)
 
 # Configure logging
 logging.basicConfig(
@@ -44,6 +54,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.error(
             "Could not create database tables: %s — API requests requiring DB will fail",
+            exc,
+            exc_info=True,
+        )
+
+    # Apply schema migrations for columns added to existing tables.
+    # Alembic's ADD COLUMN IF NOT EXISTS migrations are idempotent – safe for
+    # both fresh installs (create_all already added the columns) and existing
+    # deployments (where the columns may be absent).
+    try:
+
+        def _run_alembic_upgrade() -> None:
+            alembic_cfg = AlembicConfig(_ALEMBIC_INI)
+            alembic_command.upgrade(alembic_cfg, "head")
+
+        await asyncio.to_thread(_run_alembic_upgrade)
+        logger.info("Database schema migrations applied")
+    except Exception as exc:
+        logger.error(
+            "Could not apply schema migrations: %s — some columns may be missing",
             exc,
             exc_info=True,
         )
