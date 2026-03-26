@@ -89,7 +89,7 @@ class TestApplicationFactory:
 
     async def test_app_title(self, app):
         """Test that app has correct title"""
-        assert app.title == "POP3 Forwarder SaaS"
+        assert app.title == "InboxRescue"
 
     async def test_app_version(self, app):
         """Test that app has a version"""
