@@ -48,7 +48,7 @@ def _paginate(total: int, page: int, page_size: int) -> dict:
 
 
 @router.get(
-    "/processing-runs",
+    "",
     response_model=PaginatedProcessingRunsResponse,
     summary="List processing runs for the current user",
 )
@@ -117,7 +117,7 @@ async def list_processing_runs(
 
 
 @router.get(
-    "/processing-runs/{run_id}",
+    "/{run_id}",
     response_model=ProcessingRunDetailResponse,
     summary="Get a single processing run",
 )
@@ -160,7 +160,7 @@ async def get_processing_run(
 
 
 @router.get(
-    "/processing-runs/{run_id}/logs",
+    "/{run_id}/logs",
     response_model=PaginatedProcessingLogsResponse,
     summary="Get per-email logs for a processing run",
 )

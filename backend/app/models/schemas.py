@@ -290,7 +290,9 @@ class PaginatedAdminLogsResponse(BaseModel):
 # Notification Config Schemas
 class NotificationConfigBase(BaseModel):
     name: str = Field(
-        ..., max_length=255, description="Friendly name for this notification channel"
+        default="My Notification",
+        max_length=255,
+        description="Friendly name for this notification channel",
     )
     channel: NotificationChannel
     apprise_url: Optional[str] = Field(None, description="Apprise notification URL")
