@@ -14,7 +14,9 @@ import {
   User,
   Shield,
   Users,
-  CreditCard
+  CreditCard,
+  FileText,
+  Activity
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +37,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Mail Accounts', href: '/accounts', icon: Mail },
+    { name: 'Logs', href: '/logs', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -43,6 +46,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         { name: 'Admin Overview', href: '/admin', icon: Shield },
         { name: 'Manage Users', href: '/admin/users', icon: Users },
         { name: 'Manage Plans', href: '/admin/plans', icon: CreditCard },
+        { name: 'Activity Logs', href: '/admin/logs', icon: Activity },
       ]
     : [];
 

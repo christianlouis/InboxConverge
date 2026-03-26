@@ -1,9 +1,10 @@
 """Mail account management endpoints"""
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+import math
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
@@ -11,6 +12,8 @@ from app.core.security import encrypt_credential
 from app.models.database_models import (
     User,
     MailAccount,
+    ProcessingLog,
+    ProcessingRun,
     AccountStatus,
     SubscriptionPlan,
 )
@@ -22,6 +25,10 @@ from app.models.schemas import (
     MailAccountTestResponse,
     MailAccountAutoDetectRequest,
     MailAccountAutoDetectResponse,
+    PaginatedProcessingRunsResponse,
+    PaginatedProcessingLogsResponse,
+    ProcessingRunDetailResponse,
+    ProcessingLogDetailResponse,
 )
 from app.services.mail_processor import MailProcessor, MailServerAutoDetect
 from app.core.config import settings
@@ -273,4 +280,149 @@ async def auto_detect_mail_settings(
 
     return MailAccountAutoDetectResponse(
         success=len(suggestions) > 0, suggestions=suggestions
+    )
+
+
+# ---------------------------------------------------------------------------
+# Per-account processing runs & logs
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{account_id}/processing-runs",
+    response_model=PaginatedProcessingRunsResponse,
+    summary="List processing runs for a specific mail account",
+)
+async def list_account_runs(
+    account_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return paginated processing runs for a mail account owned by the user."""
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id,
+            MailAccount.user_id == current_user.id,
+        )
+    )
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    base = select(ProcessingRun).where(ProcessingRun.mail_account_id == account_id)
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+
+    offset = (page - 1) * page_size
+    runs = (
+        (
+            await db.execute(
+                base.order_by(desc(ProcessingRun.started_at))
+                .offset(offset)
+                .limit(page_size)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    pages = max(1, math.ceil(total / page_size)) if total else 1
+    items = [
+        ProcessingRunDetailResponse(
+            id=r.id,  # type: ignore[arg-type]
+            mail_account_id=r.mail_account_id,  # type: ignore[arg-type]
+            started_at=r.started_at,  # type: ignore[arg-type]
+            completed_at=r.completed_at,  # type: ignore[arg-type]
+            duration_seconds=r.duration_seconds,  # type: ignore[arg-type]
+            emails_fetched=r.emails_fetched,  # type: ignore[arg-type]
+            emails_forwarded=r.emails_forwarded,  # type: ignore[arg-type]
+            emails_failed=r.emails_failed,  # type: ignore[arg-type]
+            status=r.status,  # type: ignore[arg-type]
+            error_message=r.error_message,  # type: ignore[arg-type]
+            account_name=account.name,  # type: ignore[arg-type]
+            account_email=account.email_address,  # type: ignore[arg-type]
+        )
+        for r in runs
+    ]
+    return PaginatedProcessingRunsResponse(
+        items=items, total=total, page=page, page_size=page_size, pages=pages
+    )
+
+
+@router.get(
+    "/{account_id}/logs",
+    response_model=PaginatedProcessingLogsResponse,
+    summary="List processing logs for a specific mail account",
+)
+async def list_account_logs(
+    account_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    level: Optional[str] = Query(
+        None, description="Filter by log level (INFO, WARNING, ERROR)"
+    ),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return paginated per-email log entries for a mail account owned by the user."""
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id,
+            MailAccount.user_id == current_user.id,
+        )
+    )
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    base = select(ProcessingLog).where(
+        ProcessingLog.mail_account_id == account_id,
+        ProcessingLog.user_id == current_user.id,  # type: ignore[arg-type]
+    )
+    if level:
+        base = base.where(ProcessingLog.level == level.upper())
+
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+
+    offset = (page - 1) * page_size
+    logs = (
+        (
+            await db.execute(
+                base.order_by(ProcessingLog.timestamp.desc())
+                .offset(offset)
+                .limit(page_size)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    pages = max(1, math.ceil(total / page_size)) if total else 1
+    items = [
+        ProcessingLogDetailResponse(
+            id=log.id,  # type: ignore[arg-type]
+            timestamp=log.timestamp,  # type: ignore[arg-type]
+            level=log.level,  # type: ignore[arg-type]
+            message=log.message,  # type: ignore[arg-type]
+            email_subject=log.email_subject,  # type: ignore[arg-type]
+            email_from=log.email_from,  # type: ignore[arg-type]
+            success=log.success,  # type: ignore[arg-type]
+            mail_account_id=log.mail_account_id,  # type: ignore[arg-type]
+            processing_run_id=log.processing_run_id,  # type: ignore[arg-type]
+            email_size_bytes=log.email_size_bytes,  # type: ignore[arg-type]
+            error_details=log.error_details,  # type: ignore[arg-type]
+        )
+        for log in logs
+    ]
+    return PaginatedProcessingLogsResponse(
+        items=items, total=total, page=page, page_size=page_size, pages=pages
     )

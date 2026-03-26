@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     admin,
     providers,
     app_settings,
+    logs,
 )
 
 api_router = APIRouter()
@@ -34,3 +35,6 @@ api_router.include_router(
 )
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(app_settings.router, prefix="/settings", tags=["Settings"])
+api_router.include_router(
+    logs.router, prefix="/processing-runs", tags=["Processing Logs"]
+)

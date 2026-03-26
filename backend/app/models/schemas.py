@@ -204,6 +204,15 @@ class ProcessingRunResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProcessingRunDetailResponse(ProcessingRunResponse):
+    """ProcessingRunResponse with optional account metadata."""
+
+    account_name: Optional[str] = None
+    account_email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Processing Log Schemas
 class ProcessingLogResponse(BaseModel):
     id: int
@@ -215,6 +224,67 @@ class ProcessingLogResponse(BaseModel):
     success: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProcessingLogDetailResponse(ProcessingLogResponse):
+    """ProcessingLogResponse with additional fields."""
+
+    mail_account_id: int
+    processing_run_id: Optional[int] = None
+    email_size_bytes: Optional[int] = None
+    error_details: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedProcessingRunsResponse(BaseModel):
+    items: List[ProcessingRunDetailResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+class PaginatedProcessingLogsResponse(BaseModel):
+    items: List[ProcessingLogDetailResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+class AdminProcessingRunResponse(ProcessingRunDetailResponse):
+    """ProcessingRunDetailResponse with user info for admin views."""
+
+    user_id: Optional[int] = None
+    user_email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedAdminRunsResponse(BaseModel):
+    items: List[AdminProcessingRunResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+class AdminProcessingLogResponse(ProcessingLogDetailResponse):
+    """ProcessingLogDetailResponse with user info for admin views."""
+
+    user_id: int
+    user_email: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedAdminLogsResponse(BaseModel):
+    items: List[AdminProcessingLogResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
 
 
 # Notification Config Schemas
