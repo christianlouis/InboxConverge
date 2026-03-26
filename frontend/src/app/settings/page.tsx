@@ -16,7 +16,111 @@ import {
   AlertTriangle,
   XCircle,
   Bug,
+  RotateCcw,
+  Tags,
 } from 'lucide-react';
+
+const DEFAULT_GMAIL_IMPORT_LABEL_TEMPLATES = ['{{source_email}}', 'imported'];
+
+function parseImportLabelTemplates(input: string): string[] {
+  return input
+    .split('\n')
+    .map((value) => value.trim())
+    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+}
+
+function GmailImportLabelsForm({
+  gmailCredential,
+  onSave,
+  isSaving,
+}: {
+  gmailCredential: {
+    gmail_email: string;
+    import_label_templates: string[];
+    default_import_label_templates: string[];
+  };
+  onSave: (labels: string[]) => void;
+  isSaving: boolean;
+}) {
+  const [labelsInput, setLabelsInput] = useState(
+    gmailCredential.import_label_templates.join('\n')
+  );
+
+  const defaultTemplates =
+    gmailCredential.default_import_label_templates.length > 0
+      ? gmailCredential.default_import_label_templates
+      : DEFAULT_GMAIL_IMPORT_LABEL_TEMPLATES;
+  const parsedLabels = parseImportLabelTemplates(labelsInput);
+  const isDefaultSelection =
+    parsedLabels.length === defaultTemplates.length &&
+    parsedLabels.every((value, index) => value === defaultTemplates[index]);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Tags className="h-4 w-4 text-gray-500" />
+        <h3 className="text-sm font-semibold text-gray-900">Import labels</h3>
+      </div>
+      <p className="text-sm text-gray-600">
+        One label is created per line. We recommend keeping{' '}
+        <code className="rounded bg-white px-1 py-0.5 text-xs text-gray-700">
+          {'{{source_email}}'}
+        </code>{' '}
+        so each imported message is tagged with the mailbox it came from, plus a
+        catch-all label like <strong>imported</strong>.
+      </p>
+      <p className="mt-2 text-xs text-gray-500">
+        Example: a mail pulled from <strong>billing@example.com</strong> will be
+        labeled as <strong>billing@example.com</strong> when{' '}
+        <code className="rounded bg-white px-1 py-0.5 text-xs text-gray-700">
+          {'{{source_email}}'}
+        </code>{' '}
+        is present.
+      </p>
+      <textarea
+        value={labelsInput}
+        onChange={(e) => setLabelsInput(e.target.value)}
+        rows={4}
+        className="mt-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder={`{{source_email}}\nimported`}
+      />
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <span>Suggested defaults:</span>
+        {defaultTemplates.map((label) => (
+          <span
+            key={label}
+            className="rounded-full border border-gray-200 bg-white px-2 py-1 text-gray-700"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onSave(parsedLabels)}
+          disabled={isSaving}
+          className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Save label setup
+        </button>
+        <button
+          type="button"
+          onClick={() => setLabelsInput(defaultTemplates.join('\n'))}
+          disabled={isSaving || isDefaultSelection}
+          className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm text-gray-700 ring-1 ring-gray-300 transition-colors hover:bg-gray-50 disabled:opacity-50"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reset defaults
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-gray-500">
+        Connected Gmail target: <strong>{gmailCredential.gmail_email}</strong>
+      </p>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   return (
@@ -106,6 +210,7 @@ function SettingsContent() {
   });
 
   const [debugEmailResult, setDebugEmailResult] = useState<string | null>(null);
+  const [gmailLabelsSaved, setGmailLabelsSaved] = useState(false);
   const sendDebugEmailMutation = useMutation({
     mutationFn: gmailApi.sendDebugEmail,
     onSuccess: () => {
@@ -115,6 +220,15 @@ function SettingsContent() {
     onError: () => {
       setDebugEmailResult('error');
       setTimeout(() => setDebugEmailResult(null), 5000);
+    },
+  });
+
+  const updateGmailLabelsMutation = useMutation({
+    mutationFn: gmailApi.updateImportLabels,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gmail-credential'] });
+      setGmailLabelsSaved(true);
+      setTimeout(() => setGmailLabelsSaved(false), 3000);
     },
   });
 
@@ -362,13 +476,27 @@ function SettingsContent() {
               {debugEmailResult === 'success' && (
                 <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
                   <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                  Debug email injected successfully. Check your Gmail inbox — it should be labelled <strong className="mx-1">test</strong> and <strong className="mx-1">imported</strong>.
+                  Debug email injected successfully. Check your Gmail inbox for the
+                  configured import labels plus a <strong className="mx-1">test</strong>{' '}
+                  label.
                 </div>
               )}
               {debugEmailResult === 'error' && (
                 <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                   Failed to inject debug email. Check that Gmail API access is still valid.
+                </div>
+              )}
+              <GmailImportLabelsForm
+                key={gmailCredential.updated_at}
+                gmailCredential={gmailCredential}
+                isSaving={updateGmailLabelsMutation.isPending}
+                onSave={(labels) => updateGmailLabelsMutation.mutate(labels)}
+              />
+              {gmailLabelsSaved && (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  Gmail import labels saved.
                 </div>
               )}
             </div>
@@ -589,4 +717,3 @@ function SettingsContent() {
     </div>
   );
 }
-

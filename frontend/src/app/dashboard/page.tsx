@@ -4,6 +4,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
 import { mailAccountsApi, processingRunsApi } from '@/lib/api';
+import Link from 'next/link';
 import { 
   Mail, 
   Send, 
@@ -51,19 +52,19 @@ export default function DashboardPage() {
 
   const { data: runs, isLoading: runsLoading } = useQuery({
     queryKey: ['processing-runs'],
-    queryFn: () => processingRunsApi.list(),
+    queryFn: () => processingRunsApi.list({ page: 1, page_size: 10 }),
   });
 
   const stats = {
     totalAccounts: accounts?.length || 0,
     activeAccounts: accounts?.filter((a) => a.is_enabled).length || 0,
-    emailsToday: runs
+    emailsToday: runs?.items
       ?.filter((r) => {
         const today = new Date().toDateString();
         return new Date(r.started_at).toDateString() === today;
       })
       .reduce((sum, r) => sum + r.emails_forwarded, 0) || 0,
-    errors: runs?.filter((r) => r.emails_failed > 0).length || 0,
+    errors: runs?.items?.filter((r) => r.emails_failed > 0).length || 0,
   };
 
   return (
@@ -100,15 +101,18 @@ export default function DashboardPage() {
 
           {/* Recent Processing Runs */}
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Recent Processing Runs</h3>
+              <Link href="/logs" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                View all logs →
+              </Link>
             </div>
             <div className="overflow-x-auto">
               {runsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              ) : runs && runs.length > 0 ? (
+              ) : runs && runs.items && runs.items.length > 0 ? (
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -133,12 +137,12 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {runs.slice(0, 10).map((run) => {
+                    {runs.items.map((run) => {
                       const account = accounts?.find((a) => a.id === run.mail_account_id);
                       return (
                         <tr key={run.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {account?.name || `Account ${run.mail_account_id}`}
+                            {run.account_name || account?.name || `Account ${run.mail_account_id}`}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div className="flex items-center">

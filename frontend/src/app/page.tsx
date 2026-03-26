@@ -106,7 +106,7 @@ export default function Home() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <Mail className="h-8 w-8 text-blue-600 mr-2" />
-              <h1 className="text-2xl font-bold text-gray-900">InboxRescue</h1>
+              <h1 className="text-2xl font-bold text-gray-900">InboxConverge</h1>
             </div>
             <div className="flex items-center gap-4">
               <Link
@@ -136,7 +136,7 @@ export default function Home() {
           </h2>
           <p className="text-xl text-gray-600 mb-4 max-w-2xl mx-auto">
             You know the ones — that GMX account from 2009, the old ISP address your
-            bank still sends to, the Hotmail you gave out in school. InboxRescue
+            bank still sends to, the Hotmail you gave out in school. InboxConverge
             quietly polls them all and drops everything into your Gmail. Set it once,
             forget it exists.
           </p>
@@ -171,7 +171,7 @@ export default function Home() {
               Auto-detects everything
             </h3>
             <p className="text-gray-600">
-              Type your old email address and InboxRescue figures out the server
+              Type your old email address and InboxConverge figures out the server
               settings. No Googling port numbers required.
             </p>
           </div>
@@ -215,7 +215,7 @@ export default function Home() {
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">Add your old inbox</h4>
               <p className="text-gray-600">
-                Paste the email address — InboxRescue auto-detects the POP3/IMAP
+                Paste the email address — InboxConverge auto-detects the POP3/IMAP
                 settings in seconds.
               </p>
             </div>
@@ -225,7 +225,7 @@ export default function Home() {
               </div>
               <h4 className="text-xl font-semibold text-gray-900 mb-2">Connect Gmail</h4>
               <p className="text-gray-600">
-                Sign in with Google once. InboxRescue delivers mail directly into
+                Sign in with Google once. InboxConverge delivers mail directly into
                 your inbox using the Gmail API — no SMTP relay needed.
               </p>
             </div>
@@ -270,7 +270,7 @@ export default function Home() {
       <footer className="mt-20 border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <p className="text-center text-gray-600 text-sm">
-            © {new Date().getFullYear()} InboxRescue — made for people, not enterprises.
+            © {new Date().getFullYear()} InboxConverge — made for people, not enterprises.
           </p>
         </div>
       </footer>

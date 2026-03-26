@@ -3,6 +3,7 @@ Celery tasks for background email processing.
 """
 
 import asyncio
+import email as email_lib
 import time
 from datetime import datetime, timedelta, timezone
 from celery import Task
@@ -199,15 +200,46 @@ async def process_mail_account(account_id: int):
                     f"for account {account.id}; truncating to shorter list"
                 )
 
+            # Field length limits matching the DB column definitions
+            _MAX_SUBJECT_LEN = 500
+            _MAX_FROM_LEN = 255
+
             for email_data, uid in zip(emails, new_uids):
+                # ── Parse email metadata for logging ───────────────────────
+                email_subject: str | None = None
+                email_from: str | None = None
+                try:
+                    msg = email_lib.message_from_bytes(email_data)
+                    raw_subject = msg.get("Subject", "") or ""
+                    email_subject = (
+                        raw_subject[:_MAX_SUBJECT_LEN] if raw_subject else None
+                    )
+                    raw_from = msg.get("From", "") or ""
+                    email_from = raw_from[:_MAX_FROM_LEN] if raw_from else None
+                except (ValueError, TypeError, UnicodeDecodeError) as exc:
+                    logger.debug(
+                        "Could not parse email headers for account %s: %s",
+                        account.id,
+                        exc,
+                    )
+
+                email_size_bytes = len(email_data)
+                forwarded_ok = False
+                error_msg: str | None = None
+
                 try:
                     if use_gmail_api and gmail_service:
                         # Inject via Gmail API (preferred)
+                        label_ids = await gmail_service.build_import_label_ids(
+                            import_label_templates=gmail_cred.import_label_templates,
+                            source_email=account.email_address,  # type: ignore[arg-type]
+                        )
                         await gmail_service.inject_email(
                             raw_email=email_data,
-                            label_ids=["INBOX"],
+                            label_ids=label_ids,
                             source_account_name=account.name,  # type: ignore[arg-type]
                         )
+                        forwarded_ok = True
                         emails_forwarded += 1
                         successfully_forwarded_uids.append(uid)
                     else:
@@ -216,6 +248,7 @@ async def process_mail_account(account_id: int):
                             email_data, account.name, account.forward_to, smtp_config  # type: ignore[arg-type]
                         )
                         if success:
+                            forwarded_ok = True
                             emails_forwarded += 1
                             successfully_forwarded_uids.append(uid)
                         else:
@@ -253,7 +286,28 @@ async def process_mail_account(account_id: int):
                                 f"Failed to send revocation notification: {notify_exc}"
                             )
                     logger.error(f"Error delivering email: {e}")
+                    error_msg = str(e)
                     emails_failed += 1
+
+                # ── Write per-email ProcessingLog entry ─────────────────────
+                db.add(
+                    ProcessingLog(
+                        user_id=account.user_id,
+                        mail_account_id=account.id,
+                        processing_run_id=run.id,
+                        level="INFO" if forwarded_ok else "ERROR",
+                        message=(
+                            f"Forwarded: {email_subject or '(no subject)'}"
+                            if forwarded_ok
+                            else f"Failed: {error_msg or 'delivery error'}"
+                        ),
+                        email_subject=email_subject,
+                        email_from=email_from,
+                        email_size_bytes=email_size_bytes,
+                        success=forwarded_ok,
+                        error_details={"error": error_msg} if error_msg else None,
+                    )
+                )
 
             # Persist new message UIDs so they are not processed again
             for uid in successfully_forwarded_uids:

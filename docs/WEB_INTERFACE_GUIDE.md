@@ -1,6 +1,6 @@
 # Web Interface Quick Start Guide
 
-The POP3 to Gmail Forwarder now includes a modern web interface built with Next.js, making it easy to manage your email forwarding without API calls.
+The InboxConverge now includes a modern web interface built with Next.js, making it easy to manage your email forwarding without API calls.
 
 ## 🌐 Accessing the Web Interface
 
@@ -104,7 +104,7 @@ frontend:
   build:
     context: ./frontend
     dockerfile: Dockerfile
-  container_name: pop3-frontend
+  container_name: inboxconverge-frontend
   ports:
     - "3000:3000"
   environment:

@@ -1,6 +1,6 @@
 # Error Codes and Messages
 
-This document catalogs all error codes used in the POP3 to Gmail Forwarder application.
+This document catalogs all error codes used in the InboxConverge application.
 
 ## Error Code Format
 

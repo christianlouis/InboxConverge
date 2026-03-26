@@ -126,6 +126,64 @@ export interface ProcessingRun {
   emails_failed: number;
   status: string;
   error_message?: string | null;
+  account_name?: string | null;
+  account_email?: string | null;
+}
+
+export interface ProcessingLog {
+  id: number;
+  timestamp: string;
+  level: string;
+  message: string;
+  email_subject?: string | null;
+  email_from?: string | null;
+  success: boolean;
+  mail_account_id: number;
+  processing_run_id?: number | null;
+  email_size_bytes?: number | null;
+  error_details?: Record<string, unknown> | null;
+}
+
+export interface PaginatedProcessingRuns {
+  items: ProcessingRun[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export interface PaginatedProcessingLogs {
+  items: ProcessingLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export interface AdminProcessingRun extends ProcessingRun {
+  user_id?: number | null;
+  user_email?: string | null;
+}
+
+export interface AdminProcessingLog extends ProcessingLog {
+  user_id: number;
+  user_email?: string | null;
+}
+
+export interface PaginatedAdminRuns {
+  items: AdminProcessingRun[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export interface PaginatedAdminLogsResponse {
+  items: AdminProcessingLog[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
 }
 
 export interface AutoDetectSuggestion {
@@ -141,6 +199,8 @@ export interface GmailCredential {
   user_id: number;
   gmail_email: string;
   is_valid: boolean;
+  import_label_templates: string[];
+  default_import_label_templates: string[];
   last_verified_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -292,10 +352,54 @@ export const mailAccountsApi = {
 // ── Processing Runs API ─────────────────────────────────────────────────
 
 export const processingRunsApi = {
-  async list(): Promise<ProcessingRun[]> {
-    // TODO: Add a dedicated /processing-runs endpoint to the backend
-    // For now, return empty array since no user-facing endpoint exists yet
-    return [];
+  async list(params?: {
+    page?: number;
+    page_size?: number;
+    account_id?: number;
+    status?: string;
+  }): Promise<PaginatedProcessingRuns> {
+    const response = await api.get<PaginatedProcessingRuns>("/processing-runs", {
+      params,
+    });
+    return response.data;
+  },
+
+  async get(runId: number): Promise<ProcessingRun> {
+    const response = await api.get<ProcessingRun>(`/processing-runs/${runId}`);
+    return response.data;
+  },
+
+  async getLogs(
+    runId: number,
+    params?: { page?: number; page_size?: number }
+  ): Promise<PaginatedProcessingLogs> {
+    const response = await api.get<PaginatedProcessingLogs>(
+      `/processing-runs/${runId}/logs`,
+      { params }
+    );
+    return response.data;
+  },
+
+  async listForAccount(
+    accountId: number,
+    params?: { page?: number; page_size?: number; status?: string }
+  ): Promise<PaginatedProcessingRuns> {
+    const response = await api.get<PaginatedProcessingRuns>(
+      `/mail-accounts/${accountId}/processing-runs`,
+      { params }
+    );
+    return response.data;
+  },
+
+  async listLogsForAccount(
+    accountId: number,
+    params?: { page?: number; page_size?: number; level?: string }
+  ): Promise<PaginatedProcessingLogs> {
+    const response = await api.get<PaginatedProcessingLogs>(
+      `/mail-accounts/${accountId}/logs`,
+      { params }
+    );
+    return response.data;
   },
 };
 
@@ -334,6 +438,14 @@ export const gmailApi = {
   /** Inject a debug test email into the user's Gmail inbox. */
   async sendDebugEmail(): Promise<GmailDebugEmailResponse> {
     const response = await api.post<GmailDebugEmailResponse>('/providers/gmail/debug-email');
+    return response.data;
+  },
+
+  /** Update the labels applied to imported Gmail messages. */
+  async updateImportLabels(importLabelTemplates: string[]): Promise<GmailCredential> {
+    const response = await api.put<GmailCredential>('/providers/gmail-credential/labels', {
+      import_label_templates: importLabelTemplates,
+    });
     return response.data;
   },
 };
@@ -482,6 +594,33 @@ export const adminApi = {
 
   async deletePlan(id: number): Promise<void> {
     await api.delete(`/admin/plans/${id}`);
+  },
+
+  async listProcessingRuns(params?: {
+    page?: number;
+    page_size?: number;
+    user_id?: number;
+    account_id?: number;
+    status?: string;
+  }): Promise<PaginatedAdminRuns> {
+    const response = await api.get<PaginatedAdminRuns>('/admin/processing-runs', {
+      params,
+    });
+    return response.data;
+  },
+
+  async listProcessingLogs(params?: {
+    page?: number;
+    page_size?: number;
+    user_id?: number;
+    account_id?: number;
+    run_id?: number;
+    level?: string;
+  }): Promise<PaginatedAdminLogsResponse> {
+    const response = await api.get<PaginatedAdminLogsResponse>('/admin/processing-logs', {
+      params,
+    });
+    return response.data;
   },
 };
 

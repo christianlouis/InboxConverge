@@ -1,4 +1,4 @@
-# Contributing to POP3 to Gmail Forwarder
+# Contributing to InboxConverge
 
 Thank you for your interest in contributing! This document provides guidelines for contributing to the project.
 
@@ -10,7 +10,7 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/christianlouis/pop_puller_to_gmail/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/christianlouis/inboxconverge/issues)
 2. If not, create a new issue with:
    - Clear title and description
    - Steps to reproduce
@@ -77,8 +77,8 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR-USERNAME/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/YOUR-USERNAME/inboxconverge.git
+cd inboxconverge
 
 # Install all development dependencies
 make install-dev
@@ -88,7 +88,7 @@ cp .env.example .env
 # Edit .env with test credentials
 
 # Run the legacy forwarder script directly
-python pop3_forwarder.py
+python inbox_converge.py
 
 # Or start the SaaS backend in dev mode
 make run-dev

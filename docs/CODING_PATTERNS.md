@@ -1,6 +1,6 @@
 # Coding Patterns and Best Practices
 
-This document outlines the coding patterns, conventions, and best practices for the POP3 to Gmail Forwarder project.
+This document outlines the coding patterns, conventions, and best practices for the InboxConverge project.
 
 ## Table of Contents
 - [General Principles](#general-principles)

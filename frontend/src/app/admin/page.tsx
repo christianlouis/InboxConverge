@@ -351,7 +351,7 @@ export default function AdminPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               <Link
                 href="/admin/users"
                 className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow flex items-center gap-4 group"
@@ -374,6 +374,18 @@ export default function AdminPage() {
                 <div>
                   <p className="text-lg font-semibold text-gray-900">Manage Plans</p>
                   <p className="text-sm text-gray-500">Create and configure subscription plans</p>
+                </div>
+              </Link>
+              <Link
+                href="/admin/logs"
+                className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow flex items-center gap-4 group"
+              >
+                <div className="p-3 rounded-full bg-green-100 group-hover:bg-green-200 transition-colors">
+                  <Activity className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">Activity Logs</p>
+                  <p className="text-sm text-gray-500">Processing runs and per-email logs across all users</p>
                 </div>
               </Link>
             </div>

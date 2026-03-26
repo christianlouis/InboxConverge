@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
+const APP_NAME = process.env.APP_NAME ?? 'InboxConverge';
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'christian@inboxconverge.com';
+
 export const metadata: Metadata = {
-  title: 'Impressum – POP3 Forwarder',
+  title: `Impressum – ${APP_NAME}`,
 };
 
 export default function ImpressumPage() {
@@ -36,10 +39,10 @@ export default function ImpressumPage() {
             Fax: +49 40 97074609<br />
             E-Mail:{' '}
             <a
-              href="mailto:christianlouis@gmail.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               className="text-blue-600 hover:text-blue-500"
             >
-              christianlouis@gmail.com
+              {CONTACT_EMAIL}
             </a>
           </p>
         </section>

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InboxRescue — your old inboxes, delivered to Gmail",
+  title: "InboxConverge — your old inboxes, delivered to Gmail",
   description: "Poll your legacy POP3 and IMAP mailboxes and have everything land quietly in Gmail. Set it once, forget it exists.",
 };
 

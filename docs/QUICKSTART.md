@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get your POP3 to Gmail forwarder running in under 10 minutes!
+Get your InboxConverge instance running in under 10 minutes!
 
 ## Prerequisites
 
@@ -13,8 +13,8 @@ Get your POP3 to Gmail forwarder running in under 10 minutes!
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/christianlouis/pop_puller_to_gmail.git
-cd pop_puller_to_gmail
+git clone https://github.com/christianlouis/inboxconverge.git
+cd inboxconverge
 ```
 
 ### 2. Generate Gmail App Password
@@ -23,7 +23,7 @@ cd pop_puller_to_gmail
 2. Sign in to your Google Account
 3. Select "App passwords" under Security
 4. Choose "Mail" and "Other (Custom name)"
-5. Enter "POP3 Forwarder" as the name
+5. Enter "InboxConverge" as the name
 6. Click "Generate"
 7. **Copy the 16-character password** (you'll need this in step 3)
 
@@ -66,10 +66,10 @@ docker-compose logs -f
 
 You should see:
 ```
-pop3-gmail-forwarder | INFO - POP3 to Gmail Forwarder starting...
-pop3-gmail-forwarder | INFO - Loaded POP3 account: ...
-pop3-gmail-forwarder | INFO - Configuration validated successfully
-pop3-gmail-forwarder | INFO - Starting email processing cycle
+inboxconverge | INFO - InboxConverge starting...
+inboxconverge | INFO - Loaded POP3 account: ...
+inboxconverge | INFO - Configuration validated successfully
+inboxconverge | INFO - Starting email processing cycle
 ```
 
 ### 6. Test the Forwarder
@@ -192,13 +192,13 @@ Restart after changes: `docker-compose restart`
 
 ## Need Help?
 
-- Open an issue: https://github.com/christianlouis/pop_puller_to_gmail/issues
+- Open an issue: https://github.com/christianlouis/inboxconverge/issues
 - Check existing discussions
 - Review troubleshooting section in README.md
 
 ## Success! 🎉
 
-Your POP3 to Gmail forwarder is now running. Emails will be automatically forwarded every 5 minutes (or your configured interval).
+Your InboxConverge instance is now running. Emails will be automatically forwarded every 5 minutes (or your configured interval).
 
 **Remember**: 
 - The forwarder deletes emails from POP3 after successful forwarding
