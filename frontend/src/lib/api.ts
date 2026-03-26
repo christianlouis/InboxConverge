@@ -141,6 +141,8 @@ export interface GmailCredential {
   user_id: number;
   gmail_email: string;
   is_valid: boolean;
+  import_label_templates: string[];
+  default_import_label_templates: string[];
   last_verified_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -334,6 +336,14 @@ export const gmailApi = {
   /** Inject a debug test email into the user's Gmail inbox. */
   async sendDebugEmail(): Promise<GmailDebugEmailResponse> {
     const response = await api.post<GmailDebugEmailResponse>('/providers/gmail/debug-email');
+    return response.data;
+  },
+
+  /** Update the labels applied to imported Gmail messages. */
+  async updateImportLabels(importLabelTemplates: string[]): Promise<GmailCredential> {
+    const response = await api.put<GmailCredential>('/providers/gmail-credential/labels', {
+      import_label_templates: importLabelTemplates,
+    });
     return response.data;
   },
 };

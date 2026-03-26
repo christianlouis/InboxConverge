@@ -3,8 +3,16 @@ Unit tests for Gmail service module.
 """
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
+from app.utils.gmail_labels import (
+    DEFAULT_IMPORT_LABEL_TEMPLATES,
+    SOURCE_EMAIL_LABEL_TEMPLATE,
+    build_gmail_credential_scopes,
+    extract_granted_scopes,
+    extract_import_label_templates,
+    render_import_labels,
+)
 
 
 class TestGmailService:
@@ -153,3 +161,44 @@ class TestGmailService:
 
         email = await service.get_email_address()
         assert email is None
+
+    def test_gmail_label_metadata_helpers(self):
+        """Test Gmail metadata extraction remains backward compatible."""
+        scopes = build_gmail_credential_scopes(
+            ["scope-a", "scope-b"],
+            [SOURCE_EMAIL_LABEL_TEMPLATE, "Imported", " imported "],
+        )
+
+        assert extract_granted_scopes(scopes) == ["scope-a", "scope-b"]
+        assert extract_import_label_templates(scopes) == [
+            SOURCE_EMAIL_LABEL_TEMPLATE,
+            "Imported",
+        ]
+        assert (
+            extract_import_label_templates(["legacy-scope"])
+            == DEFAULT_IMPORT_LABEL_TEMPLATES
+        )
+
+    def test_render_import_labels_uses_source_email_template(self):
+        """Test that source email templates render to the source mailbox address."""
+        rendered = render_import_labels(
+            [SOURCE_EMAIL_LABEL_TEMPLATE, "Imported", ""],
+            "source@example.com",
+        )
+
+        assert rendered == ["source@example.com", "Imported"]
+
+    @pytest.mark.asyncio
+    async def test_build_import_label_ids_creates_configured_labels(self):
+        """Test that configured import labels are created and added alongside INBOX."""
+        service = GmailService(access_token="test-access-token")
+        service.get_or_create_label = AsyncMock(
+            side_effect=["Label-source", "Label-imported"]
+        )  # type: ignore[method-assign]
+
+        label_ids = await service.build_import_label_ids(
+            import_label_templates=[SOURCE_EMAIL_LABEL_TEMPLATE, "imported"],
+            source_email="source@example.com",
+        )
+
+        assert label_ids == ["INBOX", "Label-source", "Label-imported"]

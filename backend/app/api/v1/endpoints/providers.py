@@ -21,11 +21,29 @@ from app.models.schemas import (
     GmailCredentialResponse,
     GmailAuthorizeResponse,
     GmailCallbackRequest,
+    GmailImportLabelsUpdate,
 )
 from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
+from app.utils.gmail_labels import (
+    MAX_IMPORT_LABELS,
+    build_gmail_credential_scopes,
+    extract_granted_scopes,
+    normalize_import_label_templates,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _validated_import_label_templates(label_templates: List[str]) -> List[str]:
+    normalized = normalize_import_label_templates(label_templates)
+    if len(normalized) > MAX_IMPORT_LABELS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"You can configure up to {MAX_IMPORT_LABELS} Gmail import labels.",
+        )
+    return normalized
+
 
 # Gmail API scopes requested during the "Connect Gmail" OAuth flow.
 # GMAIL_SCOPES (gmail.insert, gmail.labels, gmail.readonly) are imported from
@@ -223,6 +241,10 @@ async def save_gmail_credential(
         existing.gmail_email = credential_in.gmail_email  # type: ignore[assignment]
         existing.encrypted_access_token = encrypted_access  # type: ignore[assignment]
         existing.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
+        existing.scopes = build_gmail_credential_scopes(
+            existing.granted_scopes,
+            existing.import_label_templates,
+        )  # type: ignore[assignment]
         existing.is_valid = True  # type: ignore[assignment]
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
@@ -235,6 +257,7 @@ async def save_gmail_credential(
             gmail_email=credential_in.gmail_email,
             encrypted_access_token=encrypted_access,
             encrypted_refresh_token=encrypted_refresh,
+            scopes=build_gmail_credential_scopes(None, None),
             is_valid=True,
             last_verified_at=datetime.now(timezone.utc),
         )
@@ -283,6 +306,33 @@ async def delete_gmail_credential(
 
     await db.delete(credential)
     await db.commit()
+
+
+@router.put("/gmail-credential/labels", response_model=GmailCredentialResponse)
+async def update_gmail_import_labels(
+    labels_in: GmailImportLabelsUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the Gmail labels applied to imported messages."""
+    result = await db.execute(
+        select(GmailCredential).where(GmailCredential.user_id == current_user.id)
+    )
+    credential = result.scalar_one_or_none()
+
+    if not credential:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No Gmail credentials found. Connect Gmail first.",
+        )
+
+    credential.scopes = build_gmail_credential_scopes(  # type: ignore[assignment]
+        extract_granted_scopes(credential.scopes),
+        _validated_import_label_templates(labels_in.import_label_templates),
+    )
+    await db.commit()
+    await db.refresh(credential)
+    return credential
 
 
 @router.get("/gmail/authorize-url", response_model=GmailAuthorizeResponse)
@@ -365,6 +415,7 @@ async def send_gmail_debug_email(
     try:
         inject_result = await gmail_service.inject_debug_email(
             recipient_email=credential.gmail_email,  # type: ignore[arg-type]
+            import_label_templates=credential.import_label_templates,
         )
     except GmailInjectionError as exc:
         raise HTTPException(
@@ -498,7 +549,10 @@ async def gmail_oauth_callback(
         if encrypted_refresh:
             existing.encrypted_refresh_token = encrypted_refresh  # type: ignore[assignment]
         existing.token_expiry = token_expiry  # type: ignore[assignment]
-        existing.scopes = token_data.get("scope", "").split()  # type: ignore[assignment]
+        existing.scopes = build_gmail_credential_scopes(  # type: ignore[assignment]
+            token_data.get("scope", "").split(),
+            existing.import_label_templates,
+        )
         existing.is_valid = True  # type: ignore[assignment]
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
@@ -511,7 +565,7 @@ async def gmail_oauth_callback(
             encrypted_access_token=encrypted_access,
             encrypted_refresh_token=encrypted_refresh,
             token_expiry=token_expiry,
-            scopes=token_data.get("scope", "").split(),
+            scopes=build_gmail_credential_scopes(token_data.get("scope", "").split()),
             is_valid=True,
             last_verified_at=datetime.now(timezone.utc),
         )

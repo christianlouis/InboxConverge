@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Configurable Gmail import labels**: Users can now define which Gmail labels are applied to imported messages from the Settings page. The default setup is opinionated: `{{source_email}}` (rendered to the mailbox address each message came from) plus `imported`, and a reset button restores those defaults instantly.
 - **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
   - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
   - **Mail processing** — `mail_processing_runs_total` (counter, by `status`: `completed` / `partial_failure` / `failed`), `mail_processing_emails_total` (counter, by `operation`: `fetched` / `forwarded` / `failed`), `mail_processing_duration_seconds` (histogram), `active_mail_accounts_total` (gauge — set each scheduler cycle).

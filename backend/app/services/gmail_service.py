@@ -25,6 +25,7 @@ from app.core.metrics import (
     GMAIL_API_DURATION_SECONDS,
     GMAIL_TOKEN_REFRESHES_TOTAL,
 )
+from app.utils.gmail_labels import render_import_labels
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +295,7 @@ class GmailService:
     async def inject_debug_email(
         self,
         recipient_email: str,
+        import_label_templates: Optional[list[str]] = None,
     ) -> Dict[str, Any]:
         """
         Inject a debug/test email into the user's Gmail inbox.
@@ -344,17 +346,33 @@ class GmailService:
 
         raw_bytes = msg.as_bytes()
 
-        # Resolve label IDs (create labels if they don't exist yet)
+        label_ids = await self.build_import_label_ids(import_label_templates)
         test_label_id = await self.get_or_create_label("test")
-        imported_label_id = await self.get_or_create_label("imported")
-
-        label_ids = ["INBOX", test_label_id, imported_label_id]
+        if test_label_id not in label_ids:
+            label_ids.append(test_label_id)
 
         return await self.inject_email(
             raw_email=raw_bytes,
             label_ids=label_ids,
             source_account_name="debug",
         )
+
+    async def build_import_label_ids(
+        self,
+        import_label_templates: Optional[list[str]] = None,
+        source_email: Optional[str] = None,
+    ) -> list[str]:
+        """Resolve configured import labels into Gmail label IDs."""
+        label_ids = ["INBOX"]
+
+        for label_name in render_import_labels(import_label_templates, source_email):
+            if label_name.upper() == "INBOX":
+                continue
+            label_id = await self.get_or_create_label(label_name)
+            if label_id not in label_ids:
+                label_ids.append(label_id)
+
+        return label_ids
 
     def get_refreshed_token(self) -> Optional[Dict[str, Any]]:
         """

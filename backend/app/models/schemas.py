@@ -326,6 +326,8 @@ class GmailCredentialResponse(BaseModel):
     user_id: int
     gmail_email: str
     is_valid: bool
+    import_label_templates: List[str] = Field(default_factory=list)
+    default_import_label_templates: List[str] = Field(default_factory=list)
     last_verified_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -378,6 +380,10 @@ class GmailAuthorizeResponse(BaseModel):
 class GmailCallbackRequest(BaseModel):
     code: str
     redirect_uri: str
+
+
+class GmailImportLabelsUpdate(BaseModel):
+    import_label_templates: List[str] = Field(default_factory=list)
 
 
 # Admin Schemas
