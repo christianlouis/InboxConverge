@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **ESLint parse error in `DashboardLayout.tsx`**: Missing comma after `Bell` in the `lucide-react` named import caused a TypeScript parse error (`',' expected` at line 19). Added the missing comma.
 - **Black formatting**: `backend/app/api/v1/endpoints/admin.py` was not formatted correctly; reformatted to pass `black --check`.
 - **`/processing-runs` endpoint 404s**: Routes in `logs.py` had a redundant `/processing-runs` path segment (the router was already mounted at `/processing-runs` in `api.py`). All three user-facing log endpoints now return correct results:
   - `GET /processing-runs` (was: `GET /processing-runs/processing-runs`)

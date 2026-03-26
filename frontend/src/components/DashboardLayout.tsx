@@ -15,7 +15,7 @@ import {
   Shield,
   Users,
   CreditCard,
-  Bell
+  Bell,
   FileText,
   Activity
 } from 'lucide-react';
