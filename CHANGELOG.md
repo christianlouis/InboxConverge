@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- Upgraded `python-jose` from 3.3.0 to 3.5.0 to fix CVE: algorithm confusion vulnerability with OpenSSH ECDSA keys (affected versions < 3.4.0).
 - Upgraded `python-jose[cryptography]` from `3.3.0` to `3.4.0` to fix an algorithm-confusion vulnerability with OpenSSH ECDSA keys (CVE affects all versions < 3.4.0).
 
 ### Added
@@ -28,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `auth_service.py` `get_google_user_info` now returns `access_token`, `refresh_token`, `expires_in`, and `scope` alongside user info so the login endpoint can persist Gmail credentials in the same request.
 
 ### Fixed
+- Fixed mailbox edit form: username field was marked `required` but was never pre-populated (the backend intentionally excludes credentials from responses), making it impossible to save edits without re-entering the username. The backend now returns `username` in `MailAccountResponse` so the edit form can pre-populate it. All connection fields (protocol, host, port, use\_ssl, username) are now fully editable in edit mode. The Auto-Detect button is also shown in edit mode to re-detect server settings after a protocol change.
+- Fixed mailbox edit form silently overwriting stored credentials with an empty string: when the password field was left blank during an edit the frontend sent `password: ""`, which the backend encrypted and stored, locking the user out. The frontend now only includes `password` in the update payload when it is non-empty, and the backend additionally guards against empty-string passwords.
+- Fixed mailbox edit form sending all `MailAccountCreate` fields (including immutable ones like `username`, `host`, `port`) on update requests. The submit handler now builds a `MailAccountUpdate` payload containing all editable fields; `MailAccountUpdate` now covers every field in `MailAccountBase` (protocol, host, port, use\_ssl, use\_tls, username, email\_address, and the previously supported subset).
 - Fixed `Exception terminating connection` error logged by Celery workers after every task run. The error was caused by `asyncio.run()` closing the event loop while the asyncpg connection pool still held open idle connections. The fix calls `await engine.dispose()` inside the task's `_run()` coroutine (within the same event loop) so all pooled connections are closed cleanly before the loop is torn down.
 - Gmail API `verify_access()` returning 403 for tokens that lacked a read-capable scope: added `gmail.readonly` to all scope lists.
 

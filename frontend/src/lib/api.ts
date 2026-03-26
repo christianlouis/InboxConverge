@@ -58,6 +58,7 @@ export interface MailAccount {
   port: number;
   use_ssl: boolean;
   use_tls: boolean;
+  username: string;
   forward_to: string;
   delivery_method: string;
   is_enabled: boolean;
@@ -88,6 +89,24 @@ export interface MailAccountCreate {
   username: string;
   password: string;
   forward_to: string;
+  delivery_method?: string;
+  is_enabled?: boolean;
+  check_interval_minutes?: number;
+  max_emails_per_check?: number;
+  delete_after_forward?: boolean;
+}
+
+export interface MailAccountUpdate {
+  name?: string;
+  email_address?: string;
+  protocol?: string;
+  host?: string;
+  port?: number;
+  use_ssl?: boolean;
+  use_tls?: boolean;
+  username?: string;
+  password?: string;
+  forward_to?: string;
   delivery_method?: string;
   is_enabled?: boolean;
   check_interval_minutes?: number;
@@ -227,7 +246,7 @@ export const mailAccountsApi = {
 
   async update(
     id: number,
-    data: Partial<MailAccountCreate>
+    data: MailAccountUpdate
   ): Promise<MailAccount> {
     const response = await api.put<MailAccount>(`/mail-accounts/${id}`, data);
     return response.data;
