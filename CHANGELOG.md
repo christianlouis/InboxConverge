@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Processing logs & reporting** — users can now view the full history of polling runs and per-email delivery status:
+  - **`GET /processing-runs`** — paginated list of all processing runs for the authenticated user's mailboxes (filterable by account and status).
+  - **`GET /processing-runs/{id}`** — details for a single run.
+  - **`GET /processing-runs/{id}/logs`** — per-email log entries (subject, sender, size, delivery status, error details) for a given run.
+  - **`GET /mail-accounts/{id}/processing-runs`** — runs scoped to a single mailbox.
+  - **`GET /mail-accounts/{id}/logs`** — all per-email log entries for a single mailbox.
+- **Admin log endpoints** (superuser only):
+  - **`GET /admin/processing-runs`** — all runs across every user, filterable by user ID, account ID, or status. Account and user email addresses are GDPR-pseudonymised.
+  - **`GET /admin/processing-logs`** — all per-email log entries system-wide, filterable by user, account, run, or log level. Sender (`From:`) headers are pseudonymised via `mask_from_header()`; subjects are shown as-is (user-owned content).
+- **`backend/app/core/gdpr.py`** — GDPR masking utilities: `mask_email()`, `mask_name()`, `mask_from_header()` for pseudonymising PII in admin views.
+- **Worker now writes `ProcessingLog` entries per email** — subject, sender, size, delivery outcome and error detail are captured for every email processed by `process_mail_account`.
+- **`/logs` page** — user-facing log page with a paginated processing-run table; each row expands inline to show the per-email log for that run (subject, masked sender, size, status).
+- **`/admin/logs` page** — admin view with two tabs: *Processing Runs* (expandable, fetches per-email logs on demand) and *Per-Email Logs* (flat table with GDPR-masked sender addresses). Filterable by user ID and status/level.
+- **Sidebar navigation** — added *Logs* link (user) and *Activity Logs* link (admin) to `DashboardLayout`.
+- **Admin overview** — added *Activity Logs* card to `/admin` page.
+- **Dashboard** — "Recent Processing Runs" table now reads from the new `/processing-runs` endpoint; shows account name and a *View all logs* link.
+
+### Added
 - **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
   - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
   - **Mail processing** — `mail_processing_runs_total` (counter, by `status`: `completed` / `partial_failure` / `failed`), `mail_processing_emails_total` (counter, by `operation`: `fetched` / `forwarded` / `failed`), `mail_processing_duration_seconds` (histogram), `active_mail_accounts_total` (gauge — set each scheduler cycle).

@@ -178,7 +178,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ### Not Started 📋
 - [ ] Integrate Sentry for error tracking
-- [ ] Add structured logging with correlation IDs
+- [x] Add structured logging with correlation IDs (per-email ProcessingLog entries now captured in DB)
 - [ ] Add APM (Application Performance Monitoring)
 - [ ] Set up uptime monitoring
 - [ ] Create runbook for common issues
@@ -196,6 +196,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Unified Google OAuth flow: sign-in requests all Gmail scopes; single `/auth/callback` redirect URI needed in Google Console
 - [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
 - [x] **Debug email**: "Send Debug Email" button in Settings injects a test message (from christian@docuelevate.org, dated today, labelled `test` + `imported`, placed in inbox) to verify end-to-end Gmail API delivery
+- [x] **Logging & reporting**: per-email ProcessingLog capture in worker; user `/logs` page; admin `/admin/logs` page; GDPR masking utilities (`gdpr.py`)
 - [ ] Implement GDPR data export endpoint
 - [ ] Complete notification service integration (Apprise)
 - [ ] Add advanced email filtering
@@ -232,6 +233,8 @@ because the API client layer is missing.
 - [x] `AuthGuard` for protected routes
 - [x] Fix wizard grey screen (Tailwind v4 `bg-opacity` → `/75` syntax, modal restructure)
 - [x] `/auth/gmail-callback` page for Gmail OAuth one-click flow
+- [x] **`/logs` page** — user processing history: paginated runs table with expandable per-email log panel (subject, sender, size, status)
+- [x] **Dashboard** — "Recent Processing Runs" now wired to real `/processing-runs` endpoint; shows account name and links to `/logs`
 
 ### Not Started 📋
 - [ ] End-to-end testing of frontend against backend API
@@ -249,6 +252,7 @@ because the API client layer is missing.
 - [x] `is_superuser` exposed in `/users/me` response
 - [x] Admin badge (purple shield) shown in top bar for superusers
 - [x] Fix blank page on direct navigation to `/admin*`: moved superuser guard inside `<AuthGuard>` so auth check always runs on fresh load
+- [x] **`/admin/logs` page** — system-wide processing activity: expandable run table + flat per-email log table with GDPR-masked sender addresses; filterable by user ID, status, log level
 
 ---
 
@@ -348,7 +352,8 @@ because the API client layer is missing.
 1. **Immediate** (Today):
    - [x] Create `frontend/src/lib/api.ts` (frontend is broken without it)
    - [x] Fix remaining security issues (bare excepts, datetime, redirect_uri)
-   - [ ] Add backend endpoint for processing runs (needed by dashboard)
+   - [x] Add backend endpoint for processing runs (needed by dashboard)
+   - [x] Build logging & reporting: per-email ProcessingLog capture, user `/logs` page, admin `/admin/logs` page, GDPR masking
 
 2. **This Week**:
    - [ ] Enable rate limiting

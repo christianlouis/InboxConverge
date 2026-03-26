@@ -1,15 +1,18 @@
 """Admin endpoints"""
 
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+import math
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.deps import get_current_superuser
+from app.core.gdpr import mask_email, mask_from_header
 from app.models.database_models import (
     User,
     MailAccount,
+    ProcessingLog,
     ProcessingRun,
     SubscriptionPlan,
     SubscriptionTier,
@@ -21,6 +24,10 @@ from app.models.schemas import (
     SubscriptionPlanResponse,
     SubscriptionPlanCreate,
     SubscriptionPlanUpdate,
+    AdminProcessingRunResponse,
+    AdminProcessingLogResponse,
+    PaginatedAdminRunsResponse,
+    PaginatedAdminLogsResponse,
 )
 
 router = APIRouter()
@@ -282,3 +289,165 @@ async def delete_plan(
         )
     await db.delete(plan)
     await db.commit()
+
+
+# ── Admin Logs ─────────────────────────────────────────────────────────────────
+
+
+def _admin_paginate(total: int, page: int, page_size: int) -> dict:
+    pages = max(1, math.ceil(total / page_size)) if total else 1
+    return {"total": total, "page": page, "page_size": page_size, "pages": pages}
+
+
+@router.get(
+    "/processing-runs",
+    response_model=PaginatedAdminRunsResponse,
+    summary="List all processing runs across all users (admin only)",
+)
+async def admin_list_processing_runs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    account_id: Optional[int] = Query(None, description="Filter by mail account ID"),
+    status_filter: Optional[str] = Query(
+        None,
+        alias="status",
+        description="Filter by run status",
+    ),
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return a paginated list of all processing runs in the system with
+    GDPR-masked user / account email addresses.
+    """
+    base = (
+        select(
+            ProcessingRun,
+            MailAccount.name.label("account_name"),
+            MailAccount.email_address.label("account_email"),
+            MailAccount.user_id.label("uid"),
+            User.email.label("user_email"),
+        )
+        .join(MailAccount, ProcessingRun.mail_account_id == MailAccount.id)
+        .join(User, MailAccount.user_id == User.id)
+    )
+
+    if user_id is not None:
+        base = base.where(MailAccount.user_id == user_id)
+    if account_id is not None:
+        base = base.where(ProcessingRun.mail_account_id == account_id)
+    if status_filter:
+        base = base.where(ProcessingRun.status == status_filter)
+
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+    offset = (page - 1) * page_size
+    rows = (
+        await db.execute(
+            base.order_by(ProcessingRun.started_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        AdminProcessingRunResponse(
+            id=row.ProcessingRun.id,  # type: ignore[arg-type]
+            mail_account_id=row.ProcessingRun.mail_account_id,  # type: ignore[arg-type]
+            started_at=row.ProcessingRun.started_at,  # type: ignore[arg-type]
+            completed_at=row.ProcessingRun.completed_at,  # type: ignore[arg-type]
+            duration_seconds=row.ProcessingRun.duration_seconds,  # type: ignore[arg-type]
+            emails_fetched=row.ProcessingRun.emails_fetched,  # type: ignore[arg-type]
+            emails_forwarded=row.ProcessingRun.emails_forwarded,  # type: ignore[arg-type]
+            emails_failed=row.ProcessingRun.emails_failed,  # type: ignore[arg-type]
+            status=row.ProcessingRun.status,  # type: ignore[arg-type]
+            error_message=row.ProcessingRun.error_message,  # type: ignore[arg-type]
+            account_name=row.account_name,
+            account_email=mask_email(row.account_email) if row.account_email else None,
+            user_id=row.uid,
+            user_email=mask_email(row.user_email) if row.user_email else None,
+        )
+        for row in rows
+    ]
+
+    return PaginatedAdminRunsResponse(
+        items=items, **_admin_paginate(total, page, page_size)  # type: ignore[arg-type]
+    )
+
+
+@router.get(
+    "/processing-logs",
+    response_model=PaginatedAdminLogsResponse,
+    summary="List all per-email processing logs across all users (admin only)",
+)
+async def admin_list_processing_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    account_id: Optional[int] = Query(None, description="Filter by mail account ID"),
+    run_id: Optional[int] = Query(None, description="Filter by processing run ID"),
+    level: Optional[str] = Query(
+        None, description="Filter by level (INFO, WARNING, ERROR)"
+    ),
+    current_user: User = Depends(get_current_superuser),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return paginated per-email log entries with GDPR-masked sender addresses.
+    Subject lines are shown as-is (the user owns their own mail content);
+    sender addresses are pseudonymised for operator privacy.
+    """
+    base = select(
+        ProcessingLog,
+        User.email.label("user_email"),
+    ).join(User, ProcessingLog.user_id == User.id)
+
+    if user_id is not None:
+        base = base.where(ProcessingLog.user_id == user_id)
+    if account_id is not None:
+        base = base.where(ProcessingLog.mail_account_id == account_id)
+    if run_id is not None:
+        base = base.where(ProcessingLog.processing_run_id == run_id)
+    if level:
+        base = base.where(ProcessingLog.level == level.upper())
+
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar_one()
+    offset = (page - 1) * page_size
+    rows = (
+        await db.execute(
+            base.order_by(ProcessingLog.timestamp.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+    ).all()
+
+    items = [
+        AdminProcessingLogResponse(
+            id=row.ProcessingLog.id,  # type: ignore[arg-type]
+            timestamp=row.ProcessingLog.timestamp,  # type: ignore[arg-type]
+            level=row.ProcessingLog.level,  # type: ignore[arg-type]
+            message=row.ProcessingLog.message,  # type: ignore[arg-type]
+            email_subject=row.ProcessingLog.email_subject,  # type: ignore[arg-type]
+            email_from=(
+                mask_from_header(row.ProcessingLog.email_from)
+                if row.ProcessingLog.email_from
+                else None
+            ),
+            success=row.ProcessingLog.success,  # type: ignore[arg-type]
+            mail_account_id=row.ProcessingLog.mail_account_id,  # type: ignore[arg-type]
+            processing_run_id=row.ProcessingLog.processing_run_id,  # type: ignore[arg-type]
+            email_size_bytes=row.ProcessingLog.email_size_bytes,  # type: ignore[arg-type]
+            error_details=row.ProcessingLog.error_details,  # type: ignore[arg-type]
+            user_id=row.ProcessingLog.user_id,  # type: ignore[arg-type]
+            user_email=mask_email(row.user_email) if row.user_email else None,
+        )
+        for row in rows
+    ]
+
+    return PaginatedAdminLogsResponse(
+        items=items, **_admin_paginate(total, page, page_size)  # type: ignore[arg-type]
+    )
