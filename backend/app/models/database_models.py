@@ -295,6 +295,11 @@ class NotificationConfig(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
+    name = Column(String(255), nullable=False, default="My Notification")
+    apprise_url = Column(
+        Text, nullable=True
+    )  # The Apprise URL e.g. tgram://token/chatid
+
     # Channel details
     channel: Column[str] = Column(SQLEnum(NotificationChannel), nullable=False)
     is_enabled = Column(Boolean, default=True)
@@ -597,6 +602,32 @@ class AppSetting(Base):
     category = Column(String(100), nullable=True, index=True)
 
     # Timestamps
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class AdminNotificationConfig(Base):
+    """System-wide admin notification channels"""
+
+    __tablename__ = "admin_notification_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    apprise_url = Column(Text, nullable=False)
+    is_enabled = Column(Boolean, default=True)
+    notify_on_errors = Column(Boolean, default=True)
+    notify_on_system_events = Column(Boolean, default=True)
+    description = Column(Text, nullable=True)
+
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -289,9 +289,16 @@ class PaginatedAdminLogsResponse(BaseModel):
 
 # Notification Config Schemas
 class NotificationConfigBase(BaseModel):
+    name: str = Field(
+        ..., max_length=255, description="Friendly name for this notification channel"
+    )
     channel: NotificationChannel
+    apprise_url: Optional[str] = Field(None, description="Apprise notification URL")
     is_enabled: bool = True
-    config: Dict[str, Any]
+    config: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Legacy channel-specific configuration (deprecated in favour of apprise_url)",
+    )
     notify_on_errors: bool = True
     notify_on_success: bool = False
     notify_threshold: int = Field(default=3, gt=0, le=100)
@@ -302,6 +309,9 @@ class NotificationConfigCreate(NotificationConfigBase):
 
 
 class NotificationConfigUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    channel: Optional[NotificationChannel] = None
+    apprise_url: Optional[str] = None
     is_enabled: Optional[bool] = None
     config: Optional[Dict[str, Any]] = None
     notify_on_errors: Optional[bool] = None
@@ -312,6 +322,46 @@ class NotificationConfigUpdate(BaseModel):
 class NotificationConfigResponse(NotificationConfigBase):
     id: int
     user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotificationTestRequest(BaseModel):
+    apprise_url: str = Field(..., description="Apprise URL to test")
+
+
+class NotificationTestResponse(BaseModel):
+    success: bool
+    message: str
+
+
+# Admin Notification Config Schemas
+class AdminNotificationConfigBase(BaseModel):
+    name: str = Field(..., max_length=255)
+    apprise_url: str = Field(..., description="Apprise notification URL")
+    is_enabled: bool = True
+    notify_on_errors: bool = True
+    notify_on_system_events: bool = True
+    description: Optional[str] = None
+
+
+class AdminNotificationConfigCreate(AdminNotificationConfigBase):
+    pass
+
+
+class AdminNotificationConfigUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    apprise_url: Optional[str] = None
+    is_enabled: Optional[bool] = None
+    notify_on_errors: Optional[bool] = None
+    notify_on_system_events: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class AdminNotificationConfigResponse(AdminNotificationConfigBase):
+    id: int
     created_at: datetime
     updated_at: datetime
 

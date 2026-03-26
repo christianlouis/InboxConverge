@@ -37,6 +37,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard** — "Recent Processing Runs" table now reads from the new `/processing-runs` endpoint; shows account name and a *View all logs* link.
 
 ### Added
+- **Apprise alerting**: New `NotificationService` using [Apprise](https://github.com/caronc/apprise) for multi-channel push notifications (Telegram, Slack, Discord, webhooks, and 80+ other services via a single URL scheme).
+  - `send_user_notification` — sends to all enabled per-user Apprise channels on processing errors or failures.
+  - `send_admin_notification` — sends to all enabled admin-wide channels for system events.
+  - `test_notification` — validates an Apprise URL by dispatching a test message.
+- **`NotificationConfig` model**: Added `name` (friendly label) and `apprise_url` (nullable Apprise URL) columns.
+- **`AdminNotificationConfig` model**: New table (`admin_notification_configs`) for system-wide admin alert channels with `name`, `apprise_url`, `is_enabled`, `notify_on_errors`, `notify_on_system_events`, and `description` fields.
+- **Notifications API** (`/api/v1/notifications`): Full CRUD endpoints (GET/POST/PUT/DELETE) plus a `/test` endpoint for user notification configs.
+- **Admin Notifications API** (`/api/v1/admin/notifications`): Full CRUD + `/test` endpoints for admin notification configs, superuser-only.
+- **Task integration**: `process_mail_account` now calls `send_user_notification` on Gmail credential revocation, per-email forwarding failures, and unhandled processing exceptions.
+
+### Changed
+- `NotificationConfigBase` schema: `name` is now a required field; `apprise_url` is an optional field; `config` (channel-specific JSON) is now optional with a default of `{}` (previously required). Existing clients must be updated to supply `name`.
+
+
 - **Configurable Gmail import labels**: Users can now define which Gmail labels are applied to imported messages from the Settings page. The default setup is opinionated: `{{source_email}}` (rendered to the mailbox address each message came from) plus `imported`, and a reset button restores those defaults instantly.
 - **Prometheus metrics** (`/metrics` endpoint on the FastAPI backend, scraped every 15 s):
   - **HTTP layer** — `http_requests_total` (counter, labelled `method`/`endpoint`/`status_code`) and `http_request_duration_seconds` (histogram). Path segments that are numeric IDs are normalised to `{id}` to avoid label-set explosion.
