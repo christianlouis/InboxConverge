@@ -38,7 +38,7 @@ celery==5.6.2
 redis==7.3.0
 
 # Security & Encryption
-cryptography==46.0.5  # Updated: Fixed NULL pointer dereference (was 42.0.0)
+cryptography==46.0.6  # Updated: Fixed NULL pointer dereference (was 42.0.0)
 
 # Notifications
 apprise==1.7.1
