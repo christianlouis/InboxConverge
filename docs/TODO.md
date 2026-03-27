@@ -12,6 +12,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Added Semantic Release workflow (`release.yml`) for automatic versioning and GitHub Releases.
 - [x] Added `pyproject.toml` with `[tool.semantic_release]` configuration.
 - [x] Added GitOps auto-deployment step in `ci.yml` to update preprod k8s manifest in `k8s-cluster-state` repo.
+- [x] Fixed GitOps `update-k8s-manifest` job: added PAT availability check to skip gracefully when `GH_PAT` secret is not configured, fixing 403 "Write access to repository not granted" pipeline failure.
 
 ## 🔴 Critical - Security (In Progress)
 
