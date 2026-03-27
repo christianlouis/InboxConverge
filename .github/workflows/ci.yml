@@ -240,8 +240,8 @@ jobs:
         id: tag
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "backend_image=ghcr.io/${{ github.repository_owner }}/inboxconverge/backend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=ghcr.io/${{ github.repository_owner }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${{ env.PRIVATE_REGISTRY }}/inboxconverge/backend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${{ env.PRIVATE_REGISTRY }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Check if GH_PAT is configured and has repo access
@@ -280,7 +280,7 @@ jobs:
           IMAGE: ${{ steps.tag.outputs.backend_image }}
         with:
           cmd: |
-            yq -i '(.. | select(tag == "!!str") | select(test("^ghcr\\.io/christianlouis/inboxconverge/backend:"))) = strenv(IMAGE)' \
+            yq -i '(.. | select(tag == "!!str") | select(test("^registry\\.cklnet\\.com/inboxconverge/backend:"))) = strenv(IMAGE)' \
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Update frontend image tag in preprod manifest
@@ -290,7 +290,7 @@ jobs:
           IMAGE: ${{ steps.tag.outputs.frontend_image }}
         with:
           cmd: |
-            yq -i '(.. | select(tag == "!!str") | select(test("^ghcr\\.io/christianlouis/inboxconverge/frontend:"))) = strenv(IMAGE)' \
+            yq -i '(.. | select(tag == "!!str") | select(test("^registry\\.cklnet\\.com/inboxconverge/frontend:"))) = strenv(IMAGE)' \
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Commit and push manifest update
