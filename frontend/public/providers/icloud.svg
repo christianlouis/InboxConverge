@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="6" fill="#f5f5f7"/>
+  <!-- iCloud cloud shape in Apple blue -->
+  <path fill="#1d7aed"
+    d="M36 28.5a6.5 6.5 0 0 0-5.2-6.38A8 8 0 0 0 15.14 24H15a6 6 0 0 0 0 12h20a5 5 0 0 0 5-5 5 5 0 0 0-4-4.5z"/>
+</svg>

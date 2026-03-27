@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="6" fill="#FF0000"/>
+  <text x="24" y="21" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="white" text-anchor="middle">aol</text>
+  <circle cx="35" cy="14" r="3.5" fill="white"/>
+</svg>
