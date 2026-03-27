@@ -207,7 +207,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Per-user SMTP configuration (UX + backend)
 - [x] Gmail API one-click OAuth grant flow with token refresh and revocation handling
 - [x] Configurable Gmail import labels (default `{{source_email}}` + `imported`, editable in Settings with reset-to-default action)
-- [x] Unified Google OAuth flow: sign-in requests all Gmail scopes; single `/auth/callback` redirect URI needed in Google Console
+- [x] Decoupled Google Sign-In from Gmail API permissions: login now requests only basic profile scopes; Gmail access is granted separately via Settings
 - [x] Message deduplication (POP3 UIDL + IMAP \Seen flag + DB tracking)
 - [x] **Debug email**: "Send Debug Email" button in Settings injects a test message (from christian@docuelevate.org, dated today, labelled `test` + `imported`, placed in inbox) to verify end-to-end Gmail API delivery
 - [x] **Logging & reporting**: per-email ProcessingLog capture in worker; user `/logs` page; admin `/admin/logs` page; GDPR masking utilities (`gdpr.py`)

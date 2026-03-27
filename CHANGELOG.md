@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Decoupled Gmail permissions from Google Sign-In**: The "Sign in with Google" OAuth flow now only requests basic profile scopes (`openid`, `email`, `profile`) instead of also requesting Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`). Users can grant Gmail access separately via the "Connect Gmail" button in Settings. This results in a simpler, permission-free login experience.
+
 ### Fixed
 - **CI `update-k8s-manifest` job**: Fixed image tag computation and `yq` update patterns to target `registry.cklnet.com` (private registry) instead of `ghcr.io`. The k8s manifest uses private registry image references, so the previous GHCR-based patterns never matched and no tag updates were applied.
 - **CI `update-k8s-manifest` job**: Enhanced the PAT validation step to verify the token actually has read access to the `k8s-cluster-state` repository (via a GitHub API probe) before attempting checkout, preventing a 403 "Write access to repository not granted" failure when the PAT exists but lacks the necessary repository access.
