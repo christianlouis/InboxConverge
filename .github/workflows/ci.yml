@@ -14,6 +14,7 @@ on:
 env:
   GHCR_REGISTRY: ghcr.io
   PRIVATE_REGISTRY: registry.cklnet.com
+  K8S_STATE_REPO: christianlouis/k8s-cluster-state
 
 jobs:
   # ── Phase 1: Lint ──────────────────────────────────────────────────────
@@ -243,7 +244,7 @@ jobs:
           echo "frontend_image=ghcr.io/${{ github.repository_owner }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Check if GH_PAT is configured
+      - name: Check if GH_PAT is configured and has repo access
         id: pat-check
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -252,14 +253,22 @@ jobs:
             echo "::warning::GH_PAT secret is not configured. Skipping k8s manifest update."
             echo "available=false" >> "$GITHUB_OUTPUT"
           else
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --oauth2-bearer "$GH_PAT" \
+              "https://api.github.com/repos/${{ env.K8S_STATE_REPO }}")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "available=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::GH_PAT does not have access to ${{ env.K8S_STATE_REPO }} (HTTP $HTTP_CODE). Skipping k8s manifest update."
+              echo "available=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Checkout k8s-cluster-state
         if: steps.pat-check.outputs.available == 'true'
         uses: actions/checkout@v4
         with:
-          repository: christianlouis/k8s-cluster-state
+          repository: ${{ env.K8S_STATE_REPO }}
           token: ${{ secrets.GH_PAT }}
           path: k8s-cluster-state
           ref: main
