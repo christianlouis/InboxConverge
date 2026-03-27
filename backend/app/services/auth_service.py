@@ -25,9 +25,7 @@ class OAuthService:
     def _register_google(self):
         """Register Google OAuth2 provider"""
         if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET:
-            from app.services.gmail_service import GMAIL_SCOPES
-
-            scope = " ".join(["openid", "email", "profile", *GMAIL_SCOPES])
+            scope = "openid email profile"
             self.oauth.register(
                 name="google",
                 client_id=settings.GOOGLE_CLIENT_ID,
