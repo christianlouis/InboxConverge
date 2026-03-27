@@ -263,7 +263,7 @@ class MailProcessor:
     async def _fetch_imap_emails(
         self, max_count: int, already_seen_uids: Set[str]
     ) -> Tuple[List[bytes], List[str]]:
-        """Fetch emails via IMAP, marking each message \Seen to prevent re-fetch."""
+        """Fetch emails via IMAP, marking each message \\Seen to prevent re-fetch."""
         emails: List[bytes] = []
         new_uids: List[str] = []
 

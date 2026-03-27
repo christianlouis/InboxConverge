@@ -400,7 +400,13 @@ async def process_mail_account(account_id: int):
                 task_name="process_mail_account"
             ).observe(_task_duration)
 
-            # Mark run as failed
+            # Mark run as failed – roll back any pending/broken transaction first
+            # so the session is in a clean state before we write the failure status.
+            try:
+                await db.rollback()
+            except Exception as rb_exc:
+                logger.warning(f"Rollback failed during error handler: {rb_exc}")
+
             if "run" in locals():
                 run.status = "failed"  # type: ignore[assignment]
                 run.error_message = str(e)  # type: ignore[assignment]
@@ -414,6 +420,9 @@ async def process_mail_account(account_id: int):
                     account.status = AccountStatus.ERROR  # type: ignore[assignment]
                     account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                     account.last_error_message = str(e)  # type: ignore[assignment]
+                    # Always update last_check_at so process_all_enabled_accounts
+                    # throttles re-dispatch instead of queuing a new task every cycle.
+                    account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
                     # Notify user about the error
                     try:
@@ -429,7 +438,13 @@ async def process_mail_account(account_id: int):
                             f"Failed to send error notification: {notify_exc}"
                         )
 
-                await db.commit()
+                try:
+                    await db.commit()
+                except Exception as commit_exc:
+                    logger.error(
+                        f"Failed to persist failed status for run of account "
+                        f"{account_id}: {commit_exc}"
+                    )
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.process_all_enabled_accounts")
@@ -492,6 +507,8 @@ async def process_all_enabled_accounts():
 async def cleanup_old_logs(days_to_keep: int = 30):
     """
     Clean up old processing logs, runs, and downloaded message ID records.
+    Also marks stale "running" runs (older than the Celery task time-limit)
+    as "failed" to recover from worker crashes or SIGKILL events.
 
     Args:
         days_to_keep: Number of days of data to retain
@@ -500,6 +517,32 @@ async def cleanup_old_logs(days_to_keep: int = 30):
     async with async_session_maker() as db:
         try:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
+
+            # Mark stale "running" runs as "failed".
+            # A run is considered stale when it has been in the "running" state
+            # for longer than the Celery hard time limit (30 min) plus a small
+            # buffer – meaning the worker was likely killed before it could write
+            # the final status (OOM kill, container restart, SIGKILL, etc.).
+            stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=35)
+            stale_result = await db.execute(
+                select(ProcessingRun).where(
+                    ProcessingRun.status == "running",
+                    ProcessingRun.started_at < stale_threshold,
+                )
+            )
+            stale_runs = stale_result.scalars().all()
+            for stale_run in stale_runs:
+                stale_run.status = "failed"  # type: ignore[assignment]
+                stale_run.error_message = (  # type: ignore[assignment]
+                    "Run timed out or worker was killed before completion"
+                )
+                stale_run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                stale_run.duration_seconds = (  # type: ignore[assignment]
+                    stale_run.completed_at - _as_utc(stale_run.started_at)
+                ).total_seconds()
+
+            if stale_runs:
+                logger.info(f"Marked {len(stale_runs)} stale processing runs as failed")
 
             # Delete old processing runs
             result = await db.execute(
