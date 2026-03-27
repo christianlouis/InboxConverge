@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`NotificationConfigCreate` schema test failure**: `NotificationConfigBase.name` was a required field (`...`) but the unit test and the database column both use a default of `"My Notification"`. Changed the Pydantic field to `default="My Notification"` to match the DB default and allow callers to omit the field.
 
 ### Added
+- **Automatic release numbers** (`pyproject.toml`): Added `version_toml = ["pyproject.toml:project.version"]` to `[tool.semantic_release]` so that `python-semantic-release` now writes the computed version back into the `project.version` field of `pyproject.toml` on every release. The field is initialised to `0.0.0` and will be bumped automatically from that point forward.
+- **Release badge** (`README.md`): Added a dynamic "GitHub Release" shield that always shows the latest published release tag.
+- **Releases section** (`README.md`): Added a "Releases" section explaining the Semantic Versioning / Conventional Commits workflow and the version-bump rules.
 - **Semantic Release** (`release.yml`): Automated versioning and GitHub Release creation on every push to `main` using `python-semantic-release`. Reads conventional-commit prefixes (`feat:`, `fix:`, etc.) to determine the next version and updates `CHANGELOG.md`.
 - **`pyproject.toml`**: Project metadata and `[tool.semantic_release]` configuration for `python-semantic-release`.
 - **GitOps auto-deployment** (step in `ci.yml`): After a successful Docker build on `main`, a new `update-k8s-manifest` job checks out `christianlouis/k8s-cluster-state` (using the `GH_PAT` secret) and updates the backend and frontend image tags in `apps/gmail-puller/preprod/gmail-puller-stack.yaml` to the new `main-<sha>` image, then commits and pushes.

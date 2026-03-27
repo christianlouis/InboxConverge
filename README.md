@@ -4,6 +4,7 @@
 [![Lint](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml)
 [![Security Scan](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml)
 [![Docker Build](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/christianlouis/InboxConverge?sort=semver&label=release)](https://github.com/christianlouis/InboxConverge/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
@@ -238,6 +239,28 @@ Detailed documentation lives in the [`docs/`](docs/) directory:
 | [Testing Guide](docs/TESTING_GUIDE.md) | How to run and write tests |
 | [Coding Patterns](docs/CODING_PATTERNS.md) | Code style and conventions |
 | [SaaS README](docs/README_SAAS.md) | Multi-tenant SaaS platform details |
+
+## Releases
+
+This project uses [Semantic Versioning](https://semver.org/) and
+[Conventional Commits](https://www.conventionalcommits.org/) to automate
+release numbering. Every push to `main` triggers the
+[Semantic Release workflow](.github/workflows/release.yml), which:
+
+1. Inspects commit messages since the last release.
+2. Determines the next version number (`patch`, `minor`, or `major`) based on
+   the commit prefixes (`fix:`, `feat:`, `feat!:` / `BREAKING CHANGE`).
+3. Creates a git tag (`vX.Y.Z`), updates the `version` field in
+   `pyproject.toml`, generates a GitHub Release with release notes, and
+   updates `CHANGELOG.md` — all automatically.
+
+| Commit prefix | Version bump |
+|---------------|-------------|
+| `fix:`, `perf:` | Patch (`0.0.x`) |
+| `feat:` | Minor (`0.x.0`) |
+| `feat!:` / `BREAKING CHANGE` | Major (`x.0.0`) |
+
+Browse all releases on the [Releases page](https://github.com/christianlouis/InboxConverge/releases).
 
 ## Contributing
 
