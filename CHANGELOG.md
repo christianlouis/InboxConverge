@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /processing-runs/{id}` (was: `GET /processing-runs/processing-runs/{id}`)
   - `GET /processing-runs/{id}/logs` (was: `GET /processing-runs/processing-runs/{id}/logs`)
 - **`NotificationConfigCreate` schema test failure**: `NotificationConfigBase.name` was a required field (`...`) but the unit test and the database column both use a default of `"My Notification"`. Changed the Pydantic field to `default="My Notification"` to match the DB default and allow callers to omit the field.
+- **`SyntaxWarning` at startup**: Fixed invalid escape sequence `\S` in a docstring in `mail_processor.py` (changed to `\\S`). In Python 3.12+ this emits a `SyntaxWarning` and will become a `SyntaxError` in a future Python version.
+- **Processing runs stuck in "running" state**: Fixed three related bugs in `tasks.py` that caused `ProcessingRun` records to remain in the `running` state indefinitely:
+  1. The exception handler now calls `await db.rollback()` before attempting to write the `failed` status, ensuring the SQLAlchemy session is in a clean state even when the original exception occurred during a DB flush/commit.
+  2. The error-handler `await db.commit()` is now wrapped in its own `try/except` so a commit failure inside the handler no longer propagates silently and leaves the run as `running`.
+  3. `account.last_check_at` is now updated in the error path, throttling re-dispatch by `process_all_enabled_accounts` and preventing a cascade of new `running` runs on every scheduler tick.
+- **Stale "running" run cleanup**: `cleanup_old_logs` now marks any `ProcessingRun` that has been in the `running` state for longer than 35 minutes (Celery hard time-limit is 30 min) as `failed` with an explanatory message. This recovers runs left behind by OOM kills, container restarts, or other SIGKILL events.
 
 ### Added
 - **Semantic Release** (`release.yml`): Automated versioning and GitHub Release creation on every push to `main` using `python-semantic-release`. Reads conventional-commit prefixes (`feat:`, `fix:`, etc.) to determine the next version and updates `CHANGELOG.md`.
