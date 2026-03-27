@@ -243,7 +243,20 @@ jobs:
           echo "frontend_image=ghcr.io/${{ github.repository_owner }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Check if GH_PAT is configured
+        id: pat-check
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "$GH_PAT" ]; then
+            echo "::warning::GH_PAT secret is not configured. Skipping k8s manifest update."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout k8s-cluster-state
+        if: steps.pat-check.outputs.available == 'true'
         uses: actions/checkout@v4
         with:
           repository: christianlouis/k8s-cluster-state
@@ -252,6 +265,7 @@ jobs:
           ref: main
 
       - name: Update backend image tag in preprod manifest
+        if: steps.pat-check.outputs.available == 'true'
         uses: mikefarah/yq@v4.44.6
         env:
           IMAGE: ${{ steps.tag.outputs.backend_image }}
@@ -261,6 +275,7 @@ jobs:
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Update frontend image tag in preprod manifest
+        if: steps.pat-check.outputs.available == 'true'
         uses: mikefarah/yq@v4.44.6
         env:
           IMAGE: ${{ steps.tag.outputs.frontend_image }}
@@ -270,6 +285,7 @@ jobs:
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Commit and push manifest update
+        if: steps.pat-check.outputs.available == 'true'
         run: |
           cd k8s-cluster-state
           git config user.name "github-actions[bot]"
