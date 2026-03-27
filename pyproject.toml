@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inboxconverge"
-dynamic = ["version"]
+version = "0.0.0"
 description = "Multi-account email forwarding and processing service"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,6 +20,7 @@ Issues = "https://github.com/christianlouis/InboxConverge/issues"
 Changelog = "https://github.com/christianlouis/InboxConverge/blob/main/CHANGELOG.md"
 
 [tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
 version_source = "tag"
 commit_version_number = true
 tag_format = "v{version}"
