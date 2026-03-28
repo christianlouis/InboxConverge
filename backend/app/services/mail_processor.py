@@ -597,6 +597,26 @@ class MailServerAutoDetect:
             "pop3_ssl": {"host": "pop.mail.de", "port": 995},
             "imap_ssl": {"host": "imap.mail.de", "port": 993},
         },
+        "proton.me": {
+            "name": "Proton Mail",
+            "imap_ssl": {"host": "127.0.0.1", "port": 1143},
+            "pop3_ssl": {"host": "127.0.0.1", "port": 1144},
+        },
+        "protonmail.com": {
+            "name": "Proton Mail",
+            "imap_ssl": {"host": "127.0.0.1", "port": 1143},
+            "pop3_ssl": {"host": "127.0.0.1", "port": 1144},
+        },
+        "protonmail.ch": {
+            "name": "Proton Mail",
+            "imap_ssl": {"host": "127.0.0.1", "port": 1143},
+            "pop3_ssl": {"host": "127.0.0.1", "port": 1144},
+        },
+        "pm.me": {
+            "name": "Proton Mail",
+            "imap_ssl": {"host": "127.0.0.1", "port": 1143},
+            "pop3_ssl": {"host": "127.0.0.1", "port": 1144},
+        },
     }
 
     @classmethod

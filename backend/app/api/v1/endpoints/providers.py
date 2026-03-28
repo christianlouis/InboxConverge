@@ -156,6 +156,15 @@ PROVIDER_PRESETS: List[ProviderPreset] = [
         notes="Use your mail.de email credentials.",
     ),
     ProviderPreset(
+        id="protonmail",
+        name="Proton Mail",
+        icon="protonmail",
+        domains=["proton.me", "protonmail.com", "protonmail.ch", "pm.me"],
+        imap_ssl={"host": "127.0.0.1", "port": 1143},
+        pop3_ssl={"host": "127.0.0.1", "port": 1144},
+        notes="Requires Proton Mail Bridge running locally. Use your Bridge password (not your Proton account password). Default Bridge ports: IMAP 127.0.0.1:1143, POP3 127.0.0.1:1144.",
+    ),
+    ProviderPreset(
         id="icloud",
         name="iCloud Mail",
         icon="icloud",

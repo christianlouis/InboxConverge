@@ -23,20 +23,29 @@ const PROVIDER_ICON_MAP: Record<string, string> = {
   'Posteo': 'posteo',
   'mail.de': 'mailde',
   'iCloud Mail': 'icloud',
+  'Proton Mail': 'protonmail',
 };
 
-function ProviderLogo({ providerName }: { providerName?: string | null }) {
+/**
+ * Full-width logo banner rendered at the top of a card.
+ * Uses next/image fill + object-contain so every logo – regardless of its
+ * native aspect ratio (1:1 square up to ~6:1 wordmark) – fits correctly
+ * inside the fixed-height strip without distortion.
+ */
+function ProviderLogoBanner({ providerName }: { providerName?: string | null }) {
   const icon = providerName ? PROVIDER_ICON_MAP[providerName] : undefined;
   if (!icon) return null;
   return (
-    <Image
-      src={`/providers/${icon}.svg`}
-      alt={`${providerName} logo`}
-      width={24}
-      height={24}
-      className="object-contain flex-shrink-0"
-      onError={() => {/* silently skip missing icons */}}
-    />
+    <div className="relative h-16 w-full bg-gray-50 border-b border-gray-100 overflow-hidden">
+      <Image
+        src={`/providers/${icon}.svg`}
+        alt={`${providerName} logo`}
+        fill
+        unoptimized
+        sizes="(max-width: 768px) 100vw, 33vw"
+        style={{ objectFit: 'contain', padding: '12px' }}
+      />
+    </div>
   );
 }
 
@@ -136,16 +145,16 @@ export default function AccountsPage() {
                     account.is_enabled ? 'border-gray-200' : 'border-gray-200 opacity-60'
                   }`}
                 >
+                  {/* Provider logo banner – full-width strip that accommodates any aspect ratio */}
+                  <ProviderLogoBanner providerName={account.provider_name} />
+
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <ProviderLogo providerName={account.provider_name} />
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
-                            {account.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 truncate">{account.email_address}</p>
-                        </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+                          {account.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 truncate">{account.email_address}</p>
                       </div>
                       <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                         {account.is_enabled ? (
