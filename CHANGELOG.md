@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `fastapi` from `0.109.1` to `0.135.2`, pulling in `starlette>=1.0.0` and fixing 4 Denial-of-Service vulnerabilities present in `starlette<=0.35.1`.
 - Updated CI security scan command from deprecated `safety check` to `safety scan`.
 - Added `.safety-policy.yml` to document and suppress the two unfixable `ecdsa` side-channel CVEs (64396, 64459) that the upstream maintainers have acknowledged cannot be resolved in pure Python.
+### Fixed
+
+- **IMAP: fix T-Online BYE "Too many invalid IMAP commands"** — `UID STORE` flag
+  arguments now use RFC 3501–required parentheses: `+FLAGS (\Seen)` and
+  `+FLAGS (\Deleted)`.  Strict servers such as T-Online reject the bare
+  `+FLAGS \Seen` syntax as a `BAD` command and forcefully drop the connection.
+- **IMAP: fix `aioimaplib` crash on `UID SEARCH`** — `aioimaplib`'s `.uid()`
+  wrapper explicitly blocks `"search"`, raising
+  `command UID only possible with COPY, FETCH, EXPUNGE (w/UIDPLUS) or STORE`.
+  The initial UNSEEN discovery now uses a plain `SEARCH UNSEEN` to obtain
+  sequence numbers, followed by a lightweight `FETCH (UID)` to resolve them
+  to stable UIDs; all subsequent operations (`FETCH`, `STORE`) continue to
+  use the UID form.
 
 ## v0.4.2 (2026-03-28)
 
