@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.5.1 (2026-03-28)
+
+### Bug Fixes
+
+- Convert jest.config.js to jest.config.mjs (ES module syntax)
+  ([`0a0836e`](https://github.com/christianlouis/InboxConverge/commit/0a0836e993721a5702582c78d5b86bd52da96e44))
+
+
 ## [Unreleased]
 
 ### Fixed
