@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Pull Now**: Added a "Pull Now" button (⟳) to each mail account card on the Accounts page. Clicking it immediately queues a Celery `process_mail_account` task for that account via the new `POST /mail-accounts/{id}/pull-now` backend endpoint. The button shows a spinner while the request is in flight and is disabled for inactive accounts.
-- **Provider logos**: Provider logos (Gmail, GMX, WEB.DE, Outlook, Yahoo, AOL, T-Online, IONOS, Freenet, Posteo, iCloud) are now displayed next to the account name on the Accounts page, using the existing SVG assets in `/public/providers/`.
+- **Provider logos**: Provider logos (Gmail, GMX, WEB.DE, Outlook, Yahoo, AOL, T-Online, IONOS, Freenet, Posteo, iCloud) are now displayed next to the account name on the Accounts page. High-quality official SVG logos sourced from Wikimedia Commons and provider websites replace the previous placeholder assets.
 
 ### Changed
 - **Mailbox Activity view**: The user-facing "Logs" page has been redesigned to a mailbox-centric
