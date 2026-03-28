@@ -383,9 +383,14 @@ class MailProcessor:
                     #   [b'<seq> (UID <uid> RFC822 {<size>}', <email_bytes>, b')']
                     # Skip the header line (contains "RFC822") and grab the
                     # first substantive bytes value.
+                    #
+                    # aioimaplib stores IMAP literal data (the actual email
+                    # content) as bytearray, not bytes.  We must accept both
+                    # types; bytes() converts bytearray so the rest of the
+                    # pipeline always receives plain bytes.
                     email_data: Optional[bytes] = None
                     for line in fetch_response.lines:
-                        if not isinstance(line, bytes):
+                        if not isinstance(line, (bytes, bytearray)):
                             continue
                         if b"RFC822" in line:
                             continue
@@ -393,7 +398,7 @@ class MailProcessor:
                             continue
                         if line in (b")", b""):
                             continue
-                        email_data = line
+                        email_data = bytes(line)
                         break
 
                     if email_data and email_data.strip():

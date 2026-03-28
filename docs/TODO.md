@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **IMAP: fix all emails appearing empty** — `aioimaplib` stores RFC822 literal data as `bytearray`, not `bytes`. The extraction loop was checking `isinstance(line, bytes)` which returns `False` for `bytearray`, so every email body was silently skipped. Fixed to accept both types and convert to `bytes`. Affected T-Online, GMX, and all IMAP accounts.
 - [x] **Security: upgrade fastapi/starlette and fix safety CI command** — Upgraded `fastapi` to `0.135.2` (pulls in `starlette>=1.0.0`) fixing 4 DoS CVEs in `starlette<=0.35.1`; replaced deprecated `safety check` with `safety scan`; added `.safety-policy.yml` to suppress unfixable `ecdsa` side-channel CVEs (maintainers won't fix).
 - [x] **IMAP RFC 3501 flag syntax & aioimaplib UID SEARCH fix**: `_fetch_imap_emails`
   now uses a plain `SEARCH UNSEEN` + `FETCH (UID)` to resolve sequence numbers to

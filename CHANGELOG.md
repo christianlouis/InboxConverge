@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `.safety-policy.yml` to document and suppress the two unfixable `ecdsa` side-channel CVEs (64396, 64459) that the upstream maintainers have acknowledged cannot be resolved in pure Python.
 ### Fixed
 
+- **IMAP: fix all IMAP emails appearing empty** — `aioimaplib` stores RFC822
+  literal data as `bytearray`, not `bytes`.  The FETCH extraction loop was
+  checking `isinstance(line, bytes)` which returns `False` for `bytearray`,
+  causing every email body to be silently skipped and the message to appear
+  empty.  The check now accepts both types (`isinstance(line, (bytes,
+  bytearray))`) and converts the result to plain `bytes` before returning,
+  so the rest of the pipeline is unaffected.  This affected every IMAP
+  account (T-Online, GMX, and others).
 - **IMAP: fix T-Online BYE "Too many invalid IMAP commands"** — `UID STORE` flag
   arguments now use RFC 3501–required parentheses: `+FLAGS (\Seen)` and
   `+FLAGS (\Deleted)`.  Strict servers such as T-Online reject the bare
