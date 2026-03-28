@@ -137,6 +137,7 @@ async def process_mail_account(account_id: int):
 
             gmail_service = None
             smtp_config = None
+            gmail_cred = None
 
             if use_gmail_api:
                 # Get user's Gmail credentials
@@ -238,7 +239,7 @@ async def process_mail_account(account_id: int):
                 error_msg: str | None = None
 
                 try:
-                    if use_gmail_api and gmail_service:
+                    if use_gmail_api and gmail_service and gmail_cred:
                         # Inject via Gmail API (preferred)
                         label_ids = await gmail_service.build_import_label_ids(
                             import_label_templates=gmail_cred.import_label_templates,
@@ -286,7 +287,7 @@ async def process_mail_account(account_id: int):
                         try:
                             await send_user_notification(
                                 db=db,
-                                user_id=account.user_id,
+                                user_id=int(account.user_id),
                                 title="InboxRescue: Gmail Authorization Expired",
                                 body=f"Your Gmail credentials for account '{account.name}' have been revoked. Please re-authorize Gmail access in Settings.",
                                 notify_on_error=True,
@@ -347,7 +348,7 @@ async def process_mail_account(account_id: int):
             run.emails_failed = emails_failed  # type: ignore[assignment]
             run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
             run.duration_seconds = (
-                run.completed_at - _as_utc(run.started_at)
+                run.completed_at - _as_utc(run.started_at)  # type: ignore[arg-type]
             ).total_seconds()
             run.status = "completed" if emails_failed == 0 else "partial_failure"  # type: ignore[assignment]
 
@@ -366,7 +367,7 @@ async def process_mail_account(account_id: int):
                 try:
                     await send_user_notification(
                         db=db,
-                        user_id=account.user_id,
+                        user_id=int(account.user_id),
                         title="InboxRescue: Mail Forwarding Failures",
                         body=f"Mail account '{account.name}': {emails_failed} email(s) failed to forward.",
                         notify_on_error=True,
@@ -440,7 +441,7 @@ async def process_mail_account(account_id: int):
                     try:
                         await send_user_notification(
                             db=db,
-                            user_id=account.user_id,
+                            user_id=int(account.user_id),
                             title="InboxRescue: Mail Processing Error",
                             body=f"Error processing mail account '{account.name}': {e}",
                             notify_on_error=True,
@@ -488,7 +489,7 @@ async def process_all_enabled_accounts():
                 )
                 stale_run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 stale_run.duration_seconds = (  # type: ignore[assignment]
-                    stale_run.completed_at - _as_utc(stale_run.started_at)
+                    stale_run.completed_at - _as_utc(stale_run.started_at)  # type: ignore[arg-type]
                 ).total_seconds()
             if stale_runs:
                 await db.commit()
@@ -571,12 +572,10 @@ async def cleanup_old_logs(days_to_keep: int = 30):
             stale_runs = stale_result.scalars().all()
             for stale_run in stale_runs:
                 stale_run.status = "failed"  # type: ignore[assignment]
-                stale_run.error_message = (  # type: ignore[assignment]
-                    "Run timed out or worker was killed before completion"
-                )
+                stale_run.error_message = "Run timed out or worker was killed before completion"  # type: ignore[assignment]
                 stale_run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 stale_run.duration_seconds = (  # type: ignore[assignment]
-                    stale_run.completed_at - _as_utc(stale_run.started_at)
+                    stale_run.completed_at - _as_utc(stale_run.started_at)  # type: ignore[arg-type]
                 ).total_seconds()
 
             if stale_runs:

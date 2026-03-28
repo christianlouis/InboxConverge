@@ -75,7 +75,7 @@ async def create_mail_account(
                 "pro": settings.TIER_PRO_MAX_ACCOUNTS,
                 "enterprise": settings.TIER_ENTERPRISE_MAX_ACCOUNTS,
             }
-            max_accounts = tier_limits.get(current_user.subscription_tier.value, 1)
+            max_accounts = tier_limits.get(current_user.subscription_tier.value, 1)  # type: ignore[assignment]
 
         if len(existing_accounts) >= max_accounts:
             raise HTTPException(
@@ -320,7 +320,7 @@ async def test_existing_mail_connection(
         )
 
     try:
-        password = decrypt_credential(account.encrypted_password)
+        password = decrypt_credential(str(account.encrypted_password))
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

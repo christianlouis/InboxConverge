@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Test connection always showed success; add per-account test endpoint
   ([`441e8b5`](https://github.com/christianlouis/InboxConverge/commit/441e8b54e958686fe52414393d715a18dfcda77c))
+- Fixed 21 mypy type errors across `notification_service.py`, `mail_processor.py`, `auth.py`, `tasks.py`, `providers.py`, `mail_accounts.py`, and `main.py`
 
 
 ## v0.3.0 (2026-03-28)
