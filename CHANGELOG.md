@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.2 (2026-03-28)
+
+### Bug Fixes
+
+- CI pipeline Node.js 20 deprecation, Codecov input, img lint errors
+  ([`40c23c4`](https://github.com/christianlouis/InboxConverge/commit/40c23c43fe2e0c08eae8e714ce7782d0b1b12c29))
+
+- Suppress bandit B104 false positive for 0.0.0.0 binding in config.py
+  ([`c092dd9`](https://github.com/christianlouis/InboxConverge/commit/c092dd9ac62f17574345167f5a4a96ba7c15d65b))
+
+### Code Style
+
+- Apply black formatting to test_mail_processor_imap.py
+  ([`3c8bb4b`](https://github.com/christianlouis/InboxConverge/commit/3c8bb4bfb6df209a1e90f628ab44b8af9f3601fd))
+
+
 ## v0.4.1 (2026-03-28)
 
 ### Bug Fixes
