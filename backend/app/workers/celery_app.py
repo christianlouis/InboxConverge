@@ -10,6 +10,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Suppress noisy INFO-level "ignored untagged response" messages from aioimaplib
+logging.getLogger("aioimaplib").setLevel(logging.WARNING)
+
 # Create Celery app
 celery_app = Celery(
     "inboxconverge",

@@ -84,7 +84,9 @@ class GmailService:
     def service(self):
         """Lazy-initialize the Gmail API service."""
         if self._service is None:
-            self._service = build("gmail", "v1", credentials=self.credentials)
+            self._service = build(
+                "gmail", "v1", credentials=self.credentials, cache_discovery=False
+            )
         return self._service
 
     async def inject_email(
