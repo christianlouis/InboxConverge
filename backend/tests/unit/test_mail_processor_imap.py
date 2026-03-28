@@ -14,7 +14,6 @@ These tests verify that _fetch_imap_emails:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-
 # ---------------------------------------------------------------------------
 # Helpers to build lightweight fakes
 # ---------------------------------------------------------------------------
@@ -139,9 +138,7 @@ class TestFetchImapEmailsUidCommands:
         assert new_uids == ["42"]
 
         # The fetch call should use UID FETCH
-        fetch_call = [
-            c for c in mock_imap.uid.call_args_list if c.args[0] == "fetch"
-        ]
+        fetch_call = [c for c in mock_imap.uid.call_args_list if c.args[0] == "fetch"]
         assert len(fetch_call) == 1
         assert fetch_call[0] == call("fetch", "42", "(RFC822)")
 
@@ -167,9 +164,7 @@ class TestFetchImapEmailsUidCommands:
             emails, new_uids = await processor._fetch_imap_emails(10, set())
 
         # No STORE command should have been called (delete_after_forward=False)
-        store_calls = [
-            c for c in mock_imap.uid.call_args_list if c.args[0] == "store"
-        ]
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
         assert store_calls == [], "Expected no STORE commands for \\Seen"
 
         assert len(emails) == 3
@@ -201,9 +196,7 @@ class TestFetchImapEmailsUidCommands:
         assert new_uids == ["6"]
         assert len(emails) == 1
 
-        store_calls = [
-            c for c in mock_imap.uid.call_args_list if c.args[0] == "store"
-        ]
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
         # Exactly one STORE for the stale UID
         assert len(store_calls) == 1
         assert store_calls[0] == call("store", "5", "+FLAGS", "\\Seen")
@@ -226,9 +219,7 @@ class TestFetchImapEmailsUidCommands:
         ):
             await processor._fetch_imap_emails(10, already_seen_uids={"1", "2"})
 
-        store_calls = [
-            c for c in mock_imap.uid.call_args_list if c.args[0] == "store"
-        ]
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
         assert len(store_calls) == 1
         # The UID set string should contain both stale UIDs (order may vary)
         uid_set_arg = store_calls[0].args[1]
@@ -266,9 +257,7 @@ class TestFetchImapEmailsUidCommands:
 
         assert new_uids == ["7", "8"]
 
-        store_calls = [
-            c for c in mock_imap.uid.call_args_list if c.args[0] == "store"
-        ]
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
         # Exactly one STORE for deletion covering both UIDs
         assert len(store_calls) == 1
         uid_set_arg = store_calls[0].args[1]

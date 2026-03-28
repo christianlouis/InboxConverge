@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix timezone display in Mailbox Activity / Admin Logs pages: timestamps from the server were parsed as local time when no timezone indicator was present, causing relative times ("1h ago") and absolute dates to be shifted by the client's UTC offset.
 - Worker tasks: use a fresh DB session for `send_user_notification` calls and move notifications after `db.commit()` to prevent the post-rollback `greenlet_spawn` SQLAlchemy error.
 - Worker tasks: ensure `last_check_at` and error status are always committed before notifications, fixing accounts being endlessly re-queued after IMAP auth failures.
+- Style: apply black formatting to `backend/tests/unit/test_mail_processor_imap.py` to fix CI black check failure.
 ## v0.4.0 (2026-03-28)
 
 ### Features
