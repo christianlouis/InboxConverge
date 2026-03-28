@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
+- **Test Connection always showed "success"**: frontend never checked the `success` field
+  returned by the backend — any HTTP 200 response (including `{success: false}`) was
+  displayed as "Connection successful!". Now the actual `success` value is checked and
+  authentication failures are shown as errors with the server's message.
+- **Test Connection in edit mode required password re-entry**: added backend endpoint
+  `POST /mail-accounts/{account_id}/test` that decrypts and uses the stored credentials
+  so existing accounts can be tested without re-typing the password.
+
+
+
+### Bug Fixes
+
 - Resolve semantic-release CHANGELOG.md not updating properly
   ([`d3e0ca4`](https://github.com/christianlouis/InboxConverge/commit/d3e0ca4e33779372b53884e25cf0d5cc3478848c))
 

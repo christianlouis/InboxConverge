@@ -8,7 +8,7 @@ from sqlalchemy import select, desc, func
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
-from app.core.security import encrypt_credential
+from app.core.security import encrypt_credential, decrypt_credential
 from app.models.database_models import (
     User,
     MailAccount,
@@ -264,6 +264,39 @@ async def test_mail_connection(
     )
 
     processor = MailProcessor(temp_account, test_request.password)
+    success, message = await processor.test_connection()
+
+    return MailAccountTestResponse(success=success, message=message)
+
+
+@router.post("/{account_id}/test", response_model=MailAccountTestResponse)
+async def test_existing_mail_connection(
+    account_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Test connection for an existing mail account using its stored credentials"""
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id, MailAccount.user_id == current_user.id
+        )
+    )
+    account = result.scalar_one_or_none()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    try:
+        password = decrypt_credential(account.encrypted_password)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to decrypt stored credentials",
+        )
+
+    processor = MailProcessor(account, password)
     success, message = await processor.test_connection()
 
     return MailAccountTestResponse(success=success, message=message)
