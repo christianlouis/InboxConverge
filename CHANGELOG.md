@@ -22,8 +22,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Processing log durations**: Runs that were killed by SIGKILL or failed before updating their
+  own status (e.g. missing SMTP credentials) now always record a correct `completed_at` and
+  `duration_seconds`. The error handler no longer accesses an expired SQLAlchemy ORM attribute
+  (`run.started_at`) after a session rollback, which previously caused the handler to crash and
+  left runs stuck in the `running` state indefinitely.
+- **Processing log early-exit path**: When a mail account has no delivery method configured
+  (SMTP credentials missing and Gmail API not set up), the processing run now correctly sets
+  `completed_at`, `duration_seconds`, and `account.last_check_at`, preventing the account from
+  being re-queued on every scheduler tick and generating a flood of failed runs.
+- **Stale-run detection moved to scheduler**: `process_all_enabled_accounts` (runs every 5 min)
+  now marks orphaned `running` runs as `failed` immediately. Previously this only happened in the
+  daily `cleanup_old_logs` task, meaning stale runs could show huge durations (hours/days).
+- **Duration display rounding bug**: `formatDuration` in the frontend Processing Logs page now
+  uses `Math.floor` instead of `Math.round` for the seconds component, eliminating the "60s"
+  artefact that appeared for durations very close to a whole minute boundary.
+
 ### Changed
 - **Decoupled Gmail permissions from Google Sign-In**: The "Sign in with Google" OAuth flow now only requests basic profile scopes (`openid`, `email`, `profile`) instead of also requesting Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`). Users can grant Gmail access separately via the "Connect Gmail" button in Settings. This results in a simpler, permission-free login experience.
+
 
 ## [0.2.1] - 2026-03-27
 

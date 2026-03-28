@@ -90,10 +90,15 @@ async def process_mail_account(account_id: int):
                 logger.warning(f"Account {account_id} not found or disabled")
                 return
 
+            # Capture start time in a local variable so the error handler can
+            # compute duration_seconds without touching the (expired) ORM
+            # attribute after a session rollback.
+            _run_started_at = datetime.now(timezone.utc)
+
             # Create processing run
             run = ProcessingRun(
                 mail_account_id=account.id,
-                started_at=datetime.now(timezone.utc),
+                started_at=_run_started_at,
                 status="running",
             )
             db.add(run)
@@ -189,6 +194,11 @@ async def process_mail_account(account_id: int):
                     )
                     run.status = "failed"  # type: ignore[assignment]
                     run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"  # type: ignore[assignment]
+                    run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                    run.duration_seconds = (  # type: ignore[assignment]
+                        run.completed_at - _run_started_at
+                    ).total_seconds()
+                    account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                     await db.commit()
                     return
 
@@ -411,8 +421,10 @@ async def process_mail_account(account_id: int):
                 run.status = "failed"  # type: ignore[assignment]
                 run.error_message = str(e)  # type: ignore[assignment]
                 run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                run.duration_seconds = (
-                    run.completed_at - _as_utc(run.started_at)
+                # Use the locally-captured start time to avoid accessing an
+                # expired ORM attribute after the session rollback above.
+                run.duration_seconds = (  # type: ignore[assignment]
+                    run.completed_at - _run_started_at
                 ).total_seconds()
 
                 # Update account error status
@@ -456,6 +468,32 @@ async def process_all_enabled_accounts():
     _task_start = time.monotonic()
     async with async_session_maker() as db:
         try:
+            # Mark stale "running" runs as failed.  A run is considered stale
+            # when it has been in the "running" state longer than the Celery
+            # hard time limit (30 min) plus a small buffer – this recovers from
+            # worker crashes or SIGKILL events faster than waiting for the
+            # daily cleanup_old_logs task.
+            stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=35)
+            stale_result = await db.execute(
+                select(ProcessingRun).where(
+                    ProcessingRun.status == "running",
+                    ProcessingRun.started_at < stale_threshold,
+                )
+            )
+            stale_runs = stale_result.scalars().all()
+            for stale_run in stale_runs:
+                stale_run.status = "failed"  # type: ignore[assignment]
+                stale_run.error_message = (  # type: ignore[assignment]
+                    "Run timed out or worker was killed before completion"
+                )
+                stale_run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                stale_run.duration_seconds = (  # type: ignore[assignment]
+                    stale_run.completed_at - _as_utc(stale_run.started_at)
+                ).total_seconds()
+            if stale_runs:
+                await db.commit()
+                logger.info(f"Marked {len(stale_runs)} stale processing runs as failed")
+
             # Fetch all enabled accounts regardless of operational status so
             # that accounts in ERROR state are retried automatically.
             result = await db.execute(

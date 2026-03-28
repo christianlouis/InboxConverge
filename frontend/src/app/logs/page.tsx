@@ -27,7 +27,8 @@ const STATUS_STYLES: Record<string, string> = {
 function formatDuration(seconds?: number | null): string {
   if (seconds == null) return '—';
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  const totalSecs = Math.floor(seconds);
+  return `${Math.floor(totalSecs / 60)}m ${totalSecs % 60}s`;
 }
 
 function formatDate(iso: string): string {
