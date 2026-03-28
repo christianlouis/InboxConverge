@@ -318,6 +318,11 @@ export const mailAccountsApi = {
     return response.data;
   },
 
+  async pullNow(id: number): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(`/mail-accounts/${id}/pull-now`);
+    return response.data;
+  },
+
   async delete(id: number): Promise<void> {
     await api.delete(`/mail-accounts/${id}`);
   },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft } from 'lucide-react';
 
 interface ProviderPreset {
   id: string;
@@ -126,6 +126,15 @@ const PROVIDERS: ProviderPreset[] = [
     pop3_ssl: null,
     notes: 'Posteo supports IMAP only.',
   },
+  {
+    id: 'protonmail',
+    name: 'Proton Mail',
+    logo: '/providers/protonmail.svg',
+    domains: ['proton.me', 'protonmail.com', 'protonmail.ch', 'pm.me'],
+    imap_ssl: { host: '127.0.0.1', port: 1143 },
+    pop3_ssl: { host: '127.0.0.1', port: 1144 },
+    notes: 'Requires Proton Mail Bridge running locally. Use your Bridge password (not your Proton account password). Default Bridge ports: IMAP 127.0.0.1:1143, POP3 127.0.0.1:1144.',
+  },
 ];
 
 export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
@@ -172,7 +181,13 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-            <img src={selectedProvider.logo} alt={selectedProvider.name} className="w-6 h-6 object-contain rounded" />
+            <div className="h-6 flex items-center flex-shrink-0">
+              <img
+                src={selectedProvider.logo}
+                alt={selectedProvider.name}
+                style={{ maxHeight: '100%', maxWidth: '80px', objectFit: 'contain' }}
+              />
+            </div>
             {selectedProvider.name}
           </h4>
           <p className="text-sm text-blue-700 mb-1">
@@ -240,23 +255,23 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
         <h4 className="text-sm font-medium text-gray-700 mb-3">
           Quick Setup — Select Your Email Provider
         </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {PROVIDERS.map((provider) => (
             <button
               key={provider.id}
               type="button"
               onClick={() => handleProviderClick(provider)}
-              className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-center"
             >
-              <img
-                src={provider.logo}
-                alt={provider.name}
-                className="w-6 h-6 object-contain rounded flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{provider.name}</div>
+              {/* Fixed-height logo container – logo scales to its natural aspect ratio */}
+              <div className="h-8 w-full flex items-center justify-center">
+                <img
+                  src={provider.logo}
+                  alt={provider.name}
+                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                />
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              <div className="text-xs font-medium text-gray-900 truncate w-full">{provider.name}</div>
             </button>
           ))}
         </div>
