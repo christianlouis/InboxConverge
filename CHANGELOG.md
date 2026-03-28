@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+
+- CI: replaced `safety scan --json` (requires interactive login in Safety CLI v3) with `pip-audit` to fix EOF error in the security scan job
+
 ## v0.4.4 (2026-03-28)
 
 ### Bug Fixes
