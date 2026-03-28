@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.3 (2026-03-28)
+
+### Bug Fixes
+
+- Apply parseUTC to dashboard, unify date helpers in date-utils.ts
+  ([`db3ce61`](https://github.com/christianlouis/InboxConverge/commit/db3ce6146797e9e3a54c434b54215d131dd5ce65))
+
+- Drop empty emails, clear stale errors on success, harden IMAP extraction
+  ([`0720901`](https://github.com/christianlouis/InboxConverge/commit/0720901265c53d05609787166dfecbcc6b0d2b1b))
+
+
 ## [Unreleased]
 
 ### Security
