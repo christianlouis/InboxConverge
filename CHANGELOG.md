@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.2.2 (2026-03-28)
+
+### Bug Fixes
+
+- Resolve semantic-release CHANGELOG.md not updating properly
+  ([`d3e0ca4`](https://github.com/christianlouis/InboxConverge/commit/d3e0ca4e33779372b53884e25cf0d5cc3478848c))
+
+### Chores
+
+- **deps**: Bump cryptography
+  ([`2fd018a`](https://github.com/christianlouis/InboxConverge/commit/2fd018afa109a2fa9d087da8590323c9a9d520ed))
+
+
 ## [Unreleased]
 
 ### Changed
