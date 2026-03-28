@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] Fixed timezone display bug in Mailbox Activity and Admin Logs pages: ISO timestamps without a `Z` suffix were parsed as local time by JavaScript, shifting "Xm ago" / "Xh ago" displays and absolute dates by the client's UTC offset.
+- [x] Fixed worker `send_user_notification` using rolled-back DB session causing `greenlet_spawn has not been called` errors; status/`last_check_at` now always committed before sending notifications via a fresh session.
 - [x] **Dashboard redesign**: Replaced noisy "Recent Processing Runs" table with a per-account "Mailbox Status" view showing last-check status (OK/Error/Pending), relative timestamp, error messages, and lifetime counters. Stats cards updated to show all-time processed count and accounts-with-errors count.
 - [x] **Provider logos now saved on account creation**: `provider_name` field added to `MailAccountCreate` and `MailAccountUpdate` schemas (backend and frontend). `ProviderWizard` now passes `provider_name` in its `onSelect` callback; `AddMailAccountModal` stores it so logos are displayed correctly on the accounts page.
 - [x] **Fetch button UX improvements**: The "fetch emails" button on the accounts page now shows a "Fetch" text label for clarity, a tooltip explaining its purpose, a spinning "Fetching…" state during the API call, and a brief green "Queued!" confirmation after success.

@@ -285,13 +285,14 @@ async def process_mail_account(account_id: int):
                             "User must re-authorise."
                         )
                         try:
-                            await send_user_notification(
-                                db=db,
-                                user_id=int(account.user_id),
-                                title="InboxRescue: Gmail Authorization Expired",
-                                body=f"Your Gmail credentials for account '{account.name}' have been revoked. Please re-authorize Gmail access in Settings.",
-                                notify_on_error=True,
-                            )
+                            async with async_session_maker() as notif_db:
+                                await send_user_notification(
+                                    db=notif_db,
+                                    user_id=int(account.user_id),
+                                    title="InboxRescue: Gmail Authorization Expired",
+                                    body=f"Your Gmail credentials for account '{account.name}' have been revoked. Please re-authorize Gmail access in Settings.",
+                                    notify_on_error=True,
+                                )
                         except Exception as notify_exc:
                             logger.warning(
                                 f"Failed to send revocation notification: {notify_exc}"
@@ -364,18 +365,24 @@ async def process_mail_account(account_id: int):
                 account.status = AccountStatus.ERROR  # type: ignore[assignment]
                 account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 account.last_error_message = f"{emails_failed} emails failed to forward"  # type: ignore[assignment]
-                try:
-                    await send_user_notification(
-                        db=db,
-                        user_id=int(account.user_id),
-                        title="InboxRescue: Mail Forwarding Failures",
-                        body=f"Mail account '{account.name}': {emails_failed} email(s) failed to forward.",
-                        notify_on_error=True,
-                    )
-                except Exception as notify_exc:
-                    logger.warning(f"Failed to send notification: {notify_exc}")
 
             await db.commit()
+
+            # Send failure notification after the commit so the status is
+            # persisted even if the notification fails.  Use a fresh session
+            # to avoid interfering with the (now-committed) main transaction.
+            if emails_failed > 0:
+                try:
+                    async with async_session_maker() as notif_db:
+                        await send_user_notification(
+                            db=notif_db,
+                            user_id=int(account.user_id),
+                            title="InboxRescue: Mail Forwarding Failures",
+                            body=f"Mail account '{account.name}': {emails_failed} email(s) failed to forward.",
+                            notify_on_error=True,
+                        )
+                except Exception as notify_exc:
+                    logger.warning(f"Failed to send notification: {notify_exc}")
 
             # Record Prometheus metrics for this completed run
             _run_status = "completed" if emails_failed == 0 else "partial_failure"
@@ -437,20 +444,6 @@ async def process_mail_account(account_id: int):
                     # throttles re-dispatch instead of queuing a new task every cycle.
                     account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
-                    # Notify user about the error
-                    try:
-                        await send_user_notification(
-                            db=db,
-                            user_id=int(account.user_id),
-                            title="InboxRescue: Mail Processing Error",
-                            body=f"Error processing mail account '{account.name}': {e}",
-                            notify_on_error=True,
-                        )
-                    except Exception as notify_exc:
-                        logger.warning(
-                            f"Failed to send error notification: {notify_exc}"
-                        )
-
                 try:
                     await db.commit()
                 except Exception as commit_exc:
@@ -458,6 +451,24 @@ async def process_mail_account(account_id: int):
                         f"Failed to persist failed status for run of account "
                         f"{account_id}: {commit_exc}"
                     )
+
+            # Send error notification after the commit (and outside the run/account
+            # guards) so the status is always persisted first.  Use a fresh session
+            # to avoid the post-rollback session's broken greenlet context causing
+            # the notification query itself to fail with "greenlet_spawn has not
+            # been called".
+            if "account" in locals() and account is not None:
+                try:
+                    async with async_session_maker() as notif_db:
+                        await send_user_notification(
+                            db=notif_db,
+                            user_id=int(account.user_id),
+                            title="InboxRescue: Mail Processing Error",
+                            body=f"Error processing mail account '{account.name}': {e}",
+                            notify_on_error=True,
+                        )
+                except Exception as notify_exc:
+                    logger.warning(f"Failed to send error notification: {notify_exc}")
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.process_all_enabled_accounts")
