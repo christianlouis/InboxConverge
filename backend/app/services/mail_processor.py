@@ -263,10 +263,26 @@ class MailProcessor:
     async def _fetch_imap_emails(
         self, max_count: int, already_seen_uids: Set[str]
     ) -> Tuple[List[bytes], List[str]]:
-        """Fetch emails via IMAP, marking each message \\Seen to prevent re-fetch."""
+        """Fetch emails via IMAP using UID-based commands.
+
+        UIDs are stable identifiers that do not change when other messages are
+        expunged, unlike IMAP sequence numbers.  Sequence-number-based FETCH /
+        STORE commands can target the wrong message mid-session and cause
+        servers to report "Too many invalid IMAP commands" (as seen with
+        t-online).  This implementation:
+
+        * Uses ``UID SEARCH``, ``UID FETCH``, and ``UID STORE`` throughout.
+        * Re-marks already-processed UIDs as \\Seen in a single batch command
+          instead of one STORE per message.
+        * Relies on the implicit \\Seen flag set by RFC822 FETCH so no
+          additional per-message STORE is needed for newly fetched mail.
+        * Batches the \\Deleted STORE into a single command when
+          ``delete_after_forward`` is enabled.
+        """
         emails: List[bytes] = []
         new_uids: List[str] = []
 
+        imap_client = None
         try:
             # Create IMAP client
             if self.account.protocol == MailProtocol.IMAP_SSL:
@@ -282,70 +298,122 @@ class MailProcessor:
             await imap_client.login(self.account.username, self.password)
             await imap_client.select("INBOX")
 
-            # Search for unseen messages only
-            response = await imap_client.search("UNSEEN")
-            message_ids = response.lines[0].split()
+            # UID SEARCH returns stable UIDs instead of volatile sequence numbers.
+            response = await imap_client.uid("search", "UNSEEN")
+            if (
+                response.result != "OK"
+                or not response.lines
+                or not response.lines[0].strip()
+            ):
+                logger.info(f"Found 0 unread messages for account {self.account.id}")
+                # logout is handled by the finally block below
+                return emails, new_uids
 
-            # Limit to max_count
-            message_ids = message_ids[:max_count]
+            all_unseen_uids: List[bytes] = response.lines[0].split()
+
+            # Limit to max_count before doing any further work.
+            all_unseen_uids = all_unseen_uids[:max_count]
 
             logger.info(
-                f"Found {len(message_ids)} unread messages for account {self.account.id}"
+                f"Found {len(all_unseen_uids)} unread messages for account "
+                f"{self.account.id}"
             )
 
-            # Fetch each message
-            for msg_id in message_ids:
-                uid_str = msg_id.decode() if isinstance(msg_id, bytes) else str(msg_id)
-
-                # Skip messages already tracked in our DB
+            # Split into stale UIDs (already in our DB but still UNSEEN on the
+            # server — e.g. a previous STORE failed) and genuinely new UIDs.
+            stale_uid_bytes: List[bytes] = []
+            uids_to_fetch: List[bytes] = []
+            for uid in all_unseen_uids:
+                uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
                 if uid_str in already_seen_uids:
-                    logger.debug(
-                        f"Skipping already-processed IMAP message {uid_str} "
-                        f"for account {self.account.id}"
-                    )
-                    # Still mark as Seen so it doesn't show up in UNSEEN searches
-                    await imap_client.store(msg_id, "+FLAGS", "\\Seen")
-                    continue
+                    stale_uid_bytes.append(uid)
+                else:
+                    uids_to_fetch.append(uid)
 
+            # Re-mark stale UIDs as \Seen in a single batch STORE command so
+            # they stop appearing in UNSEEN searches without consuming one
+            # round-trip per message.
+            if stale_uid_bytes:
+                uid_set = b",".join(stale_uid_bytes).decode()
                 try:
-                    response = await imap_client.fetch(msg_id, "(RFC822)")
+                    await imap_client.uid("store", uid_set, "+FLAGS", "\\Seen")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to re-mark stale messages as \\Seen for account "
+                        f"{self.account.id}: {e}"
+                    )
 
-                    # Extract email data from response
-                    email_data = None
-                    for line in response.lines:
-                        if isinstance(line, bytes) and b"RFC822" in line:
-                            # Find the email content
-                            start_idx = line.find(b"{")
-                            if start_idx != -1:
-                                # Email data is in the next parts
-                                continue
-                        elif isinstance(line, bytes) and not line.startswith(b"*"):
-                            email_data = line
-                            break
+            # Fetch each new message.  RFC822 FETCH implicitly sets \Seen on
+            # the server so no extra STORE per message is required.
+            fetched_uids: List[bytes] = []
+            for uid in uids_to_fetch:
+                uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
+                try:
+                    fetch_response = await imap_client.uid("fetch", uid_str, "(RFC822)")
+
+                    # Extract raw email bytes from the FETCH response lines.
+                    # A UID FETCH response looks like:
+                    #   [b'<seq> (UID <uid> RFC822 {<size>}', <email_bytes>, b')']
+                    # Skip the header line (contains "RFC822") and grab the
+                    # first substantive bytes value.
+                    email_data: Optional[bytes] = None
+                    for line in fetch_response.lines:
+                        if not isinstance(line, bytes):
+                            continue
+                        if b"RFC822" in line:
+                            continue
+                        if line.startswith(b"*"):
+                            continue
+                        if line in (b")", b""):
+                            continue
+                        email_data = line
+                        break
 
                     if email_data:
                         emails.append(email_data)
                         new_uids.append(uid_str)
-
-                        # Always mark as Seen after fetching so the message is
-                        # not picked up again on the next UNSEEN search.
-                        await imap_client.store(msg_id, "+FLAGS", "\\Seen")
-
-                        if self.account.delete_after_forward:
-                            await imap_client.store(msg_id, "+FLAGS", "\\Deleted")
+                        fetched_uids.append(uid)
+                    else:
+                        logger.warning(
+                            f"No email data extracted for UID {uid_str} on "
+                            f"account {self.account.id}"
+                        )
 
                 except Exception as e:
-                    logger.error(f"Error fetching message {msg_id}: {e}")
+                    logger.error(
+                        f"Error fetching message UID {uid_str} for account "
+                        f"{self.account.id}: {e}"
+                    )
 
-            # Expunge deleted messages
-            if self.account.delete_after_forward:
-                await imap_client.expunge()
+            # Batch-mark fetched messages for deletion if configured (one STORE
+            # command covers all UIDs instead of N individual commands).
+            if self.account.delete_after_forward and fetched_uids:
+                uid_set = b",".join(fetched_uids).decode()
+                try:
+                    await imap_client.uid("store", uid_set, "+FLAGS", "\\Deleted")
+                    await imap_client.expunge()
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to delete messages for account "
+                        f"{self.account.id}: {e}"
+                    )
 
-            await imap_client.logout()
-
+        except MailFetchError:
+            raise
         except Exception as e:
-            logger.error(f"Error fetching IMAP emails: {e}")
+            logger.error(
+                f"Error fetching IMAP emails for account {self.account.id}: {e}"
+            )
             raise MailFetchError(f"IMAP fetch error: {str(e)}")
+        finally:
+            # Always attempt a clean logout.  If the server already sent BYE
+            # the logout call will fail silently rather than masking the real
+            # error.
+            if imap_client is not None:
+                try:
+                    await imap_client.logout()
+                except Exception:
+                    pass
 
         return emails, new_uids
 

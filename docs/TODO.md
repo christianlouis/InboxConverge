@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **IMAP reliability: switched to UID-based commands** — `_fetch_imap_emails` now uses `UID SEARCH`, `UID FETCH`, and `UID STORE` throughout.  Sequence numbers are volatile (they shift on expunge), causing "Too many invalid IMAP commands" on strict servers (e.g. T-Online).  UIDs are stable.  The per-message `STORE +FLAGS \Seen` (redundant — RFC822 sets it implicitly) and per-message `STORE +FLAGS \Deleted` are replaced with single batch commands.  Stale already-seen UIDs are re-marked `\Seen` in one command.  Logout is now in a `finally` block so a mid-session `BYE` is handled gracefully.
 - [x] Fixed timezone display bug in Mailbox Activity and Admin Logs pages: ISO timestamps without a `Z` suffix were parsed as local time by JavaScript, shifting "Xm ago" / "Xh ago" displays and absolute dates by the client's UTC offset.
 - [x] Fixed worker `send_user_notification` using rolled-back DB session causing `greenlet_spawn has not been called` errors; status/`last_check_at` now always committed before sending notifications via a fresh session.
 - [x] **Dashboard redesign**: Replaced noisy "Recent Processing Runs" table with a per-account "Mailbox Status" view showing last-check status (OK/Error/Pending), relative timestamp, error messages, and lifetime counters. Stats cards updated to show all-time processed count and accounts-with-errors count.
