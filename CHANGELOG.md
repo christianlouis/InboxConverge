@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.5.0 (2026-03-28)
+
+### Features
+
+- **ci**: Add Codecov integration with frontend Jest coverage and CODECOV_TOKEN
+  ([`0645bc0`](https://github.com/christianlouis/InboxConverge/commit/0645bc046227332ebe1fdbf05538500587515ebf))
+
+
 ## v0.4.5 (2026-03-28)
 
 ### Bug Fixes
