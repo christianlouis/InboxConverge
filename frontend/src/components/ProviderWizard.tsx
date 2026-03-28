@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Mail, ArrowLeft } from 'lucide-react';
 
 interface ProviderPreset {
@@ -183,11 +184,14 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-            <div className="h-6 flex items-center flex-shrink-0">
-              <img
+            <div className="relative h-6 w-20 flex-shrink-0">
+              <Image
                 src={selectedProvider.logo}
                 alt={selectedProvider.name}
-                style={{ maxHeight: '100%', maxWidth: '80px', objectFit: 'contain' }}
+                fill
+                unoptimized
+                sizes="80px"
+                style={{ objectFit: 'contain' }}
               />
             </div>
             {selectedProvider.name}
@@ -266,11 +270,14 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
               className="flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-center"
             >
               {/* Fixed-height logo container – logo scales to its natural aspect ratio */}
-              <div className="h-8 w-full flex items-center justify-center">
-                <img
+              <div className="relative h-8 w-full">
+                <Image
                   src={provider.logo}
                   alt={provider.name}
-                  style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                  fill
+                  unoptimized
+                  sizes="100px"
+                  style={{ objectFit: 'contain' }}
                 />
               </div>
               <div className="text-xs font-medium text-gray-900 truncate w-full">{provider.name}</div>
