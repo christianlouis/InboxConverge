@@ -53,6 +53,7 @@ export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<MailAccount | null>(null);
   const [pullingIds, setPullingIds] = useState<Set<number>>(new Set());
+  const [successIds, setSuccessIds] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
   const { data: accounts, isLoading } = useQuery({
@@ -101,6 +102,14 @@ export default function AccountsPage() {
     setPullingIds((prev) => new Set(prev).add(id));
     try {
       await mailAccountsApi.pullNow(id);
+      setSuccessIds((prev) => new Set(prev).add(id));
+      setTimeout(() => {
+        setSuccessIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 2000);
     } catch {
       alert('Failed to queue pull');
     } finally {
@@ -227,11 +236,22 @@ export default function AccountsPage() {
                       <button
                         onClick={() => handlePullNow(account.id)}
                         disabled={!account.is_enabled || pullingIds.has(account.id)}
-                        title="Pull emails now"
-                        aria-label="Pull emails now"
-                        className="flex items-center justify-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                        title="Fetch new emails from this account now"
+                        aria-label="Fetch emails now"
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 ${
+                          successIds.has(account.id)
+                            ? 'text-green-600 bg-green-50 hover:bg-green-100'
+                            : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                        }`}
                       >
                         <RefreshCw className={`h-4 w-4 ${pullingIds.has(account.id) ? 'animate-spin' : ''}`} />
+                        <span>
+                          {pullingIds.has(account.id)
+                            ? 'Fetching…'
+                            : successIds.has(account.id)
+                            ? 'Queued!'
+                            : 'Fetch'}
+                        </span>
                       </button>
                       <button
                         onClick={() => handleEdit(account)}

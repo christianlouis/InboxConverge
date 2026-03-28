@@ -39,6 +39,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     check_interval_minutes: account?.check_interval_minutes || 5,
     max_emails_per_check: account?.max_emails_per_check || 50,
     delete_after_forward: account?.delete_after_forward ?? true,
+    provider_name: account?.provider_name ?? null,
   });
 
   const onMutationSuccess = () => {
@@ -75,7 +76,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     });
   };
 
-  const handleProviderSelect = (config: { name: string; protocol: string; host: string; port: number; use_ssl: boolean }) => {
+  const handleProviderSelect = (config: { name: string; provider_name: string; protocol: string; host: string; port: number; use_ssl: boolean }) => {
     setFormData((prev) => ({
       ...prev,
       name: config.name,
@@ -83,6 +84,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
       host: config.host,
       port: config.port,
       use_ssl: config.use_ssl,
+      provider_name: config.provider_name,
     }));
     setWizardStep('form');
   };
