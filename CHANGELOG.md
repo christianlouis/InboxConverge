@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.4 (2026-03-28)
+
+### Bug Fixes
+
+- Show proper error message instead of [object Object] in mail account wizard
+  ([`191fee9`](https://github.com/christianlouis/InboxConverge/commit/191fee9be4a2fd77d76ee089d09717db85deeca3))
+
+
 ## v0.4.3 (2026-03-28)
 
 ### Bug Fixes
