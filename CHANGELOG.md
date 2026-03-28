@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+
+- Worker tasks: use a fresh DB session for `send_user_notification` calls and move notifications after `db.commit()` to prevent the post-rollback `greenlet_spawn` SQLAlchemy error.
+- Worker tasks: ensure `last_check_at` and error status are always committed before notifications, fixing accounts being endlessly re-queued after IMAP auth failures.
+
 ## v0.3.2 (2026-03-28)
 
 ### Bug Fixes
