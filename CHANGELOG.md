@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `.safety-policy.yml` to document and suppress the two unfixable `ecdsa` side-channel CVEs (64396, 64459) that the upstream maintainers have acknowledged cannot be resolved in pure Python.
 ### Fixed
 
+- **Add mail account wizard showed `[object Object]`** — FastAPI validation
+  errors return `detail` as an array of objects, not a plain string.  The
+  frontend error handler now inspects the type of `detail`: if it is a string
+  it is used directly; if it is an array the individual `msg` fields are joined;
+  otherwise the generic `Error.message` or a fallback string is shown.  The fix
+  is applied to both the Save and Test-Connection error paths.
+
 - **IMAP: fix all IMAP emails appearing empty** — `aioimaplib` stores RFC822
   literal data as `bytearray`, not `bytes`.  The FETCH extraction loop was
   checking `isinstance(line, bytes)` which returns `False` for `bytearray`,
