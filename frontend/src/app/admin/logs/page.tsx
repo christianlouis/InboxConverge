@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { adminApi, AdminProcessingRun } from '@/lib/api';
+import { parseUTC } from '@/lib/date-utils';
 import {
   Activity,
   ChevronLeft,
@@ -31,7 +32,7 @@ function formatDuration(seconds?: number | null): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return parseUTC(iso).toLocaleString(undefined, {
     dateStyle: 'short',
     timeStyle: 'medium',
   });
