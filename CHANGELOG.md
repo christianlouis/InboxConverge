@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
+
 ### Fixed
 
 - Convert `frontend/jest.config.js` to `jest.config.mjs` using ES module `import`/`export` syntax to resolve ESLint `@typescript-eslint/no-require-imports` error.
