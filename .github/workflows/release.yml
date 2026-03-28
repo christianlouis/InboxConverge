@@ -56,13 +56,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git diff --name-only HEAD~1 2>/dev/null | grep -q CHANGELOG.md; then
-            echo "CHANGELOG.md was already updated by semantic-release version"
+          # Detect whether `semantic-release version` just created a version commit.
+          # PSR's version commits have a bare version number as the subject (e.g. "0.2.2").
+          # If the latest commit matches that pattern the changelog was already updated.
+          LAST_COMMIT_MSG=$(git log -1 --format="%s")
+          if echo "$LAST_COMMIT_MSG" | grep -qP "^\d+\.\d+\.\d+$"; then
+            echo "semantic-release created version commit '$LAST_COMMIT_MSG' - CHANGELOG.md already updated"
           else
-            semantic-release changelog
-            if ! git diff --quiet CHANGELOG.md; then
-              git add CHANGELOG.md
-              git commit -m "docs(changelog): update changelog [skip ci]"
-              git push
-            fi
+            echo "No new version was released; CHANGELOG.md unchanged"
           fi

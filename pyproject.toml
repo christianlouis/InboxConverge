@@ -33,10 +33,13 @@ prerelease = false
 
 [tool.semantic_release.changelog]
 mode = "update"
+insertion_flag = "<!-- version list -->"
 exclude_commit_patterns = [
     "^chore\\(release\\):",
+    "^\\d+\\.\\d+\\.\\d+",
     "^Merge",
     "^Bump version",
+    "^Initial plan",
 ]
 
 [tool.semantic_release.changelog.default_templates]
