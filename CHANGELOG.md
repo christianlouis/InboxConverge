@@ -21,9 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dashboard "Recent Processing Runs" table replaced with a per-account **Mailbox Status** view: each account now shows its last-check status (OK / Error / Pending), relative last-check time, any error message, and lifetime processed/failed counters. The noisy per-run table is gone; full activity history remains available on the Logs page.
 - Stats cards updated: "Emails Forwarded Today" → "Emails Processed" (all-time total from account records); "Errors" → "Accounts with Errors" (count of accounts currently showing an error).
+- **IMAP: switched to UID-based commands** (`UID SEARCH`, `UID FETCH`, `UID STORE`) instead of volatile sequence-number-based commands.  Sequence numbers shift whenever other messages are expunged, causing the wrong messages to be targeted and triggering "Too many invalid IMAP commands" errors on strict servers like T-Online.  UIDs remain stable for the lifetime of a mailbox.
 ### Fixed
 - Provider logos now appear on the Mail Accounts page: `provider_name` is correctly saved when creating accounts via the provider wizard and propagated through backend/frontend schemas.
 - Fetch-emails button now shows a text label ("Fetch"), a descriptive tooltip, a "Fetching…" loading state, and a brief green "Queued!" confirmation after the action completes.
+- **IMAP: eliminated redundant per-message `STORE +FLAGS \Seen`** — RFC822 FETCH implicitly marks a message as `\Seen` on IMAP servers, making the extra round-trip unnecessary.  This reduces the total command count by *N* per polling cycle.
+- **IMAP: batch `STORE +FLAGS \Deleted`** — when `delete_after_forward` is enabled, all successfully fetched UIDs are now marked for deletion in a single `UID STORE uid1,uid2,…` command instead of one command per message.
+- **IMAP: batch re-marking of stale UIDs** — UIDs already tracked in the database that still appear as UNSEEN on the server (e.g. because a previous STORE failed) are now re-marked `\Seen` with a single batch command instead of one STORE per message.
+- **IMAP: graceful BYE handling** — the IMAP client is now stored in a variable so the `finally` block always attempts a clean `logout()`.  If the server has already sent `BYE` and closed the connection the logout failure is swallowed silently, preventing it from masking the original error.
 
 ## v0.3.2 (2026-03-28)
 
