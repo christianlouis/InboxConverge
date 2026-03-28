@@ -115,24 +115,37 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
   };
 
   const handleTestConnection = async () => {
-    if (!formData.username || !formData.password || !formData.host) {
-      alert('Please fill in username, password, and host');
-      return;
-    }
-
     setTestStatus('testing');
     setTestMessage('');
     try {
-      await mailAccountsApi.test({
-        protocol: formData.protocol,
-        host: formData.host,
-        port: formData.port,
-        username: formData.username,
-        password: formData.password,
-        use_ssl: formData.use_ssl,
-      });
-      setTestStatus('success');
-      setTestMessage('Connection successful!');
+      let result: { success: boolean; message: string };
+
+      if (isEditMode && !formData.password && account?.id) {
+        // Edit mode with no new password entered — test using stored credentials
+        result = await mailAccountsApi.testExisting(account.id);
+      } else {
+        if (!formData.username || !formData.password || !formData.host) {
+          setTestStatus('error');
+          setTestMessage('Please fill in username, password, and host');
+          return;
+        }
+        result = await mailAccountsApi.test({
+          protocol: formData.protocol,
+          host: formData.host,
+          port: formData.port,
+          username: formData.username,
+          password: formData.password,
+          use_ssl: formData.use_ssl,
+        });
+      }
+
+      if (result.success) {
+        setTestStatus('success');
+        setTestMessage(result.message);
+      } else {
+        setTestStatus('error');
+        setTestMessage(result.message || 'Connection failed');
+      }
     } catch (error) {
       setTestStatus('error');
       const errorMessage = error instanceof Error && 'response' in error

@@ -338,6 +338,13 @@ export const mailAccountsApi = {
     return response.data;
   },
 
+  async testExisting(accountId: number): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/mail-accounts/${accountId}/test`
+    );
+    return response.data;
+  },
+
   async autoDetect(
     emailAddress: string
   ): Promise<{ success: boolean; suggestions: AutoDetectSuggestion[] }> {

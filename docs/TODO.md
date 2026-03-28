@@ -17,7 +17,8 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Added GitOps auto-deployment step in `ci.yml` to update preprod k8s manifest in `k8s-cluster-state` repo.
 - [x] Fixed GitOps `update-k8s-manifest` job: added PAT availability check to skip gracefully when `GH_PAT` secret is not configured, fixing 403 "Write access to repository not granted" pipeline failure.
 - [x] Fixed Celery `TypeError: can't subtract offset-naive and offset-aware datetimes` in `process_all_enabled_accounts` — all mail accounts were silently skipped on every scheduled run.
-- [x] Changed Celery beat schedule to run `process_all_enabled_accounts` every minute so accounts configured with `check_interval_minutes = 1` are polled as expected.
+- [x] Fixed **Test Connection** always reporting success regardless of authentication outcome.
+- [x] Added `POST /mail-accounts/{account_id}/test` endpoint to test existing accounts with stored credentials.
 
 ## 🔴 Critical - Security (In Progress)
 
