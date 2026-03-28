@@ -755,4 +755,18 @@ export const adminNotificationsApi = {
   },
 };
 
+// ── Version API ─────────────────────────────────────────────────────────
+
+export interface VersionInfo {
+  version: string;
+  build_date: string | null;
+}
+
+export const versionApi = {
+  async get(): Promise<VersionInfo> {
+    const response = await api.get<VersionInfo>('/version');
+    return response.data;
+  },
+};
+
 export default api;

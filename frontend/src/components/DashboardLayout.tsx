@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
+import { versionApi } from '@/lib/api';
 import { 
   LayoutDashboard, 
   Mail, 
@@ -29,6 +31,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+
+  const { data: versionInfo } = useQuery({
+    queryKey: ['version'],
+    queryFn: () => versionApi.get(),
+    staleTime: Infinity,
+  });
 
   const handleLogout = () => {
     logout();
@@ -235,13 +243,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Footer */}
         <footer className="border-t border-gray-200 bg-white py-4 px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl flex flex-wrap justify-center gap-4 text-xs text-gray-400">
-            <Link href="/impressum" className="hover:text-gray-600 transition-colors">
-              Impressum
-            </Link>
-            <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
-              Datenschutz
-            </Link>
+          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
+            <div className="flex flex-wrap gap-4">
+              <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+                Impressum
+              </Link>
+              <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+                Datenschutz
+              </Link>
+            </div>
+            {versionInfo && (
+              <div className="flex flex-wrap gap-3">
+                <span>v{versionInfo.version}</span>
+                {versionInfo.build_date && (
+                  <span>
+                    Built{' '}
+                    {new Date(versionInfo.build_date).toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </footer>
       </div>
