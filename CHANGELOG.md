@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.0 (2026-03-28)
+
+### Features
+
+- **dashboard**: Replace per-run table with per-account Mailbox Status view
+  ([`6afd7c8`](https://github.com/christianlouis/InboxConverge/commit/6afd7c871e7c694a93f119aa66f1b798c9b5b2bd))
+
+
 ## [Unreleased]
 
 ### Changed
