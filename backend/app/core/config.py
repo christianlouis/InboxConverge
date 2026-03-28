@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # Server
-    HOST: str = "0.0.0.0"
+    HOST: str = (
+        "0.0.0.0"  # nosec B104 – intentional: containerised service binds all interfaces
+    )
     PORT: int = 8000
 
     # Database

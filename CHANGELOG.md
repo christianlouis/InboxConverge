@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Suppress bandit B104 false positive for `HOST = "0.0.0.0"` in `config.py`; binding to all interfaces is intentional for containerised deployments.
+
 ### Fixed
 
 - Fix timezone display in Mailbox Activity / Admin Logs pages: timestamps from the server were parsed as local time when no timezone indicator was present, causing relative times ("1h ago") and absolute dates to be shifted by the client's UTC offset.
