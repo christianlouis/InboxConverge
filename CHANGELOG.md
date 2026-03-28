@@ -27,6 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequence numbers, followed by a lightweight `FETCH (UID)` to resolve them
   to stable UIDs; all subsequent operations (`FETCH`, `STORE`) continue to
   use the UID form.
+- **IMAP: filter whitespace-only RFC822 responses** — the FETCH extraction
+  loop now checks `email_data.strip()` so that trivially-empty byte payloads
+  (e.g. `\r\n`) returned by servers like T-Online are rejected at the
+  extraction layer rather than being forwarded as empty emails.
+- **Tasks: drop completely empty emails with a warning** — after parsing
+  each fetched email, the processing loop now checks whether the message has
+  no subject, no From header, and no body.  Such emails are silently dropped
+  (logged as `WARNING`, written to the processing log, UID recorded as seen
+  so the message is not retried).  This handles cases where T-Online or
+  other servers emit genuinely empty RFC822 responses that may indicate a
+  server-side bug.
+- **Status page: clear stale IMAP errors after a successful run** — on a
+  successful processing run (`emails_failed == 0`), the account's
+  `last_error_message` and `last_error_at` fields are now cleared.
+  Previously a transient IMAP error would remain visible on the dashboard
+  even after subsequent pulls completed without problems.
 - **Dashboard: fix UTC hour-shift on "Last check" timestamps** — the dashboard
   page was using `new Date(iso)` which treats timezone-naive ISO strings from
   the backend as local time, shifting relative labels (e.g. "1h ago" instead

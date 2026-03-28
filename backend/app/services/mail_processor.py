@@ -396,14 +396,17 @@ class MailProcessor:
                         email_data = line
                         break
 
-                    if email_data:
+                    if email_data and email_data.strip():
                         emails.append(email_data)
                         new_uids.append(uid_str)
                         fetched_uids.append(uid)
                     else:
                         logger.warning(
                             f"No email data extracted for UID {uid_str} on "
-                            f"account {self.account.id}"
+                            f"account {self.account.id} "
+                            f"(raw bytes: {len(email_data) if email_data else 0}); "
+                            "this may indicate a server-side error producing empty "
+                            "IMAP RFC822 responses"
                         )
 
                 except Exception as e:
