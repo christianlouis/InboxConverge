@@ -3,38 +3,44 @@
 import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
-import { mailAccountsApi, processingRunsApi } from '@/lib/api';
+import { mailAccountsApi, MailAccount } from '@/lib/api';
 import Link from 'next/link';
-import { 
-  Mail, 
-  Send, 
-  CheckCircle, 
+import {
+  Mail,
+  Send,
+  CheckCircle,
   AlertCircle,
-  TrendingUp,
-  Clock
+  Clock,
+  XCircle,
+  AlertTriangle,
+  Inbox,
 } from 'lucide-react';
+
+function formatRelative(iso?: string | null): string {
+  if (!iso) return 'Never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   iconColor: string;
-  trend?: string;
 }
 
-function StatCard({ title, value, icon: Icon, iconColor, trend }: StatCardProps) {
+function StatCard({ title, value, icon: Icon, iconColor }: StatCardProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
-          {trend && (
-            <div className="mt-2 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">{trend}</span>
-            </div>
-          )}
         </div>
         <div className={`p-3 rounded-full ${iconColor}`}>
           <Icon className="h-8 w-8 text-white" />
@@ -44,27 +50,78 @@ function StatCard({ title, value, icon: Icon, iconColor, trend }: StatCardProps)
   );
 }
 
+function AccountStatusRow({ account }: { account: MailAccount }) {
+  const hasError = !!account.last_error_message;
+  const lastChecked = account.last_check_at;
+
+  return (
+    <div className="px-5 py-4 border-b border-gray-100 last:border-b-0">
+      <div className="flex items-start justify-between gap-4">
+        {/* Left: name + email */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Inbox className="h-4 w-4 text-blue-400 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{account.name}</p>
+            <p className="text-xs text-gray-400 truncate">{account.email_address}</p>
+          </div>
+        </div>
+
+        {/* Right: status badge + last check */}
+        <div className="text-right shrink-0">
+          {hasError ? (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
+              <XCircle className="h-3.5 w-3.5" />
+              Error
+            </span>
+          ) : lastChecked ? (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600">
+              <CheckCircle className="h-3.5 w-3.5" />
+              OK
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400">
+              <Clock className="h-3.5 w-3.5" />
+              Pending
+            </span>
+          )}
+          <p className="text-xs text-gray-400 mt-0.5">
+            {formatRelative(lastChecked)}
+          </p>
+        </div>
+      </div>
+
+      {/* Error message */}
+      {hasError && (
+        <div className="mt-2 flex items-start gap-1.5 p-2 bg-red-50 border border-red-200 rounded">
+          <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-700 line-clamp-2">{account.last_error_message}</p>
+        </div>
+      )}
+
+      {/* Lifetime counters (only when there's activity) */}
+      {(account.total_emails_processed > 0 || account.total_emails_failed > 0) && (
+        <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+          <span>{account.total_emails_processed.toLocaleString()} processed</span>
+          {account.total_emails_failed > 0 && (
+            <span className="text-red-500">{account.total_emails_failed.toLocaleString()} failed</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const { data: accounts } = useQuery({
+  const { data: accounts, isLoading: accountsLoading } = useQuery({
     queryKey: ['mail-accounts'],
     queryFn: mailAccountsApi.list,
-  });
-
-  const { data: runs, isLoading: runsLoading } = useQuery({
-    queryKey: ['processing-runs'],
-    queryFn: () => processingRunsApi.list({ page: 1, page_size: 10 }),
   });
 
   const stats = {
     totalAccounts: accounts?.length || 0,
     activeAccounts: accounts?.filter((a) => a.is_enabled).length || 0,
-    emailsToday: runs?.items
-      ?.filter((r) => {
-        const today = new Date().toDateString();
-        return new Date(r.started_at).toDateString() === today;
-      })
-      .reduce((sum, r) => sum + r.emails_forwarded, 0) || 0,
-    errors: runs?.items?.filter((r) => r.emails_failed > 0).length || 0,
+    totalProcessed: accounts?.reduce((sum, a) => sum + a.total_emails_processed, 0) || 0,
+    accountsWithErrors: accounts?.filter((a) => !!a.last_error_message).length || 0,
   };
 
   return (
@@ -80,8 +137,8 @@ export default function DashboardPage() {
               iconColor="bg-blue-500"
             />
             <StatCard
-              title="Emails Forwarded Today"
-              value={stats.emailsToday}
+              title="Emails Processed"
+              value={stats.totalProcessed.toLocaleString()}
               icon={Send}
               iconColor="bg-green-500"
             />
@@ -92,101 +149,44 @@ export default function DashboardPage() {
               iconColor="bg-purple-500"
             />
             <StatCard
-              title="Errors"
-              value={stats.errors}
+              title="Accounts with Errors"
+              value={stats.accountsWithErrors}
               icon={AlertCircle}
-              iconColor="bg-red-500"
+              iconColor={stats.accountsWithErrors > 0 ? 'bg-red-500' : 'bg-gray-400'}
             />
           </div>
 
-          {/* Recent Processing Runs */}
+          {/* Mailbox Status Overview */}
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Processing Runs</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Mailbox Status</h3>
               <Link href="/logs" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                View all logs →
+                View activity & history →
               </Link>
             </div>
-            <div className="overflow-x-auto">
-              {runsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : runs && runs.items && runs.items.length > 0 ? (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Account
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Started At
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Fetched
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Forwarded
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Errors
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {runs.items.map((run) => {
-                      const account = accounts?.find((a) => a.id === run.mail_account_id);
-                      return (
-                        <tr key={run.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {run.account_name || account?.name || `Account ${run.mail_account_id}`}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <Clock className="h-4 w-4 mr-1 text-gray-400" />
-                              {new Date(run.started_at).toLocaleString()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                run.status === 'completed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : run.status === 'failed'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}
-                            >
-                              {run.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {run.emails_fetched}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {run.emails_forwarded}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {run.emails_failed > 0 ? (
-                              <span className="text-red-600 font-medium">{run.emails_failed}</span>
-                            ) : (
-                              <span className="text-gray-400">0</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">No processing runs yet</p>
-                </div>
-              )}
-            </div>
+
+            {accountsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              </div>
+            ) : accounts && accounts.length > 0 ? (
+              <div>
+                {accounts.map((account) => (
+                  <AccountStatusRow key={account.id} account={account} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Clock className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+                <p className="text-sm text-gray-500">No mail accounts configured yet.</p>
+                <Link
+                  href="/accounts"
+                  className="mt-3 inline-block text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Add your first account →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </DashboardLayout>

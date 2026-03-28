@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix timezone display in Mailbox Activity / Admin Logs pages: timestamps from the server were parsed as local time when no timezone indicator was present, causing relative times ("1h ago") and absolute dates to be shifted by the client's UTC offset.
 - Worker tasks: use a fresh DB session for `send_user_notification` calls and move notifications after `db.commit()` to prevent the post-rollback `greenlet_spawn` SQLAlchemy error.
 - Worker tasks: ensure `last_check_at` and error status are always committed before notifications, fixing accounts being endlessly re-queued after IMAP auth failures.
+## v0.4.0 (2026-03-28)
+
+### Features
+
+- **dashboard**: Replace per-run table with per-account Mailbox Status view
+  ([`6afd7c8`](https://github.com/christianlouis/InboxConverge/commit/6afd7c871e7c694a93f119aa66f1b798c9b5b2bd))
+
+
+## [Unreleased]
+
+### Changed
+
+- Dashboard "Recent Processing Runs" table replaced with a per-account **Mailbox Status** view: each account now shows its last-check status (OK / Error / Pending), relative last-check time, any error message, and lifetime processed/failed counters. The noisy per-run table is gone; full activity history remains available on the Logs page.
+- Stats cards updated: "Emails Forwarded Today" → "Emails Processed" (all-time total from account records); "Errors" → "Accounts with Errors" (count of accounts currently showing an error).
+### Fixed
+- Provider logos now appear on the Mail Accounts page: `provider_name` is correctly saved when creating accounts via the provider wizard and propagated through backend/frontend schemas.
+- Fetch-emails button now shows a text label ("Fetch"), a descriptive tooltip, a "Fetching…" loading state, and a brief green "Queued!" confirmation after the action completes.
 
 ## v0.3.2 (2026-03-28)
 

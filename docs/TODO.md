@@ -6,6 +6,10 @@ Comprehensive task breakdown for repository improvements and production readines
 
 - [x] Fixed timezone display bug in Mailbox Activity and Admin Logs pages: ISO timestamps without a `Z` suffix were parsed as local time by JavaScript, shifting "Xm ago" / "Xh ago" displays and absolute dates by the client's UTC offset.
 - [x] Fixed worker `send_user_notification` using rolled-back DB session causing `greenlet_spawn has not been called` errors; status/`last_check_at` now always committed before sending notifications via a fresh session.
+- [x] **Dashboard redesign**: Replaced noisy "Recent Processing Runs" table with a per-account "Mailbox Status" view showing last-check status (OK/Error/Pending), relative timestamp, error messages, and lifetime counters. Stats cards updated to show all-time processed count and accounts-with-errors count.
+- [x] **Provider logos now saved on account creation**: `provider_name` field added to `MailAccountCreate` and `MailAccountUpdate` schemas (backend and frontend). `ProviderWizard` now passes `provider_name` in its `onSelect` callback; `AddMailAccountModal` stores it so logos are displayed correctly on the accounts page.
+- [x] **Fetch button UX improvements**: The "fetch emails" button on the accounts page now shows a "Fetch" text label for clarity, a tooltip explaining its purpose, a spinning "Fetching…" state during the API call, and a brief green "Queued!" confirmation after success.
+
 - [x] **Pull Now**: Added "Pull Now" button on Accounts page that immediately queues a `process_mail_account` Celery task via `POST /mail-accounts/{id}/pull-now`. Button shows spinner while in flight and is disabled for inactive accounts.
 - [x] Fixed 21 mypy type errors: `Column[T]` vs native type mismatches in `notification_service.py`, `mail_processor.py`, `auth.py`, `tasks.py`, `providers.py`, `mail_accounts.py`, and `main.py` (`lifespan` parameter rename).
 - [x] **Provider logos rework**: Logos now displayed as full-width banner strips at the top of each account card using `next/image fill + object-contain`. Handles all aspect ratios (1:1 square to 6:1 wordmark) without distortion. Proton Mail added.
