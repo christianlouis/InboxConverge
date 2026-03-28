@@ -26,20 +26,60 @@ const PROVIDER_ICON_MAP: Record<string, string> = {
   'Proton Mail': 'protonmail',
 };
 
+// Fallback: map email domains to SVG icon filenames for accounts without a provider_name
+const DOMAIN_ICON_MAP: Record<string, string> = {
+  // Gmail
+  'gmail.com': 'gmail', 'googlemail.com': 'gmail',
+  // GMX
+  'gmx.de': 'gmx', 'gmx.net': 'gmx', 'gmx.at': 'gmx', 'gmx.ch': 'gmx', 'gmx.com': 'gmx',
+  // WEB.DE
+  'web.de': 'webde',
+  // Outlook / Hotmail
+  'outlook.com': 'outlook', 'hotmail.com': 'outlook', 'live.com': 'outlook',
+  'msn.com': 'outlook', 'outlook.de': 'outlook',
+  // Yahoo Mail
+  'yahoo.com': 'yahoo', 'yahoo.de': 'yahoo', 'yahoo.co.uk': 'yahoo', 'ymail.com': 'yahoo',
+  // AOL Mail
+  'aol.com': 'aol', 'aim.com': 'aol',
+  // T-Online
+  't-online.de': 'tonline',
+  // 1&1 / IONOS
+  'online.de': 'ionos', 'onlinehome.de': 'ionos', '1und1.de': 'ionos',
+  // Freenet
+  'freenet.de': 'freenet',
+  // iCloud Mail
+  'icloud.com': 'icloud', 'me.com': 'icloud', 'mac.com': 'icloud',
+  // Posteo
+  'posteo.de': 'posteo', 'posteo.net': 'posteo',
+  // Proton Mail
+  'proton.me': 'protonmail', 'protonmail.com': 'protonmail',
+  'protonmail.ch': 'protonmail', 'pm.me': 'protonmail',
+};
+
 /**
  * Full-width logo banner rendered at the top of a card.
  * Uses next/image fill + object-contain so every logo – regardless of its
  * native aspect ratio (1:1 square up to ~6:1 wordmark) – fits correctly
  * inside the fixed-height strip without distortion.
+ *
+ * Resolves the icon by first checking provider_name, then falling back to
+ * the email domain so that accounts created without a provider_name still
+ * show the correct logo.
  */
-function ProviderLogoBanner({ providerName }: { providerName?: string | null }) {
-  const icon = providerName ? PROVIDER_ICON_MAP[providerName] : undefined;
+function ProviderLogoBanner({ providerName, email }: { providerName?: string | null; email?: string | null }) {
+  let icon = providerName ? PROVIDER_ICON_MAP[providerName] : undefined;
+  if (!icon && email) {
+    const atIndex = email.lastIndexOf('@');
+    const domain = atIndex !== -1 ? email.slice(atIndex + 1).toLowerCase() : undefined;
+    if (domain) icon = DOMAIN_ICON_MAP[domain];
+  }
   if (!icon) return null;
+  const label = providerName ?? email?.split('@')[1] ?? 'provider';
   return (
     <div className="relative h-16 w-full bg-gray-50 border-b border-gray-100 overflow-hidden">
       <Image
         src={`/providers/${icon}.svg`}
-        alt={`${providerName} logo`}
+        alt={`${label} logo`}
         fill
         unoptimized
         sizes="(max-width: 768px) 100vw, 33vw"
@@ -155,7 +195,7 @@ export default function AccountsPage() {
                   }`}
                 >
                   {/* Provider logo banner – full-width strip that accommodates any aspect ratio */}
-                  <ProviderLogoBanner providerName={account.provider_name} />
+                  <ProviderLogoBanner providerName={account.provider_name} email={account.email_address} />
 
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
