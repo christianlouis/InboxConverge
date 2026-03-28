@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.5 (2026-03-28)
+
+### Bug Fixes
+
+- **ci**: Replace safety scan with pip-audit to fix CI EOF error
+  ([`8152635`](https://github.com/christianlouis/InboxConverge/commit/8152635238ab4167dc3c63b31b4d54d85ace76a2))
+
+
 ## [Unreleased]
 
 ### Fixed
