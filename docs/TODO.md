@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Dashboard redesign**: Replaced noisy "Recent Processing Runs" table with a per-account "Mailbox Status" view showing last-check status (OK/Error/Pending), relative timestamp, error messages, and lifetime counters. Stats cards updated to show all-time processed count and accounts-with-errors count.
 - [x] **Pull Now**: Added "Pull Now" button on Accounts page that immediately queues a `process_mail_account` Celery task via `POST /mail-accounts/{id}/pull-now`. Button shows spinner while in flight and is disabled for inactive accounts.
 - [x] Fixed 21 mypy type errors: `Column[T]` vs native type mismatches in `notification_service.py`, `mail_processor.py`, `auth.py`, `tasks.py`, `providers.py`, `mail_accounts.py`, and `main.py` (`lifespan` parameter rename).
 - [x] **Provider logos rework**: Logos now displayed as full-width banner strips at the top of each account card using `next/image fill + object-contain`. Handles all aspect ratios (1:1 square to 6:1 wordmark) without distortion. Proton Mail added.

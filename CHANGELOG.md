@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Changed
+
+- Dashboard "Recent Processing Runs" table replaced with a per-account **Mailbox Status** view: each account now shows its last-check status (OK / Error / Pending), relative last-check time, any error message, and lifetime processed/failed counters. The noisy per-run table is gone; full activity history remains available on the Logs page.
+- Stats cards updated: "Emails Forwarded Today" → "Emails Processed" (all-time total from account records); "Errors" → "Accounts with Errors" (count of accounts currently showing an error).
+
 ## v0.3.2 (2026-03-28)
 
 ### Bug Fixes
