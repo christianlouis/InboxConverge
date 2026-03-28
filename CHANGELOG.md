@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CI: add `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` env to `ci.yml` to fix Node.js 20 deprecation warnings for `actions/checkout` and `actions/github-script`.
+- CI: fix Codecov upload step — change invalid `file:` input to `files:` for `codecov/codecov-action@v5`.
+- Frontend: replace `<img>` with `<Image />` from `next/image` in `ProviderWizard.tsx` to fix `no-img-element` ESLint errors.
+
 - Fix timezone display in Mailbox Activity / Admin Logs pages: timestamps from the server were parsed as local time when no timezone indicator was present, causing relative times ("1h ago") and absolute dates to be shifted by the client's UTC offset.
 - Worker tasks: use a fresh DB session for `send_user_notification` calls and move notifications after `db.commit()` to prevent the post-rollback `greenlet_spawn` SQLAlchemy error.
 - Worker tasks: ensure `last_check_at` and error status are always committed before notifications, fixing accounts being endlessly re-queued after IMAP auth failures.
