@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sequence numbers, followed by a lightweight `FETCH (UID)` to resolve them
   to stable UIDs; all subsequent operations (`FETCH`, `STORE`) continue to
   use the UID form.
+- **Dashboard: fix UTC hour-shift on "Last check" timestamps** — the dashboard
+  page was using `new Date(iso)` which treats timezone-naive ISO strings from
+  the backend as local time, shifting relative labels (e.g. "1h ago" instead
+  of "Just now") for users outside UTC.  The dashboard now uses the same
+  `parseUTC()` helper that the logs page already applied.  The helper functions
+  `formatRelative`, `formatDate`, and `formatDuration` have been consolidated
+  into `src/lib/date-utils.ts` and are imported by all pages.
 
 ## v0.4.2 (2026-03-28)
 
