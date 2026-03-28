@@ -6,7 +6,7 @@ import { ChevronRight, Mail, ArrowLeft } from 'lucide-react';
 interface ProviderPreset {
   id: string;
   name: string;
-  icon: string;
+  logo: string;
   domains: string[];
   imap_ssl?: { host: string; port: number } | null;
   pop3_ssl?: { host: string; port: number } | null;
@@ -30,7 +30,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'gmail',
     name: 'Gmail',
-    icon: '📧',
+    logo: '/providers/gmail.svg',
     domains: ['gmail.com', 'googlemail.com'],
     imap_ssl: { host: 'imap.gmail.com', port: 993 },
     pop3_ssl: { host: 'pop.gmail.com', port: 995 },
@@ -39,7 +39,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'gmx',
     name: 'GMX',
-    icon: '📮',
+    logo: '/providers/gmx.svg',
     domains: ['gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch', 'gmx.com'],
     imap_ssl: { host: 'imap.gmx.net', port: 993 },
     pop3_ssl: { host: 'pop.gmx.net', port: 995 },
@@ -48,7 +48,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'webde',
     name: 'WEB.DE',
-    icon: '📬',
+    logo: '/providers/webde.svg',
     domains: ['web.de'],
     imap_ssl: { host: 'imap.web.de', port: 993 },
     pop3_ssl: { host: 'pop3.web.de', port: 995 },
@@ -57,7 +57,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'outlook',
     name: 'Outlook / Hotmail',
-    icon: '📨',
+    logo: '/providers/outlook.svg',
     domains: ['outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'outlook.de'],
     imap_ssl: { host: 'outlook.office365.com', port: 993 },
     pop3_ssl: { host: 'outlook.office365.com', port: 995 },
@@ -66,7 +66,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'yahoo',
     name: 'Yahoo Mail',
-    icon: '💌',
+    logo: '/providers/yahoo.svg',
     domains: ['yahoo.com', 'yahoo.de', 'yahoo.co.uk', 'ymail.com'],
     imap_ssl: { host: 'imap.mail.yahoo.com', port: 993 },
     pop3_ssl: { host: 'pop.mail.yahoo.com', port: 995 },
@@ -75,7 +75,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'aol',
     name: 'AOL Mail',
-    icon: '📪',
+    logo: '/providers/aol.svg',
     domains: ['aol.com', 'aim.com'],
     imap_ssl: { host: 'imap.aol.com', port: 993 },
     pop3_ssl: { host: 'pop.aol.com', port: 995 },
@@ -84,7 +84,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'tonline',
     name: 'T-Online',
-    icon: '🇩🇪',
+    logo: '/providers/tonline.svg',
     domains: ['t-online.de'],
     imap_ssl: { host: 'secureimap.t-online.de', port: 993 },
     pop3_ssl: { host: 'securepop.t-online.de', port: 995 },
@@ -93,7 +93,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'ionos',
     name: '1&1 / IONOS',
-    icon: '🌐',
+    logo: '/providers/ionos.svg',
     domains: ['online.de', 'onlinehome.de', '1und1.de'],
     imap_ssl: { host: 'imap.ionos.de', port: 993 },
     pop3_ssl: { host: 'pop.ionos.de', port: 995 },
@@ -102,7 +102,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'freenet',
     name: 'Freenet',
-    icon: '📫',
+    logo: '/providers/freenet.svg',
     domains: ['freenet.de'],
     imap_ssl: { host: 'mx.freenet.de', port: 993 },
     pop3_ssl: { host: 'mx.freenet.de', port: 995 },
@@ -111,7 +111,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'icloud',
     name: 'iCloud Mail',
-    icon: '☁️',
+    logo: '/providers/icloud.svg',
     domains: ['icloud.com', 'me.com', 'mac.com'],
     imap_ssl: { host: 'imap.mail.me.com', port: 993 },
     pop3_ssl: null,
@@ -120,7 +120,7 @@ const PROVIDERS: ProviderPreset[] = [
   {
     id: 'posteo',
     name: 'Posteo',
-    icon: '🌿',
+    logo: '/providers/posteo.svg',
     domains: ['posteo.de', 'posteo.net'],
     imap_ssl: { host: 'posteo.de', port: 993 },
     pop3_ssl: null,
@@ -171,8 +171,9 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
         </button>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-900 mb-2">
-            {selectedProvider.icon} {selectedProvider.name}
+          <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+            <img src={selectedProvider.logo} alt={selectedProvider.name} className="w-6 h-6 object-contain rounded" />
+            {selectedProvider.name}
           </h4>
           <p className="text-sm text-blue-700 mb-1">
             Domains: {selectedProvider.domains.join(', ')}
@@ -247,7 +248,11 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
               onClick={() => handleProviderClick(provider)}
               className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
             >
-              <span className="text-xl">{provider.icon}</span>
+              <img
+                src={provider.logo}
+                alt={provider.name}
+                className="w-6 h-6 object-contain rounded flex-shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">{provider.name}</div>
               </div>

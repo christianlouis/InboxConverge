@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- Outlook circle background -->
+  <circle cx="24" cy="24" r="22" fill="#0078D4"/>
+  <!-- White O ring -->
+  <circle cx="21" cy="24" r="10" fill="white"/>
+  <circle cx="21" cy="24" r="6" fill="#0078D4"/>
+  <!-- Right envelope part -->
+  <rect x="29" y="17" width="13" height="14" rx="1" fill="white" opacity="0.9"/>
+  <path d="M29 18.5l6.5 5 6.5-5" fill="none" stroke="#0078D4" stroke-width="1.5"/>
+</svg>

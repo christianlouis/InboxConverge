@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="6" fill="#2e7d32"/>
+  <!-- Stylised envelope with leaf accent -->
+  <rect x="9" y="16" width="30" height="20" rx="2" fill="none" stroke="white" stroke-width="2"/>
+  <path d="M9 18l15 10 15-10" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Small leaf on top right -->
+  <path d="M35 12 Q39 10 40 14 Q36 15 35 12z" fill="#a5d6a7"/>
+</svg>
