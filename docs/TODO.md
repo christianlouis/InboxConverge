@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] Redesigned user-facing Logs page to mailbox-centric "Mailbox Activity" view: shows last check status per account + only successful pulls, suppressing noise from empty polling cycles.
+- [x] Added `has_emails` filter to `GET /processing-runs` and `GET /mail-accounts/{id}/processing-runs` API endpoints.
 - [x] Rename entire project to **InboxConverge**: all user-visible strings, Docker container/image names, DB defaults, monitoring, and docs updated.
 - [x] Domain updated to `inboxconverge.com`; contact email defaults to `christian@inboxconverge.com`.
 - [x] New configurable env vars: `CONTACT_EMAIL`, `APP_URL`, `NEXT_PUBLIC_APP_NAME`.

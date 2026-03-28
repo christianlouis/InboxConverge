@@ -297,6 +297,10 @@ async def list_account_runs(
     account_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    has_emails: Optional[bool] = Query(
+        None,
+        description="When true, only return runs that fetched at least one email",
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -314,6 +318,8 @@ async def list_account_runs(
         )
 
     base = select(ProcessingRun).where(ProcessingRun.mail_account_id == account_id)
+    if has_emails is True:
+        base = base.where(ProcessingRun.emails_fetched > 0)
     total = (
         await db.execute(select(func.count()).select_from(base.subquery()))
     ).scalar_one()

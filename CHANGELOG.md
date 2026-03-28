@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Mailbox Activity view**: The user-facing "Logs" page has been redesigned to a mailbox-centric
+  layout (renamed "Mailbox Activity"). Each mail account is shown as a card with its last check
+  status and error (if any). Only runs that actually fetched emails are shown in the pull history,
+  eliminating noise from empty polling cycles. This mirrors Gmail's external POP pull UI.
+- **Processing runs filter**: Added `has_emails` query parameter to `GET /processing-runs` and
+  `GET /mail-accounts/{id}/processing-runs`. When `has_emails=true`, only runs with
+  `emails_fetched > 0` are returned, allowing clients to suppress empty polling noise.
+
 ### Fixed
 - **Processing log durations**: Runs that were killed by SIGKILL or failed before updating their
   own status (e.g. missing SMTP credentials) now always record a correct `completed_at` and
