@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dashboard "Recent Processing Runs" table replaced with a per-account **Mailbox Status** view: each account now shows its last-check status (OK / Error / Pending), relative last-check time, any error message, and lifetime processed/failed counters. The noisy per-run table is gone; full activity history remains available on the Logs page.
+- Stats cards updated: "Emails Forwarded Today" → "Emails Processed" (all-time total from account records); "Errors" → "Accounts with Errors" (count of accounts currently showing an error).
 ### Fixed
 - Provider logos now appear on the Mail Accounts page: `provider_name` is correctly saved when creating accounts via the provider wizard and propagated through backend/frontend schemas.
 - Fetch-emails button now shows a text label ("Fetch"), a descriptive tooltip, a "Fetching…" loading state, and a brief green "Queued!" confirmation after the action completes.
