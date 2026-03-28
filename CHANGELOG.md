@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+- Provider logos now appear on the Mail Accounts page: `provider_name` is correctly saved when creating accounts via the provider wizard and propagated through backend/frontend schemas.
+- Fetch-emails button now shows a text label ("Fetch"), a descriptive tooltip, a "Fetching…" loading state, and a brief green "Queued!" confirmation after the action completes.
+
 ## v0.3.2 (2026-03-28)
 
 ### Bug Fixes
