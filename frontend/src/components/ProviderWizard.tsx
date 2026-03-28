@@ -15,6 +15,7 @@ interface ProviderPreset {
 
 interface ProviderConfig {
   name: string;
+  provider_name: string;
   protocol: string;
   host: string;
   port: number;
@@ -160,6 +161,7 @@ export function ProviderWizard({ onSelect, onManual }: ProviderWizardProps) {
 
     onSelect({
       name: selectedProvider.name,
+      provider_name: selectedProvider.name,
       protocol: selectedProtocol === 'imap_ssl' ? 'imap_ssl' : 'pop3_ssl',
       host: config.host,
       port: config.port,

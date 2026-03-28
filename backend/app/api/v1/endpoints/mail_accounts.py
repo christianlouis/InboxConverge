@@ -104,6 +104,7 @@ async def create_mail_account(
         check_interval_minutes=account_in.check_interval_minutes,
         max_emails_per_check=account_in.max_emails_per_check,
         delete_after_forward=account_in.delete_after_forward,
+        provider_name=account_in.provider_name,
     )
 
     db.add(account)

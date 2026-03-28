@@ -95,6 +95,7 @@ export interface MailAccountCreate {
   check_interval_minutes?: number;
   max_emails_per_check?: number;
   delete_after_forward?: boolean;
+  provider_name?: string | null;
 }
 
 export interface MailAccountUpdate {
@@ -113,6 +114,7 @@ export interface MailAccountUpdate {
   check_interval_minutes?: number;
   max_emails_per_check?: number;
   delete_after_forward?: boolean;
+  provider_name?: string | null;
 }
 
 export interface ProcessingRun {
