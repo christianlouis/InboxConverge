@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     providers,
     app_settings,
     logs,
+    version,
 )
 
 api_router = APIRouter()
@@ -38,3 +39,4 @@ api_router.include_router(app_settings.router, prefix="/settings", tags=["Settin
 api_router.include_router(
     logs.router, prefix="/processing-runs", tags=["Processing Logs"]
 )
+api_router.include_router(version.router, prefix="/version", tags=["Version"])

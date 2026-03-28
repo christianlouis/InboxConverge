@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "InboxConverge"
     APP_VERSION: str = "2.0.0"
+    BUILD_DATE: str = ""
     APP_URL: str = "https://inboxconverge.com"
     CONTACT_EMAIL: str = "christian@inboxconverge.com"
     DEBUG: bool = False
