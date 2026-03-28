@@ -5,6 +5,7 @@ Supports both POP3 and IMAP protocols with secure connections.
 
 import asyncio
 import poplib
+import re
 import smtplib
 import ssl
 from email import parser
@@ -271,13 +272,18 @@ class MailProcessor:
         servers to report "Too many invalid IMAP commands" (as seen with
         t-online).  This implementation:
 
-        * Uses ``UID SEARCH``, ``UID FETCH``, and ``UID STORE`` throughout.
+        * Uses a plain ``SEARCH UNSEEN`` to retrieve sequence numbers, then a
+          lightweight ``FETCH (UID)`` to resolve them to stable UIDs.
+          (``aioimaplib``'s ``.uid()`` wrapper does not support ``SEARCH``.)
+        * Uses ``UID FETCH`` and ``UID STORE`` for all subsequent operations.
         * Re-marks already-processed UIDs as \\Seen in a single batch command
           instead of one STORE per message.
         * Relies on the implicit \\Seen flag set by RFC822 FETCH so no
           additional per-message STORE is needed for newly fetched mail.
         * Batches the \\Deleted STORE into a single command when
           ``delete_after_forward`` is enabled.
+        * Uses RFC 3501–compliant parenthesised flag syntax, e.g.
+          ``+FLAGS (\\Seen)``, required by strict servers such as T-Online.
         """
         emails: List[bytes] = []
         new_uids: List[str] = []
@@ -298,8 +304,10 @@ class MailProcessor:
             await imap_client.login(self.account.username, self.password)
             await imap_client.select("INBOX")
 
-            # UID SEARCH returns stable UIDs instead of volatile sequence numbers.
-            response = await imap_client.uid("search", "UNSEEN")
+            # Step 1: Standard sequence-based SEARCH for UNSEEN messages.
+            # aioimaplib's .uid() wrapper explicitly blocks "search", so we
+            # use the plain SEARCH command and resolve to UIDs in step 2.
+            response = await imap_client.search("UNSEEN")
             if (
                 response.result != "OK"
                 or not response.lines
@@ -309,18 +317,36 @@ class MailProcessor:
                 # logout is handled by the finally block below
                 return emails, new_uids
 
-            all_unseen_uids: List[bytes] = response.lines[0].split()
+            seq_nums: List[bytes] = response.lines[0].split()
+            if not seq_nums:
+                logger.info(f"Found 0 unread messages for account {self.account.id}")
+                return emails, new_uids
 
             # Limit to max_count before doing any further work.
-            all_unseen_uids = all_unseen_uids[:max_count]
+            seq_nums = seq_nums[:max_count]
+
+            # Step 2: Resolve sequence numbers to stable UIDs with a
+            # lightweight FETCH (UID) so all subsequent commands are UID-based.
+            seq_string = b",".join(seq_nums).decode()
+            uid_resp = await imap_client.fetch(seq_string, "(UID)")
+
+            # Step 3: Parse UIDs from response lines.
+            # Each line looks like: b'1 (UID 42)'
+            all_unseen_uids: List[bytes] = []
+            for line in uid_resp.lines:
+                if isinstance(line, bytes):
+                    m = re.search(rb"\bUID\s+(\d+)", line)
+                    if m:
+                        all_unseen_uids.append(m.group(1))
 
             logger.info(
                 f"Found {len(all_unseen_uids)} unread messages for account "
                 f"{self.account.id}"
             )
 
-            # Split into stale UIDs (already in our DB but still UNSEEN on the
-            # server — e.g. a previous STORE failed) and genuinely new UIDs.
+            # Step 4: Split into stale UIDs (already in our DB but still
+            # UNSEEN on the server — e.g. a previous STORE failed) and
+            # genuinely new UIDs.
             stale_uid_bytes: List[bytes] = []
             uids_to_fetch: List[bytes] = []
             for uid in all_unseen_uids:
@@ -333,10 +359,11 @@ class MailProcessor:
             # Re-mark stale UIDs as \Seen in a single batch STORE command so
             # they stop appearing in UNSEEN searches without consuming one
             # round-trip per message.
+            # RFC 3501 requires parentheses around flag names: +FLAGS (\Seen).
             if stale_uid_bytes:
                 uid_set = b",".join(stale_uid_bytes).decode()
                 try:
-                    await imap_client.uid("store", uid_set, "+FLAGS", "\\Seen")
+                    await imap_client.uid("store", uid_set, "+FLAGS", "(\\Seen)")
                 except Exception as e:
                     logger.warning(
                         f"Failed to re-mark stale messages as \\Seen for account "
@@ -387,10 +414,11 @@ class MailProcessor:
 
             # Batch-mark fetched messages for deletion if configured (one STORE
             # command covers all UIDs instead of N individual commands).
+            # RFC 3501 requires parentheses around flag names: +FLAGS (\Deleted).
             if self.account.delete_after_forward and fetched_uids:
                 uid_set = b",".join(fetched_uids).decode()
                 try:
-                    await imap_client.uid("store", uid_set, "+FLAGS", "\\Deleted")
+                    await imap_client.uid("store", uid_set, "+FLAGS", "(\\Deleted)")
                     await imap_client.expunge()
                 except Exception as e:
                     logger.warning(

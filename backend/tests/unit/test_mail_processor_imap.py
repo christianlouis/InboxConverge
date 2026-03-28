@@ -1,11 +1,14 @@
 """
-Unit tests for the UID-based IMAP fetch logic in MailProcessor.
+Unit tests for the IMAP fetch logic in MailProcessor.
 
 These tests verify that _fetch_imap_emails:
-  - Uses UID SEARCH / UID FETCH / UID STORE commands (not sequence numbers)
+  - Uses a plain SEARCH UNSEEN (not uid("search")) to get sequence numbers
+  - Resolves sequence numbers to UIDs via a lightweight FETCH (UID)
+  - Uses UID FETCH / UID STORE for all subsequent operations
   - Batches stale-UID re-marking into a single STORE command
   - Does NOT issue a per-message STORE for Seen (RFC822 sets it implicitly)
   - Batches Deleted STORE into a single command when delete_after_forward=True
+  - Uses RFC 3501 parenthesised flag syntax, e.g. +FLAGS (\\Seen)
   - Handles an empty UNSEEN result without error
   - Handles individual message fetch failures gracefully
   - Always attempts logout in the finally block
@@ -61,6 +64,18 @@ def _make_fetch_response(uid_str: str, email_bytes: bytes):
     return _make_imap_response(result="OK", lines=[header, email_bytes, b")"])
 
 
+def _make_uid_list_response(seq_uid_pairs):
+    """
+    Simulate the response from fetch(seq_string, "(UID)").
+
+    seq_uid_pairs is a list of (seq_num_str, uid_str) tuples. Each entry
+    produces a line like b'1 (UID 42)' which the production code parses with
+    a regex.
+    """
+    lines = [f"{seq} (UID {uid})".encode() for seq, uid in seq_uid_pairs]
+    return _make_imap_response(result="OK", lines=lines)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -83,13 +98,15 @@ class TestFetchImapEmailsUidCommands:
         client.wait_hello_from_server = AsyncMock()
         client.login = AsyncMock()
         client.select = AsyncMock()
+        client.search = AsyncMock()
+        client.fetch = AsyncMock()
         client.uid = AsyncMock()
         client.logout = AsyncMock()
         return client
 
-    async def test_uses_uid_search_not_plain_search(self, processor, mock_imap):
-        """SEARCH should be issued as UID SEARCH UNSEEN."""
-        mock_imap.uid.return_value = _make_imap_response(result="OK", lines=[b""])
+    async def test_uses_plain_search_not_uid_search(self, processor, mock_imap):
+        """SEARCH must be issued as a plain SEARCH UNSEEN, not via uid()."""
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b""])
 
         with patch(
             "app.services.mail_processor.aioimaplib.IMAP4_SSL",
@@ -97,13 +114,17 @@ class TestFetchImapEmailsUidCommands:
         ):
             await processor._fetch_imap_emails(10, set())
 
-        # uid("search", "UNSEEN") must be the first uid() call
-        first_uid_call = mock_imap.uid.call_args_list[0]
-        assert first_uid_call == call("search", "UNSEEN")
+        # search("UNSEEN") must be called
+        mock_imap.search.assert_awaited_once_with("UNSEEN")
+        # uid("search", ...) must NOT be called
+        search_uid_calls = [
+            c for c in mock_imap.uid.call_args_list if c.args[0] == "search"
+        ]
+        assert search_uid_calls == []
 
     async def test_no_messages_returns_empty(self, processor, mock_imap):
         """Empty UNSEEN result should return empty lists without error."""
-        mock_imap.uid.return_value = _make_imap_response(result="OK", lines=[b""])
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b""])
 
         with patch(
             "app.services.mail_processor.aioimaplib.IMAP4_SSL",
@@ -117,13 +138,13 @@ class TestFetchImapEmailsUidCommands:
     async def test_fetches_new_message_via_uid_fetch(self, processor, mock_imap):
         """New messages should be fetched with UID FETCH, not plain FETCH."""
         raw_email = b"From: sender@example.com\r\nSubject: Test\r\n\r\nBody"
-        uid = b"42"
+
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"42"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("42", "42")])
 
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[uid])
             if command == "fetch":
-                return _make_fetch_response(uid.decode(), raw_email)
+                return _make_fetch_response(args[0], raw_email)
             return _make_imap_response()
 
         mock_imap.uid = AsyncMock(side_effect=uid_side_effect)
@@ -145,11 +166,15 @@ class TestFetchImapEmailsUidCommands:
     async def test_no_per_message_store_for_seen(self, processor, mock_imap):
         """RFC822 implicitly marks \\Seen; no extra STORE per message is needed."""
         raw_email = b"From: a@b.com\r\n\r\nHello"
-        uids = b"10 11 12"
+
+        mock_imap.search.return_value = _make_imap_response(
+            result="OK", lines=[b"10 11 12"]
+        )
+        mock_imap.fetch.return_value = _make_uid_list_response(
+            [("10", "10"), ("11", "11"), ("12", "12")]
+        )
 
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[uids])
             if command == "fetch":
                 uid_str = args[0]
                 return _make_fetch_response(uid_str, raw_email)
@@ -175,9 +200,10 @@ class TestFetchImapEmailsUidCommands:
         # Two messages: one stale (already in DB), one new
         raw_email = b"From: x@y.com\r\n\r\nNew mail"
 
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"5 6"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("5", "5"), ("6", "6")])
+
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[b"5 6"])
             if command == "fetch":
                 return _make_fetch_response(args[0], raw_email)
             return _make_imap_response()
@@ -197,16 +223,20 @@ class TestFetchImapEmailsUidCommands:
         assert len(emails) == 1
 
         store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
-        # Exactly one STORE for the stale UID
+        # Exactly one STORE for the stale UID with RFC 3501 parenthesised syntax
         assert len(store_calls) == 1
-        assert store_calls[0] == call("store", "5", "+FLAGS", "\\Seen")
+        assert store_calls[0] == call("store", "5", "+FLAGS", "(\\Seen)")
 
     async def test_multiple_stale_uids_batched_together(self, processor, mock_imap):
         """Multiple stale UIDs should be sent as a comma-separated set."""
+        mock_imap.search.return_value = _make_imap_response(
+            result="OK", lines=[b"1 2 3 4"]
+        )
+        mock_imap.fetch.return_value = _make_uid_list_response(
+            [("1", "1"), ("2", "2"), ("3", "3"), ("4", "4")]
+        )
 
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[b"1 2 3 4"])
             if command == "fetch":
                 return _make_fetch_response(args[0], b"email data")
             return _make_imap_response()
@@ -225,6 +255,8 @@ class TestFetchImapEmailsUidCommands:
         uid_set_arg = store_calls[0].args[1]
         parts = set(uid_set_arg.split(","))
         assert parts == {"1", "2"}
+        # RFC 3501 parenthesised flag syntax
+        assert store_calls[0].args[3] == "(\\Seen)"
 
     async def test_delete_after_forward_uses_single_batch_store(self):
         """delete_after_forward=True must issue one UID STORE \\Deleted command."""
@@ -239,10 +271,14 @@ class TestFetchImapEmailsUidCommands:
         mock_imap.select = AsyncMock()
         mock_imap.expunge = AsyncMock()
         mock_imap.logout = AsyncMock()
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response(result="OK", lines=[b"7 8"])
+        )
+        mock_imap.fetch = AsyncMock(
+            return_value=_make_uid_list_response([("7", "7"), ("8", "8")])
+        )
 
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[b"7 8"])
             if command == "fetch":
                 return _make_fetch_response(args[0], b"raw email")
             return _make_imap_response()
@@ -264,7 +300,8 @@ class TestFetchImapEmailsUidCommands:
         parts = set(uid_set_arg.split(","))
         assert parts == {"7", "8"}
         assert store_calls[0].args[2] == "+FLAGS"
-        assert store_calls[0].args[3] == "\\Deleted"
+        # RFC 3501 parenthesised flag syntax
+        assert store_calls[0].args[3] == "(\\Deleted)"
         # expunge must also be called
         mock_imap.expunge.assert_awaited_once()
 
@@ -272,11 +309,16 @@ class TestFetchImapEmailsUidCommands:
         """A single message fetch error should be logged but not stop processing."""
         raw_email = b"From: ok@example.com\r\n\r\nOK"
 
+        mock_imap.search.return_value = _make_imap_response(
+            result="OK", lines=[b"20 21"]
+        )
+        mock_imap.fetch.return_value = _make_uid_list_response(
+            [("20", "20"), ("21", "21")]
+        )
+
         call_count = {"count": 0}
 
         def uid_side_effect(command, *args):
-            if command == "search":
-                return _make_imap_response(result="OK", lines=[b"20 21"])
             if command == "fetch":
                 call_count["count"] += 1
                 if call_count["count"] == 1:
@@ -298,7 +340,7 @@ class TestFetchImapEmailsUidCommands:
 
     async def test_logout_called_even_on_connection_error(self, processor, mock_imap):
         """logout() must be attempted even when the connection drops mid-session."""
-        mock_imap.uid = AsyncMock(side_effect=Exception("BYE server gone"))
+        mock_imap.search = AsyncMock(side_effect=Exception("BYE server gone"))
 
         with patch(
             "app.services.mail_processor.aioimaplib.IMAP4_SSL",
@@ -313,7 +355,7 @@ class TestFetchImapEmailsUidCommands:
 
     async def test_logout_failure_does_not_mask_error(self, processor, mock_imap):
         """If logout itself raises, the original MailFetchError should propagate."""
-        mock_imap.uid = AsyncMock(side_effect=Exception("server gone"))
+        mock_imap.search = AsyncMock(side_effect=Exception("server gone"))
         mock_imap.logout = AsyncMock(side_effect=Exception("logout also failed"))
 
         with patch(
@@ -329,10 +371,15 @@ class TestFetchImapEmailsUidCommands:
         """Only max_count messages should be processed."""
         raw_email = b"From: a@b.com\r\n\r\nHi"
 
+        mock_imap.search.return_value = _make_imap_response(
+            result="OK", lines=[b"1 2 3 4 5"]
+        )
+        # After max_count=3, only seq 1,2,3 are resolved to UIDs
+        mock_imap.fetch.return_value = _make_uid_list_response(
+            [("1", "1"), ("2", "2"), ("3", "3")]
+        )
+
         def uid_side_effect(command, *args):
-            if command == "search":
-                # 5 messages available
-                return _make_imap_response(result="OK", lines=[b"1 2 3 4 5"])
             if command == "fetch":
                 return _make_fetch_response(args[0], raw_email)
             return _make_imap_response()
@@ -347,6 +394,8 @@ class TestFetchImapEmailsUidCommands:
 
         assert len(emails) == 3
         assert new_uids == ["1", "2", "3"]
+        # fetch for UIDs should have been called with the first 3 seq numbers
+        mock_imap.fetch.assert_awaited_once_with("1,2,3", "(UID)")
 
     async def test_plain_imap_uses_imap4_not_ssl(self):
         """Non-SSL IMAP accounts must use IMAP4, not IMAP4_SSL."""
@@ -360,6 +409,9 @@ class TestFetchImapEmailsUidCommands:
         mock_imap.login = AsyncMock()
         mock_imap.select = AsyncMock()
         mock_imap.logout = AsyncMock()
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response(result="OK", lines=[b""])
+        )
         mock_imap.uid = AsyncMock(
             return_value=_make_imap_response(result="OK", lines=[b""])
         )
