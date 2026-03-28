@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.3.2 (2026-03-28)
+
+### Bug Fixes
+
+- Resolve 21 mypy type errors across backend modules
+  ([`0698eca`](https://github.com/christianlouis/InboxConverge/commit/0698eca62835d498135137176f4df7d0572cd033))
+
+
 ## v0.3.1 (2026-03-28)
 
 ### Bug Fixes
