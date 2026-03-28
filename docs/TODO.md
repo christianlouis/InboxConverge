@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Security: upgrade fastapi/starlette and fix safety CI command** — Upgraded `fastapi` to `0.135.2` (pulls in `starlette>=1.0.0`) fixing 4 DoS CVEs in `starlette<=0.35.1`; replaced deprecated `safety check` with `safety scan`; added `.safety-policy.yml` to suppress unfixable `ecdsa` side-channel CVEs (maintainers won't fix).
 - [x] **CI pipeline fixes**: Added `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` to `ci.yml` (Node.js 20 deprecation), fixed Codecov `file:` → `files:` invalid input, replaced `<img>` with `<Image />` from `next/image` in `ProviderWizard.tsx` (ESLint no-img-element).
 - [x] **IMAP reliability: switched to UID-based commands** — `_fetch_imap_emails` now uses `UID SEARCH`, `UID FETCH`, and `UID STORE` throughout.  Sequence numbers are volatile (they shift on expunge), causing "Too many invalid IMAP commands" on strict servers (e.g. T-Online).  UIDs are stable.  The per-message `STORE +FLAGS \Seen` (redundant — RFC822 sets it implicitly) and per-message `STORE +FLAGS \Deleted` are replaced with single batch commands.  Stale already-seen UIDs are re-marked `\Seen` in one command.  Logout is now in a `finally` block so a mid-session `BYE` is handled gracefully.
 - [x] Fixed timezone display bug in Mailbox Activity and Admin Logs pages: ISO timestamps without a `Z` suffix were parsed as local time by JavaScript, shifting "Xm ago" / "Xh ago" displays and absolute dates by the client's UTC offset.
