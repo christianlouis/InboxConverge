@@ -183,18 +183,18 @@ class MailProcessor:
                 if self.account.protocol == MailProtocol.POP3_SSL:
                     context = ssl.create_default_context()
                     pop_conn = poplib.POP3_SSL(
-                        self.account.host,
-                        self.account.port,
+                        str(self.account.host),
+                        int(self.account.port),
                         context=context,
                         timeout=30,
                     )
                 else:
-                    pop_conn = poplib.POP3(
-                        self.account.host, self.account.port, timeout=30
+                    pop_conn = poplib.POP3(  # type: ignore[assignment]
+                        str(self.account.host), int(self.account.port), timeout=30
                     )
 
                 # Authenticate
-                pop_conn.user(self.account.username)
+                pop_conn.user(str(self.account.username))
                 pop_conn.pass_(self.password)
 
                 # Retrieve UIDL map: {msg_number: uid_string}

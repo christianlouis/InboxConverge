@@ -153,13 +153,13 @@ async def login(
 
     # Domain restriction — superusers always bypass
     if not user.is_superuser:
-        _check_domain_allowed(user.email)
+        _check_domain_allowed(str(user.email))
 
     # Update last login
     user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
     # Auto-promote to superuser if this is the configured admin email
-    if not user.is_superuser and _is_admin_email(user.email):
+    if not user.is_superuser and _is_admin_email(str(user.email)):
         user.is_superuser = True  # type: ignore[assignment]
         logger.info(f"Auto-promoted admin user: {user.email}")
 
