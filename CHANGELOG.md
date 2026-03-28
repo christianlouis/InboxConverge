@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Convert `frontend/jest.config.js` to `jest.config.mjs` using ES module `import`/`export` syntax to resolve ESLint `@typescript-eslint/no-require-imports` error.
+- Suppress noisy `ignored untagged response` INFO log lines from `aioimaplib` in Celery workers by setting the `aioimaplib` logger to WARNING level in `celery_app.py`.
+- Eliminate `file_cache is only supported with oauth2client<4.0.0` warnings by passing `cache_discovery=False` to `googleapiclient.discovery.build()` in `gmail_service.py`.
 
 ## v0.5.0 (2026-03-28)
 

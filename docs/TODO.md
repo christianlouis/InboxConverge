@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Log noise reduction**: Suppressed `ignored untagged response` INFO messages from `aioimaplib` in Celery workers (set logger to WARNING). Eliminated repeated `file_cache is only supported with oauth2client<4.0.0` warnings from the Gmail API client by passing `cache_discovery=False` to `googleapiclient.discovery.build()`.
 - [x] **ESLint fix**: Converted `frontend/jest.config.js` to `jest.config.mjs` (ES module syntax) to resolve `@typescript-eslint/no-require-imports` lint error.
 - [x] **Codecov integration**: Added Codecov coverage reporting with `CODECOV_TOKEN` authentication. Set up Jest for frontend tests with lcov coverage, updated CI to collect and upload both backend (XML via pytest-cov) and frontend (lcov via Jest) coverage reports to Codecov with separate `backend` and `frontend` flags.
 - [x] **IMAP: fix all emails appearing empty** — `aioimaplib` stores RFC822 literal data as `bytearray`, not `bytes`. The extraction loop was checking `isinstance(line, bytes)` which returns `False` for `bytearray`, so every email body was silently skipped. Fixed to accept both types and convert to `bytes`. Affected T-Online, GMX, and all IMAP accounts.
