@@ -158,7 +158,7 @@ jobs:
         continue-on-error: true
 
       - name: Check dependencies for known vulnerabilities
-        run: safety check --json
+        run: safety scan --json
         continue-on-error: true
 
   # ── Phase 4: Build ─────────────────────────────────────────────────────

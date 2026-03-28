@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Upgraded `fastapi` from `0.109.1` to `0.135.2`, pulling in `starlette>=1.0.0` and fixing 4 Denial-of-Service vulnerabilities present in `starlette<=0.35.1`.
+- Updated CI security scan command from deprecated `safety check` to `safety scan`.
+- Added `.safety-policy.yml` to document and suppress the two unfixable `ecdsa` side-channel CVEs (64396, 64459) that the upstream maintainers have acknowledged cannot be resolved in pure Python.
 ### Fixed
 
 - **IMAP: fix T-Online BYE "Too many invalid IMAP commands"** — `UID STORE` flag

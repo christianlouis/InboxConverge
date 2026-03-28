@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Security: upgrade fastapi/starlette and fix safety CI command** — Upgraded `fastapi` to `0.135.2` (pulls in `starlette>=1.0.0`) fixing 4 DoS CVEs in `starlette<=0.35.1`; replaced deprecated `safety check` with `safety scan`; added `.safety-policy.yml` to suppress unfixable `ecdsa` side-channel CVEs (maintainers won't fix).
 - [x] **IMAP RFC 3501 flag syntax & aioimaplib UID SEARCH fix**: `_fetch_imap_emails`
   now uses a plain `SEARCH UNSEEN` + `FETCH (UID)` to resolve sequence numbers to
   stable UIDs (aioimaplib blocks `uid("search")`), and wraps all flag names in

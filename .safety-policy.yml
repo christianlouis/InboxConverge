@@ -1,0 +1,22 @@
+# Safety policy configuration
+# See: https://docs.safetycli.com/safety-docs/safety-policy-file
+
+version: "3.0"
+
+security:
+  ignore-cvss-severity-below: 0
+  ignore-cvss-unknown-severity: false
+  ignore-vulnerabilities:
+    # ecdsa CVE: side-channel / Minerva attack (CVE-64396, CVE-64459)
+    # The ecdsa maintainers have explicitly stated that these vulnerabilities
+    # cannot be fixed in pure Python. ecdsa is a transitive dependency of
+    # python-jose[cryptography], which is used only for JWT token
+    # verification/signing – a context where precise timing side-channels
+    # are not exploitable by remote attackers. The 'cryptography' package
+    # (already installed) handles all sensitive key operations.
+    64396:
+      reason: "ecdsa side-channel (Minerva) — unfixable in pure Python per maintainers; not exploitable in our JWT-signing context"
+      expires: "2027-01-01"
+    64459:
+      reason: "ecdsa side-channel attack — unfixable in pure Python per maintainers; not exploitable in our JWT-signing context"
+      expires: "2027-01-01"
