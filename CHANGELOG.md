@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.3.1 (2026-03-28)
+
+### Bug Fixes
+
+- Test connection always showed success; add per-account test endpoint
+  ([`441e8b5`](https://github.com/christianlouis/InboxConverge/commit/441e8b54e958686fe52414393d715a18dfcda77c))
+
+
 ## v0.3.0 (2026-03-28)
 
 ### Features
