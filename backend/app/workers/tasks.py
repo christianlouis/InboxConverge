@@ -510,8 +510,8 @@ async def process_all_enabled_accounts():
             for account in accounts:
                 # Check if it's time to check this account
                 if account.last_check_at:
-                    time_since_last_check = (
-                        datetime.now(timezone.utc) - account.last_check_at
+                    time_since_last_check = datetime.now(timezone.utc) - _as_utc(
+                        account.last_check_at
                     )
                     if time_since_last_check.total_seconds() < (
                         account.check_interval_minutes * 60

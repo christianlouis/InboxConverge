@@ -36,7 +36,9 @@ celery_app.conf.update(
 celery_app.conf.beat_schedule = {
     "process-all-mail-accounts": {
         "task": "app.workers.tasks.process_all_enabled_accounts",
-        "schedule": crontab(minute="*/5"),  # Every 5 minutes
+        "schedule": crontab(
+            minute="*"
+        ),  # Every minute (per-account interval gates actual work)
     },
     "cleanup-old-logs": {
         "task": "app.workers.tasks.cleanup_old_logs",

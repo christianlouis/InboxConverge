@@ -28,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `duration_seconds`. The error handler no longer accesses an expired SQLAlchemy ORM attribute
   (`run.started_at`) after a session rollback, which previously caused the handler to crash and
   left runs stuck in the `running` state indefinitely.
+- **Celery datetime crash**: Fixed `TypeError: can't subtract offset-naive and offset-aware
+  datetimes` in `process_all_enabled_accounts` by wrapping `account.last_check_at` with the
+  existing `_as_utc()` helper before comparing against `datetime.now(timezone.utc)`. This
+  crash silently prevented every mail account from being processed on every scheduled run.
+- **Per-account polling interval**: Changed the Celery beat schedule for
+  `process_all_enabled_accounts` from every 5 minutes (`*/5`) to every minute (`*`). The
+  per-account `check_interval_minutes` field already gates whether an account actually gets
+  processed, so accounts configured with a 1-minute interval are now polled as expected instead
+  of being limited to 5-minute effective intervals.
 - **Processing log early-exit path**: When a mail account has no delivery method configured
   (SMTP credentials missing and Gmail API not set up), the processing run now correctly sets
   `completed_at`, `duration_seconds`, and `account.last_check_at`, preventing the account from
