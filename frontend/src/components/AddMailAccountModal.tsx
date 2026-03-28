@@ -116,6 +116,18 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     }
   };
 
+  const extractErrorMessage = (error: unknown, fallback: string): string => {
+    interface FastAPIValidationError { msg: string; loc?: unknown[]; type?: string }
+    const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      const msgs = (detail as FastAPIValidationError[]).map((d) => d?.msg ?? JSON.stringify(d));
+      return msgs.join('; ');
+    }
+    if (error instanceof Error && error.message) return error.message;
+    return fallback;
+  };
+
   const handleTestConnection = async () => {
     setTestStatus('testing');
     setTestMessage('');
@@ -150,10 +162,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
       }
     } catch (error) {
       setTestStatus('error');
-      const errorMessage = error instanceof Error && 'response' in error
-        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-        : null;
-      setTestMessage(errorMessage || 'Connection failed');
+      setTestMessage(extractErrorMessage(error, 'Connection failed'));
     }
   };
 
@@ -188,10 +197,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
         await createMutation.mutateAsync(formData);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error && 'response' in error
-        ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-        : null;
-      alert(errorMessage || 'Failed to save account');
+      alert(extractErrorMessage(error, 'Failed to save account'));
     }
   };
 
