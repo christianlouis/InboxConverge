@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+
+- Convert `frontend/jest.config.js` to `jest.config.mjs` using ES module `import`/`export` syntax to resolve ESLint `@typescript-eslint/no-require-imports` error.
+
 ## v0.5.0 (2026-03-28)
 
 ### Features
