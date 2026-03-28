@@ -204,6 +204,7 @@ async def process_mail_account(account_id: int):
                     return
 
             successfully_forwarded_uids: list[str] = []
+            skipped_empty_uids: list[str] = []
 
             if len(emails) != len(new_uids):
                 logger.error(
@@ -237,6 +238,55 @@ async def process_mail_account(account_id: int):
                 email_size_bytes = len(email_data)
                 forwarded_ok = False
                 error_msg: str | None = None
+
+                # ── Detect completely empty emails ───────────────────────────
+                # T-Online (and potentially other servers) may return empty
+                # RFC822 responses.  An email with no subject, no sender and no
+                # body provides no value and should not be forwarded.  We log a
+                # warning (it may indicate a server-side bug) and skip the
+                # message while still recording its UID so it is not retried.
+                if not email_subject and not email_from:
+                    body_has_content = False
+                    try:
+                        if msg.is_multipart():  # type: ignore[possibly-undefined]
+                            for part in msg.walk():
+                                payload = part.get_payload(decode=True)
+                                if isinstance(payload, bytes) and payload.strip():
+                                    body_has_content = True
+                                    break
+                        else:
+                            payload = msg.get_payload(decode=True)  # type: ignore[possibly-undefined]
+                            body_has_content = isinstance(payload, bytes) and bool(
+                                payload.strip()
+                            )
+                    except Exception:
+                        pass
+
+                    if not body_has_content:
+                        logger.warning(
+                            "Dropping completely empty email (uid=%s, account=%s, "
+                            "size=%d bytes) — no subject, sender, or body; "
+                            "this may indicate a server-side error.",
+                            uid,
+                            account.id,
+                            email_size_bytes,
+                        )
+                        skipped_empty_uids.append(uid)
+                        db.add(
+                            ProcessingLog(
+                                user_id=account.user_id,
+                                mail_account_id=account.id,
+                                processing_run_id=run.id,
+                                level="WARNING",
+                                message="Dropped empty email (no subject, sender, or body)",
+                                email_subject=None,
+                                email_from=None,
+                                email_size_bytes=email_size_bytes,
+                                success=False,
+                                error_details={"reason": "empty_email"},
+                            )
+                        )
+                        continue
 
                 try:
                     if use_gmail_api and gmail_service and gmail_cred:
@@ -331,6 +381,17 @@ async def process_mail_account(account_id: int):
                         )
                     )
 
+            # Also persist UIDs of dropped empty emails so they are not
+            # re-fetched and re-evaluated on the next run.
+            for uid in skipped_empty_uids:
+                if uid not in already_seen_uids:
+                    db.add(
+                        DownloadedMessageId(
+                            mail_account_id=account.id,
+                            message_uid=uid,
+                        )
+                    )
+
             # If Gmail API was used, persist any refreshed access token back to
             # the DB so the next run doesn't need an extra token-refresh call.
             if use_gmail_api and gmail_service and gmail_cred:
@@ -361,6 +422,8 @@ async def process_mail_account(account_id: int):
             if emails_failed == 0:
                 account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
                 account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
+                account.last_error_message = None  # type: ignore[assignment]
+                account.last_error_at = None  # type: ignore[assignment]
             else:
                 account.status = AccountStatus.ERROR  # type: ignore[assignment]
                 account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]

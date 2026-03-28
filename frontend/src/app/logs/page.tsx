@@ -5,7 +5,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
 import { processingRunsApi, mailAccountsApi, MailAccount, ProcessingRun, ProcessingLog } from '@/lib/api';
-import { parseUTC } from '@/lib/date-utils';
+import { formatRelative, formatDate, formatDuration } from '@/lib/date-utils';
 import {
   Inbox,
   ChevronLeft,
@@ -18,31 +18,6 @@ import {
   ChevronUp,
   AlertTriangle,
 } from 'lucide-react';
-
-function formatRelative(iso?: string | null): string {
-  if (!iso) return 'Never';
-  const diff = Date.now() - parseUTC(iso).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function formatDate(iso: string): string {
-  return parseUTC(iso).toLocaleString(undefined, {
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  });
-}
-
-function formatDuration(seconds?: number | null): string {
-  if (seconds == null) return '—';
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const totalSecs = Math.floor(seconds);
-  return `${Math.floor(totalSecs / 60)}m ${totalSecs % 60}s`;
-}
 
 function RunDetailRow({ run }: { run: ProcessingRun }) {
   const [expanded, setExpanded] = useState(false);

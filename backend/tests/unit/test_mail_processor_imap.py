@@ -422,3 +422,60 @@ class TestFetchImapEmailsUidCommands:
         ) as mock_cls:
             await processor._fetch_imap_emails(10, set())
             mock_cls.assert_called_once()
+
+    async def test_whitespace_only_rfc822_body_is_skipped(self, processor, mock_imap):
+        """A UID FETCH that returns only whitespace bytes must not be added to results.
+
+        T-Online (and potentially other servers) can return RFC822 responses
+        whose body is just CR LF or other whitespace.  The extraction loop
+        must treat these as absent email data, not as a valid message.
+        """
+        # Simulate a server that returns b"\r\n" instead of real email bytes
+        whitespace_response = _make_imap_response(
+            result="OK",
+            lines=[b"1 (UID 99 RFC822 {2}", b"\r\n", b")"],
+        )
+
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"99"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("99", "99")])
+
+        mock_imap.uid = AsyncMock(
+            side_effect=lambda cmd, *args: (
+                whitespace_response if cmd == "fetch" else _make_imap_response()
+            )
+        )
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        # Whitespace-only response must not produce a message
+        assert emails == []
+        assert new_uids == []
+
+    async def test_empty_bytes_rfc822_body_is_skipped(self, processor, mock_imap):
+        """A UID FETCH that returns b'' as the body must not be added to results."""
+        empty_response = _make_imap_response(
+            result="OK",
+            lines=[b"1 (UID 77 RFC822 {0}", b"", b")"],
+        )
+
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"77"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("77", "77")])
+
+        mock_imap.uid = AsyncMock(
+            side_effect=lambda cmd, *args: (
+                empty_response if cmd == "fetch" else _make_imap_response()
+            )
+        )
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        assert emails == []
+        assert new_uids == []

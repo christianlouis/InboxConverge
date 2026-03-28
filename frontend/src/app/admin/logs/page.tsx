@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { adminApi, AdminProcessingRun } from '@/lib/api';
-import { parseUTC } from '@/lib/date-utils';
+import { formatDate, formatDuration } from '@/lib/date-utils';
 import {
   Activity,
   ChevronLeft,
@@ -24,19 +24,6 @@ const STATUS_STYLES: Record<string, string> = {
   partial_failure: 'bg-yellow-100 text-yellow-800',
   running: 'bg-blue-100 text-blue-800',
 };
-
-function formatDuration(seconds?: number | null): string {
-  if (seconds == null) return '—';
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-}
-
-function formatDate(iso: string): string {
-  return parseUTC(iso).toLocaleString(undefined, {
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  });
-}
 
 export default function AdminLogsPage() {
   const { user } = useAuthStore();
