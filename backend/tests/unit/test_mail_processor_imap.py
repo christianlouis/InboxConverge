@@ -479,3 +479,70 @@ class TestFetchImapEmailsUidCommands:
 
         assert emails == []
         assert new_uids == []
+
+    async def test_bytearray_literal_data_is_accepted(self, processor, mock_imap):
+        """aioimaplib stores IMAP literal data as bytearray, not bytes.
+
+        This is the root cause of emails appearing empty on IMAP servers such
+        as T-Online and GMX: the extraction loop previously skipped bytearray
+        objects because ``isinstance(bytearray(...), bytes)`` is False.
+
+        The fix accepts both bytes and bytearray and converts to bytes so the
+        rest of the pipeline receives plain bytes as expected.
+        """
+        raw_email = b"From: user@t-online.de\r\nSubject: Real email\r\n\r\nBody"
+        # aioimaplib returns the RFC822 literal as bytearray in response.lines
+        bytearray_response = _make_imap_response(
+            result="OK",
+            lines=[
+                b"1 (UID 55 RFC822 {%d}" % len(raw_email),
+                bytearray(raw_email),
+                b")",
+            ],
+        )
+
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"55"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("55", "55")])
+
+        mock_imap.uid = AsyncMock(
+            side_effect=lambda cmd, *args: (
+                bytearray_response if cmd == "fetch" else _make_imap_response()
+            )
+        )
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        # The email must be extracted and returned as plain bytes
+        assert new_uids == ["55"]
+        assert len(emails) == 1
+        assert emails[0] == raw_email
+        assert isinstance(emails[0], bytes)
+
+    async def test_bytearray_whitespace_literal_is_skipped(self, processor, mock_imap):
+        """A bytearray literal that is whitespace-only must still be rejected."""
+        bytearray_ws_response = _make_imap_response(
+            result="OK",
+            lines=[b"1 (UID 56 RFC822 {2}", bytearray(b"\r\n"), b")"],
+        )
+
+        mock_imap.search.return_value = _make_imap_response(result="OK", lines=[b"56"])
+        mock_imap.fetch.return_value = _make_uid_list_response([("56", "56")])
+
+        mock_imap.uid = AsyncMock(
+            side_effect=lambda cmd, *args: (
+                bytearray_ws_response if cmd == "fetch" else _make_imap_response()
+            )
+        )
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        assert emails == []
+        assert new_uids == []
