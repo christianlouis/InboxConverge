@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.3.0 (2026-03-28)
+
+### Features
+
+- Mailbox-centric activity view, reduce log noise from empty polling cycles
+  ([`dd4532f`](https://github.com/christianlouis/InboxConverge/commit/dd4532f6604e2e8c1fa27fd3da05cd5e62733842))
+
+
 ## v0.2.2 (2026-03-28)
 
 ### Bug Fixes
