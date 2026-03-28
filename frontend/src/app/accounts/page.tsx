@@ -4,13 +4,46 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount } from '@/lib/api';
-import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Power } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Power, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
+import Image from 'next/image';
 import { AddMailAccountModal } from '@/components/AddMailAccountModal';
+
+// Map provider_name (from backend) to the SVG icon filename in /public/providers/
+const PROVIDER_ICON_MAP: Record<string, string> = {
+  'Gmail': 'gmail',
+  'GMX': 'gmx',
+  'WEB.DE': 'webde',
+  'Outlook / Hotmail': 'outlook',
+  'Yahoo Mail': 'yahoo',
+  'AOL Mail': 'aol',
+  'T-Online': 'tonline',
+  '1&1 / IONOS': 'ionos',
+  'Freenet': 'freenet',
+  'Posteo': 'posteo',
+  'mail.de': 'mailde',
+  'iCloud Mail': 'icloud',
+};
+
+function ProviderLogo({ providerName }: { providerName?: string | null }) {
+  const icon = providerName ? PROVIDER_ICON_MAP[providerName] : undefined;
+  if (!icon) return null;
+  return (
+    <Image
+      src={`/providers/${icon}.svg`}
+      alt={`${providerName} logo`}
+      width={24}
+      height={24}
+      className="object-contain flex-shrink-0"
+      onError={() => {/* silently skip missing icons */}}
+    />
+  );
+}
 
 export default function AccountsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<MailAccount | null>(null);
+  const [pullingIds, setPullingIds] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
   const { data: accounts, isLoading } = useQuery({
@@ -55,6 +88,21 @@ export default function AccountsPage() {
     }
   };
 
+  const handlePullNow = async (id: number) => {
+    setPullingIds((prev) => new Set(prev).add(id));
+    try {
+      await mailAccountsApi.pullNow(id);
+    } catch {
+      alert('Failed to queue pull');
+    } finally {
+      setPullingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingAccount(null);
@@ -90,13 +138,16 @@ export default function AccountsPage() {
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                          {account.name}
-                        </h3>
-                        <p className="text-sm text-gray-500">{account.email_address}</p>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <ProviderLogo providerName={account.provider_name} />
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+                            {account.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 truncate">{account.email_address}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                         {account.is_enabled ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                             <CheckCircle className="h-3 w-3" />
@@ -163,6 +214,15 @@ export default function AccountsPage() {
                         }`}
                       >
                         <Power className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handlePullNow(account.id)}
+                        disabled={!account.is_enabled || pullingIds.has(account.id)}
+                        title="Pull emails now"
+                        aria-label="Pull emails now"
+                        className="flex items-center justify-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${pullingIds.has(account.id) ? 'animate-spin' : ''}`} />
                       </button>
                       <button
                         onClick={() => handleEdit(account)}

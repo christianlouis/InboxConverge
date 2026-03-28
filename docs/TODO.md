@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Pull Now**: Added "Pull Now" button on Accounts page that immediately queues a `process_mail_account` Celery task via `POST /mail-accounts/{id}/pull-now`. Button shows spinner while in flight and is disabled for inactive accounts.
+- [x] **Provider logos**: Provider SVG logos (Gmail, GMX, WEB.DE, Outlook, Yahoo, AOL, T-Online, IONOS, Freenet, Posteo, iCloud) now displayed on the Accounts page next to each account name.
 - [x] Redesigned user-facing Logs page to mailbox-centric "Mailbox Activity" view: shows last check status per account + only successful pulls, suppressing noise from empty polling cycles.
 - [x] Added `has_emails` filter to `GET /processing-runs` and `GET /mail-accounts/{id}/processing-runs` API endpoints.
 - [x] Rename entire project to **InboxConverge**: all user-visible strings, Docker container/image names, DB defaults, monitoring, and docs updated.

@@ -17,6 +17,7 @@ from app.models.database_models import (
     AccountStatus,
     SubscriptionPlan,
 )
+from app.workers.tasks import process_mail_account as process_mail_account_task
 from app.models.schemas import (
     MailAccountCreate,
     MailAccountResponse,
@@ -239,6 +240,36 @@ async def toggle_mail_account(
     await db.refresh(account)
 
     return account
+
+
+@router.post("/{account_id}/pull-now", status_code=status.HTTP_202_ACCEPTED)
+async def pull_now(
+    account_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Immediately queue a pull for the given mail account"""
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id, MailAccount.user_id == current_user.id
+        )
+    )
+    account = result.scalar_one_or_none()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    if not account.is_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Account is disabled. Enable it before pulling.",
+        )
+
+    process_mail_account_task.delay(account_id)
+
+    return {"message": "Pull queued successfully"}
 
 
 @router.post("/test", response_model=MailAccountTestResponse)
