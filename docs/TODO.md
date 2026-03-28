@@ -4,6 +4,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] Fixed timezone display bug in Mailbox Activity and Admin Logs pages: ISO timestamps without a `Z` suffix were parsed as local time by JavaScript, shifting "Xm ago" / "Xh ago" displays and absolute dates by the client's UTC offset.
 - [x] Fixed worker `send_user_notification` using rolled-back DB session causing `greenlet_spawn has not been called` errors; status/`last_check_at` now always committed before sending notifications via a fresh session.
 - [x] **Pull Now**: Added "Pull Now" button on Accounts page that immediately queues a `process_mail_account` Celery task via `POST /mail-accounts/{id}/pull-now`. Button shows spinner while in flight and is disabled for inactive accounts.
 - [x] Fixed 21 mypy type errors: `Column[T]` vs native type mismatches in `notification_service.py`, `mail_processor.py`, `auth.py`, `tasks.py`, `providers.py`, `mail_accounts.py`, and `main.py` (`lifespan` parameter rename).

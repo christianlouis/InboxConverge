@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery } from '@tanstack/react-query';
 import { processingRunsApi, mailAccountsApi, MailAccount, ProcessingRun, ProcessingLog } from '@/lib/api';
+import { parseUTC } from '@/lib/date-utils';
 import {
   Inbox,
   ChevronLeft,
@@ -20,7 +21,7 @@ import {
 
 function formatRelative(iso?: string | null): string {
   if (!iso) return 'Never';
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Date.now() - parseUTC(iso).getTime();
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes}m ago`;
@@ -30,7 +31,7 @@ function formatRelative(iso?: string | null): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+  return parseUTC(iso).toLocaleString(undefined, {
     dateStyle: 'short',
     timeStyle: 'medium',
   });
