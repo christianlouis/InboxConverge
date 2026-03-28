@@ -61,12 +61,18 @@ async def list_processing_runs(
         alias="status",
         description="Filter by run status (completed, failed, partial_failure, running)",
     ),
+    has_emails: Optional[bool] = Query(
+        None,
+        description="When true, only return runs that fetched at least one email",
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Return a paginated list of processing runs for all mail accounts owned by
-    the authenticated user, optionally filtered by account or status.
+    the authenticated user, optionally filtered by account, status, or whether
+    any emails were fetched (has_emails=true reduces log noise by hiding empty
+    polling cycles).
     """
     # Base query: join with MailAccount to enforce ownership
     base = (
@@ -79,6 +85,8 @@ async def list_processing_runs(
         base = base.where(ProcessingRun.mail_account_id == account_id)
     if status_filter:
         base = base.where(ProcessingRun.status == status_filter)
+    if has_emails is True:
+        base = base.where(ProcessingRun.emails_fetched > 0)
 
     # Total count
     count_q = select(func.count()).select_from(base.subquery())

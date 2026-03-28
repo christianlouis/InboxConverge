@@ -357,6 +357,7 @@ export const processingRunsApi = {
     page_size?: number;
     account_id?: number;
     status?: string;
+    has_emails?: boolean;
   }): Promise<PaginatedProcessingRuns> {
     const response = await api.get<PaginatedProcessingRuns>("/processing-runs", {
       params,
@@ -382,7 +383,7 @@ export const processingRunsApi = {
 
   async listForAccount(
     accountId: number,
-    params?: { page?: number; page_size?: number; status?: string }
+    params?: { page?: number; page_size?: number; status?: string; has_emails?: boolean }
   ): Promise<PaginatedProcessingRuns> {
     const response = await api.get<PaginatedProcessingRuns>(
       `/mail-accounts/${accountId}/processing-runs`,

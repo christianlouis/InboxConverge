@@ -18,7 +18,7 @@ import {
   Users,
   CreditCard,
   Bell,
-  FileText,
+  Inbox,
   Activity
 } from 'lucide-react';
 
@@ -47,7 +47,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Mail Accounts', href: '/accounts', icon: Mail },
     { name: 'Notifications', href: '/notifications', icon: Bell },
-    { name: 'Logs', href: '/logs', icon: FileText },
+    { name: 'Mailbox Activity', href: '/logs', icon: Inbox },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
