@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.4.1 (2026-03-28)
+
+### Bug Fixes
+
+- Use UID-based IMAP commands and batch STORE operations to fix T-Online BYE errors
+  ([`454452a`](https://github.com/christianlouis/InboxConverge/commit/454452a0b61cdc6176443be9a030effc4e1c9ba3))
+
+
 ## [Unreleased]
 
 ### Fixed
