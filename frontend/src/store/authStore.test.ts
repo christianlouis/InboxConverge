@@ -1,5 +1,3 @@
-import { describe, it, expect, beforeEach } from 'bun:test';
-
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

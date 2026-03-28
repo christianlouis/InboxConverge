@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Codecov integration: frontend Jest test coverage (lcov) and backend pytest-cov (XML) are now uploaded to Codecov with `CODECOV_TOKEN` authentication and separate `frontend`/`backend` flags.
+
 ### Fixed
 
 - CI: replaced `safety scan --json` (requires interactive login in Safety CLI v3) with `pip-audit` to fix EOF error in the security scan job
