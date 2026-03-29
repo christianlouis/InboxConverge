@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.0 (2026-03-29)
+
+### Chores
+
+- Initial plan for frontend test coverage
+  ([`7dd0b5f`](https://github.com/christianlouis/InboxConverge/commit/7dd0b5f6005b4d4c2db4cc0939fa6b4921ceff94))
+
+### Features
+
+- Add frontend test coverage for date-utils, api interceptors, AuthGuard, QueryProvider,
+  DashboardLayout
+  ([`63839c3`](https://github.com/christianlouis/InboxConverge/commit/63839c3886445527258d988ad65f869cf46387a5))
+
+- Add NotificationWizard + ProviderWizard tests, fix lint, update docs
+  ([`769907a`](https://github.com/christianlouis/InboxConverge/commit/769907a65b956048a77e5714b998a45426d08bf4))
+
+
 ## v0.5.1 (2026-03-28)
 
 ### Bug Fixes
@@ -21,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Admin endpoint test coverage**: Added 87 unit tests for `admin.py` covering all 17 endpoints (stats, user CRUD, plan CRUD, notification config CRUD, notification testing, processing runs/logs with GDPR masking and pagination). Coverage improved from 24% to 100%.
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
+- **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components, utility functions, and API interceptors. Installed `@testing-library/react`, `@testing-library/jest-dom`, and `@testing-library/user-event`. New suites: `date-utils.test.ts` (30 tests), `api.test.ts` (9 tests), `AuthGuard.test.tsx` (6 tests), `QueryProvider.test.tsx` (2 tests), `DashboardLayout.test.tsx` (14 tests), `NotificationWizard.test.tsx` (32 tests), `ProviderWizard.test.tsx` (20 tests). Total frontend: 119 tests across 8 suites.
+- **Improved `mail_processor.py` test coverage**: Added 46 unit tests for POP3 connection testing, POP3 email fetching, IMAP edge cases (stale UID store failure, delete failure, MailFetchError re-raise, star-prefix line filtering), email forwarding (STARTTLS/SSL/multipart), and routing methods. Statement coverage increased from ~42% to 98%.
 
 ### Fixed
 
