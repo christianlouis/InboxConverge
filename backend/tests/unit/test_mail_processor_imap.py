@@ -17,6 +17,8 @@ These tests verify that _fetch_imap_emails:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
+from app.services.mail_processor import MailProcessor, MailFetchError
+
 # ---------------------------------------------------------------------------
 # Helpers to build lightweight fakes
 # ---------------------------------------------------------------------------
@@ -546,3 +548,164 @@ class TestFetchImapEmailsUidCommands:
 
         assert emails == []
         assert new_uids == []
+
+
+# ---------------------------------------------------------------------------
+# Additional edge-case tests for remaining branch coverage
+# ---------------------------------------------------------------------------
+
+
+class TestFetchImapEdgeCases:
+    """Tests for edge cases in _fetch_imap_emails not covered above."""
+
+    async def test_search_ok_but_empty_split_returns_empty(self):
+        """If SEARCH UNSEEN returns OK but lines[0].split() is empty, return []."""
+        account = _make_account()
+        processor = MailProcessor(account, "secret")
+
+        mock_imap = AsyncMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.select = AsyncMock(return_value=_make_imap_response("OK"))
+        # lines[0] is a non-empty string with only spaces => split() returns []
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response("OK", lines=[b"   "])
+        )
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        assert emails == []
+        assert new_uids == []
+
+    async def test_stale_uid_store_failure_is_non_fatal(self):
+        """If the UID STORE to re-mark stale UIDs fails, processing continues."""
+        account = _make_account()
+        processor = MailProcessor(account, "secret")
+
+        mock_imap = AsyncMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.select = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response("OK", lines=[b"1"])
+        )
+        mock_imap.fetch = AsyncMock(
+            return_value=_make_uid_list_response([("1", "100")])
+        )
+
+        async def uid_side_effect(cmd, *args):
+            if cmd == "store":
+                raise Exception("store failed")
+            return _make_imap_response("OK")
+
+        mock_imap.uid = AsyncMock(side_effect=uid_side_effect)
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, {"100"})
+
+        assert emails == []
+        assert new_uids == []
+
+    async def test_delete_failure_is_non_fatal(self):
+        """If batch UID STORE \\Deleted fails, emails are still returned."""
+        email_bytes = b"From: a@b.com\r\nSubject: hi\r\n\r\nbody"
+        account = _make_account(delete_after_forward=True)
+        processor = MailProcessor(account, "secret")
+
+        mock_imap = AsyncMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.select = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response("OK", lines=[b"1"])
+        )
+        mock_imap.fetch = AsyncMock(return_value=_make_uid_list_response([("1", "42")]))
+
+        async def uid_side_effect(cmd, *args):
+            if cmd == "fetch":
+                return _make_fetch_response("42", email_bytes)
+            if cmd == "store":
+                raise Exception("delete failed")
+            return _make_imap_response("OK")
+
+        mock_imap.uid = AsyncMock(side_effect=uid_side_effect)
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        assert len(emails) == 1
+        assert new_uids == ["42"]
+
+    async def test_mail_fetch_error_is_re_raised_directly(self):
+        """A MailFetchError raised inside the try block is re-raised, not wrapped."""
+        account = _make_account()
+        processor = MailProcessor(account, "secret")
+
+        mock_imap = AsyncMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(side_effect=MailFetchError("inner error"))
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            with pytest.raises(MailFetchError, match="inner error"):
+                await processor._fetch_imap_emails(10, set())
+
+    async def test_response_lines_with_star_prefix_are_skipped(self):
+        """Response lines starting with b'*' are filtered out."""
+        email_bytes = b"From: a@b.com\r\nSubject: test\r\n\r\nbody"
+        account = _make_account()
+        processor = MailProcessor(account, "secret")
+
+        mock_imap = AsyncMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.select = AsyncMock(return_value=_make_imap_response("OK"))
+        mock_imap.search = AsyncMock(
+            return_value=_make_imap_response("OK", lines=[b"1"])
+        )
+        mock_imap.fetch = AsyncMock(return_value=_make_uid_list_response([("1", "99")]))
+
+        fetch_resp = _make_imap_response(
+            "OK",
+            lines=[
+                b"1 (UID 99 RFC822 {100}",  # header containing RFC822
+                "some string line",  # non-bytes/bytearray => skipped
+                b"* extra info",  # starts with * => skipped
+                email_bytes,  # actual data
+                b")",  # closing paren => skipped
+            ],
+        )
+
+        async def uid_side_effect(cmd, *args):
+            if cmd == "fetch":
+                return fetch_resp
+            return _make_imap_response("OK")
+
+        mock_imap.uid = AsyncMock(side_effect=uid_side_effect)
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            emails, new_uids = await processor._fetch_imap_emails(10, set())
+
+        assert len(emails) == 1
+        assert emails[0] == email_bytes
+        assert new_uids == ["99"]
