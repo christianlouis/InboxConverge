@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Improved test coverage for `mail_processor.py`**: Added 46 new unit tests covering POP3 connection testing, POP3 email fetching, IMAP edge cases, email forwarding (STARTTLS/SSL), and `fetch_emails`/`test_connection` routing. Coverage increased from ~42% to 98%.
+
 - [x] **Log noise reduction**: Suppressed `ignored untagged response` INFO messages from `aioimaplib` in Celery workers (set logger to WARNING). Eliminated repeated `file_cache is only supported with oauth2client<4.0.0` warnings from the Gmail API client by passing `cache_discovery=False` to `googleapiclient.discovery.build()`.
 - [x] **ESLint fix**: Converted `frontend/jest.config.js` to `jest.config.mjs` (ES module syntax) to resolve `@typescript-eslint/no-require-imports` lint error.
 - [x] **Codecov integration**: Added Codecov coverage reporting with `CODECOV_TOKEN` authentication. Set up Jest for frontend tests with lcov coverage, updated CI to collect and upload both backend (XML via pytest-cov) and frontend (lcov via Jest) coverage reports to Codecov with separate `backend` and `frontend` flags.
@@ -116,6 +118,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write unit tests for application factory and core endpoints
 - [x] Reach 50%+ test coverage (currently 59%)
 - [x] Write tests for Celery tasks (96% coverage for `tasks.py`)
+- [x] **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components and utility functions. Installed `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. New suites: `date-utils` (30 tests), API interceptors (9 tests), `AuthGuard` (6 tests), `QueryProvider` (2 tests), `DashboardLayout` (14 tests), `NotificationWizard` (32 tests), `ProviderWizard` (20 tests). Total frontend: 119 tests across 8 suites.
 
 ### In Progress 🔨
 - [ ] Write unit tests for authentication (target 80%+ coverage)
