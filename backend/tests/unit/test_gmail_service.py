@@ -2,8 +2,13 @@
 Unit tests for Gmail service module.
 """
 
+import json
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from googleapiclient.errors import HttpError
+
 from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
 from app.utils.gmail_labels import (
     DEFAULT_IMPORT_LABEL_TEMPLATES,
@@ -202,3 +207,215 @@ class TestGmailService:
         )
 
         assert label_ids == ["INBOX", "Label-source", "Label-imported"]
+
+    # ------------------------------------------------------------------
+    # Helper for HttpError construction
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _make_http_error(
+        status_code: int = 401, reason: str = "Unauthorized"
+    ) -> HttpError:
+        resp = MagicMock()
+        resp.status = status_code
+        resp.reason = reason
+        content = json.dumps({"error": {"message": reason}}).encode()
+        return HttpError(resp, content, uri="https://gmail.googleapis.com/test")
+
+    # ------------------------------------------------------------------
+    # inject_email – HttpError branch
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_inject_email_http_error(self):
+        """HttpError in inject_email is caught and re-raised as GmailInjectionError."""
+        service = GmailService(access_token="test-access-token")
+
+        mock_api = MagicMock()
+        mock_api.users().messages().insert().execute.side_effect = (
+            self._make_http_error(403, "Forbidden")
+        )
+        service._service = mock_api
+
+        with pytest.raises(GmailInjectionError, match="Gmail API error"):
+            await service.inject_email(
+                raw_email=b"From: a@b.com\r\nSubject: X\r\n\r\nBody",
+            )
+
+    # ------------------------------------------------------------------
+    # get_or_create_label – existing label found
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_get_or_create_label_existing(self):
+        """Returns ID of an existing label matched case-insensitively."""
+        service = GmailService(access_token="test-access-token")
+
+        mock_api = MagicMock()
+        mock_api.users().labels().list().execute.return_value = {
+            "labels": [
+                {"id": "Label_1", "name": "imported"},
+                {"id": "INBOX", "name": "INBOX"},
+            ]
+        }
+        service._service = mock_api
+
+        label_id = await service.get_or_create_label("Imported")
+        assert label_id == "Label_1"
+
+    # ------------------------------------------------------------------
+    # get_or_create_label – label not found, creates new one
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_get_or_create_label_creates_new(self):
+        """Creates a new label when no existing label matches."""
+        service = GmailService(access_token="test-access-token")
+
+        mock_api = MagicMock()
+        mock_api.users().labels().list().execute.return_value = {
+            "labels": [{"id": "INBOX", "name": "INBOX"}]
+        }
+        mock_api.users().labels().create().execute.return_value = {
+            "id": "Label_new",
+            "name": "new-label",
+        }
+        service._service = mock_api
+
+        label_id = await service.get_or_create_label("new-label")
+        assert label_id == "Label_new"
+
+    # ------------------------------------------------------------------
+    # get_or_create_label – HttpError handling
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_get_or_create_label_http_error(self):
+        """HttpError during label list raises GmailInjectionError."""
+        service = GmailService(access_token="test-access-token")
+
+        mock_api = MagicMock()
+        mock_api.users().labels().list().execute.side_effect = self._make_http_error(
+            500, "Internal Server Error"
+        )
+        service._service = mock_api
+
+        with pytest.raises(GmailInjectionError, match="Gmail API error"):
+            await service.get_or_create_label("test")
+
+    # ------------------------------------------------------------------
+    # get_or_create_label – generic Exception handling
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_get_or_create_label_generic_exception(self):
+        """Generic exception during label management raises GmailInjectionError."""
+        service = GmailService(access_token="test-access-token")
+
+        mock_api = MagicMock()
+        mock_api.users().labels().list().execute.side_effect = RuntimeError("boom")
+        service._service = mock_api
+
+        with pytest.raises(GmailInjectionError, match="Failed to get/create"):
+            await service.get_or_create_label("oops")
+
+    # ------------------------------------------------------------------
+    # inject_debug_email – full flow
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_inject_debug_email(self):
+        """inject_debug_email creates labels and injects a test email."""
+        service = GmailService(access_token="test-access-token")
+
+        service.build_import_label_ids = AsyncMock(  # type: ignore[method-assign]
+            return_value=["INBOX", "Label_imported"]
+        )
+        service.get_or_create_label = AsyncMock(  # type: ignore[method-assign]
+            return_value="Label_test"
+        )
+        service.inject_email = AsyncMock(  # type: ignore[method-assign]
+            return_value={
+                "message_id": "msg1",
+                "thread_id": "t1",
+                "label_ids": ["INBOX", "Label_imported", "Label_test"],
+            }
+        )
+
+        result = await service.inject_debug_email("user@gmail.com")
+
+        assert result["message_id"] == "msg1"
+        assert "Label_test" in result["label_ids"]
+        service.build_import_label_ids.assert_awaited_once()
+        service.get_or_create_label.assert_awaited_once_with("test")
+        service.inject_email.assert_awaited_once()
+        # The test label should have been appended to label_ids
+        call_kwargs = service.inject_email.call_args
+        assert "Label_test" in call_kwargs.kwargs["label_ids"]
+
+    # ------------------------------------------------------------------
+    # inject_debug_email – test label already present in import labels
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_inject_debug_email_test_label_already_present(self):
+        """inject_debug_email does not duplicate the test label."""
+        service = GmailService(access_token="test-access-token")
+
+        service.build_import_label_ids = AsyncMock(  # type: ignore[method-assign]
+            return_value=["INBOX", "Label_test"]
+        )
+        service.get_or_create_label = AsyncMock(  # type: ignore[method-assign]
+            return_value="Label_test"
+        )
+        service.inject_email = AsyncMock(  # type: ignore[method-assign]
+            return_value={
+                "message_id": "msg2",
+                "thread_id": "t2",
+                "label_ids": ["INBOX", "Label_test"],
+            }
+        )
+
+        result = await service.inject_debug_email("user@gmail.com")
+
+        assert result["message_id"] == "msg2"
+        call_kwargs = service.inject_email.call_args
+        # Label_test should appear only once
+        assert call_kwargs.kwargs["label_ids"].count("Label_test") == 1
+
+    # ------------------------------------------------------------------
+    # get_refreshed_token – token was NOT refreshed
+    # ------------------------------------------------------------------
+    def test_get_refreshed_token_no_change(self):
+        """Returns None when the token has not changed."""
+        service = GmailService(access_token="original-token")
+        assert service.get_refreshed_token() is None
+
+    # ------------------------------------------------------------------
+    # get_refreshed_token – token was refreshed
+    # ------------------------------------------------------------------
+    def test_get_refreshed_token_changed(self):
+        """Returns new token info when the token was refreshed."""
+        service = GmailService(access_token="original-token")
+
+        # Simulate an automatic token refresh by mutating credentials
+        new_expiry = datetime(2099, 1, 1, tzinfo=timezone.utc)
+        service.credentials.token = "new-refreshed-token"
+        service.credentials.expiry = new_expiry
+
+        result = service.get_refreshed_token()
+        assert result is not None
+        assert result["access_token"] == "new-refreshed-token"
+        assert result["expiry"] == new_expiry
+
+    # ------------------------------------------------------------------
+    # service property – lazy init builds the service
+    # ------------------------------------------------------------------
+    def test_service_property_builds_service(self):
+        """Accessing .service triggers googleapiclient.discovery.build."""
+        with patch("app.services.gmail_service.build") as mock_build:
+            mock_build.return_value = MagicMock()
+            service = GmailService(access_token="test-access-token")
+            assert service._service is None
+
+            api = service.service  # trigger lazy init
+
+            mock_build.assert_called_once_with(
+                "gmail", "v1", credentials=service.credentials, cache_discovery=False
+            )
+            assert api is mock_build.return_value
+            # Second access should NOT call build again
+            _ = service.service
+            mock_build.assert_called_once()
