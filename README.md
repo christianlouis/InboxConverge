@@ -59,9 +59,9 @@ POP3_ACCOUNT_1_PASSWORD=your-pop3-password
 SMTP_USER=you@gmail.com
 SMTP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
-# Required internal secrets (generate once, keep private)
-SECRET_KEY=<python -c 'import secrets; print(secrets.token_urlsafe(32))'>
-ENCRYPTION_KEY=<python -c 'import secrets; print(secrets.token_urlsafe(32))'>
+# Required internal secrets — run each command below and paste the output
+SECRET_KEY=                # python -c 'import secrets; print(secrets.token_urlsafe(32))'
+ENCRYPTION_KEY=            # python -c 'import secrets; print(secrets.token_urlsafe(32))'
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/inboxconverge
 ```
 
