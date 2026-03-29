@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Unit tests for `AddMailAccountModal` component (`AddMailAccountModal.test.tsx`): 28 tests covering create/edit mode rendering, provider wizard flow, form field changes, checkbox toggles, auto-detect, test connection, submit mutations, error extraction, and modal close interactions
 - Unit tests for provider endpoints (`test_providers.py`): 23 tests covering provider presets, Gmail credential CRUD, import labels, authorize URL, debug email, and OAuth callback
 - Unit tests for mail account endpoints (`test_mail_accounts.py`): 30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs, and processing logs
 - Unit tests for authentication endpoints (`test_auth.py`): 22 tests covering register, login, Google OAuth, authorize-url, and helper functions
