@@ -118,6 +118,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write unit tests for application factory and core endpoints
 - [x] Reach 50%+ test coverage (currently 59%)
 - [x] Write tests for Celery tasks (96% coverage for `tasks.py`)
+- [x] Write unit tests for admin endpoints (87 tests, 100% coverage on admin.py)
 - [x] **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components and utility functions. Installed `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. New suites: `date-utils` (30 tests), API interceptors (9 tests), `AuthGuard` (6 tests), `QueryProvider` (2 tests), `DashboardLayout` (14 tests), `NotificationWizard` (32 tests), `ProviderWizard` (20 tests). Total frontend: 119 tests across 8 suites.
 
 ### In Progress 🔨
