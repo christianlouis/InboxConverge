@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **README rewrite**: Replaced README with a focused, marketing-oriented page targeting users affected by Google's 2026 shutdown of Gmail POP import ("Check mail from other accounts") and Gmailify. Fixed broken CI badge links (pointed to non-existent workflow files; now correctly references `ci.yml`). Removed verbose technical implementation sections in favour of a clear problem statement, comparison table, 5-minute quick-start, and concise delivery-method summary.
+
 ### Added
 
 - **Celery tasks test coverage**: Added 40 unit tests for `backend/app/workers/tasks.py`, raising coverage from 9.22% to 96%. Tests cover `_as_utc` helper, `process_mail_account` (Gmail API and SMTP forwarding, credential revocation, empty-email detection, error handling), `process_all_enabled_accounts` (stale-run cleanup, interval checking), and `cleanup_old_logs` (data retention, stale-run recovery).
