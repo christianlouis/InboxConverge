@@ -115,12 +115,12 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write unit tests for schemas and validation
 - [x] Write unit tests for application factory and core endpoints
 - [x] Reach 50%+ test coverage (currently 59%)
+- [x] Write tests for Celery tasks (96% coverage for `tasks.py`)
 
 ### In Progress 🔨
 - [ ] Write unit tests for authentication (target 80%+ coverage)
 - [ ] Write unit tests for mail processing
 - [ ] Write integration tests for API endpoints
-- [ ] Write tests for Celery tasks
 
 ### Not Started 📋
 - [ ] Add end-to-end tests

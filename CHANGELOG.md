@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Celery tasks test coverage**: Added 40 unit tests for `backend/app/workers/tasks.py`, raising coverage from 9.22% to 96%. Tests cover `_as_utc` helper, `process_mail_account` (Gmail API and SMTP forwarding, credential revocation, empty-email detection, error handling), `process_all_enabled_accounts` (stale-run cleanup, interval checking), and `cleanup_old_logs` (data retention, stale-run recovery).
+
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
 
 ### Fixed
