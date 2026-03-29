@@ -115,6 +115,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write unit tests for schemas and validation
 - [x] Write unit tests for application factory and core endpoints
 - [x] Reach 50%+ test coverage (currently 59%)
+- [x] Write unit tests for admin endpoints (87 tests, 100% coverage on admin.py)
 
 ### In Progress 🔨
 - [ ] Write unit tests for authentication (target 80%+ coverage)

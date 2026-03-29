@@ -82,7 +82,6 @@ async def test_user(db_session: AsyncSession) -> User:
         email="test@example.com",
         hashed_password=get_password_hash("testpassword123"),
         is_active=True,
-        is_verified=True,
     )
     db_session.add(user)
     await db_session.commit()
@@ -97,8 +96,7 @@ async def test_admin_user(db_session: AsyncSession) -> User:
         email="admin@example.com",
         hashed_password=get_password_hash("adminpassword123"),
         is_active=True,
-        is_verified=True,
-        is_admin=True,
+        is_superuser=True,
     )
     db_session.add(user)
     await db_session.commit()
@@ -109,14 +107,14 @@ async def test_admin_user(db_session: AsyncSession) -> User:
 @pytest.fixture
 def auth_headers(test_user: User) -> dict:
     """Generate authentication headers for test user"""
-    access_token = create_access_token(data={"sub": test_user.email})
+    access_token = create_access_token(data={"sub": str(test_user.id)})
     return {"Authorization": f"Bearer {access_token}"}
 
 
 @pytest.fixture
 def admin_auth_headers(test_admin_user: User) -> dict:
     """Generate authentication headers for admin user"""
-    access_token = create_access_token(data={"sub": test_admin_user.email})
+    access_token = create_access_token(data={"sub": str(test_admin_user.id)})
     return {"Authorization": f"Bearer {access_token}"}
 
 
@@ -131,8 +129,7 @@ def user_factory(db_session: AsyncSession):
         email: str = None,
         password: str = "testpassword123",
         is_active: bool = True,
-        is_verified: bool = True,
-        is_admin: bool = False,
+        is_superuser: bool = False,
     ) -> User:
         if email is None:
             import uuid
@@ -143,8 +140,7 @@ def user_factory(db_session: AsyncSession):
             email=email,
             hashed_password=get_password_hash(password),
             is_active=is_active,
-            is_verified=is_verified,
-            is_admin=is_admin,
+            is_superuser=is_superuser,
         )
         db_session.add(user)
         await db_session.commit()

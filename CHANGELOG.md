@@ -19,7 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Admin endpoint test coverage**: Added 87 unit tests for `admin.py` covering all 17 endpoints (stats, user CRUD, plan CRUD, notification config CRUD, notification testing, processing runs/logs with GDPR masking and pagination). Coverage improved from 24% to 100%.
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
+
+### Fixed
+
+- **Test fixtures**: Fixed `conftest.py` admin user fixture using non-existent `is_admin`/`is_verified` fields (should be `is_superuser`), and JWT `sub` claim using email instead of user ID.
 
 ### Fixed
 
