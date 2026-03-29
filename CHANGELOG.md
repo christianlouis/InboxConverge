@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Unit tests for mail account endpoints (`test_mail_accounts.py`): 30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs, and processing logs
 - Unit tests for authentication endpoints (`test_auth.py`): 22 tests covering register, login, Google OAuth, authorize-url, and helper functions
 
 ## v0.6.0 (2026-03-29)

@@ -123,6 +123,7 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ### In Progress 🔨
 - [x] Write unit tests for authentication (22 tests covering register, login, Google OAuth, authorize-url, and helper functions)
+- [x] Write unit tests for mail account endpoints (30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs/logs)
 - [ ] Write unit tests for mail processing
 - [ ] Write integration tests for API endpoints
 
