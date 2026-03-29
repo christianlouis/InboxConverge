@@ -122,7 +122,7 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components and utility functions. Installed `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. New suites: `date-utils` (30 tests), API interceptors (9 tests), `AuthGuard` (6 tests), `QueryProvider` (2 tests), `DashboardLayout` (14 tests), `NotificationWizard` (32 tests), `ProviderWizard` (20 tests). Total frontend: 119 tests across 8 suites.
 
 ### In Progress 🔨
-- [ ] Write unit tests for authentication (target 80%+ coverage)
+- [x] Write unit tests for authentication (22 tests covering register, login, Google OAuth, authorize-url, and helper functions)
 - [ ] Write unit tests for mail processing
 - [ ] Write integration tests for API endpoints
 
