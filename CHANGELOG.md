@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
+- **Improved `mail_processor.py` test coverage**: Added 46 unit tests for POP3 connection testing, POP3 email fetching, IMAP edge cases (stale UID store failure, delete failure, MailFetchError re-raise, star-prefix line filtering), email forwarding (STARTTLS/SSL/multipart), and routing methods. Statement coverage increased from ~42% to 98%.
 
 ### Fixed
 
