@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.0 (2026-03-29)
+
+### Chores
+
+- Initial plan for frontend test coverage
+  ([`7dd0b5f`](https://github.com/christianlouis/InboxConverge/commit/7dd0b5f6005b4d4c2db4cc0939fa6b4921ceff94))
+
+### Features
+
+- Add frontend test coverage for date-utils, api interceptors, AuthGuard, QueryProvider,
+  DashboardLayout
+  ([`63839c3`](https://github.com/christianlouis/InboxConverge/commit/63839c3886445527258d988ad65f869cf46387a5))
+
+- Add NotificationWizard + ProviderWizard tests, fix lint, update docs
+  ([`769907a`](https://github.com/christianlouis/InboxConverge/commit/769907a65b956048a77e5714b998a45426d08bf4))
+
+
 ## v0.5.1 (2026-03-28)
 
 ### Bug Fixes
