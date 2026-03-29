@@ -1,284 +1,106 @@
 # InboxConverge
 
-[![CI Tests](https://github.com/christianlouis/inboxconverge/actions/workflows/test.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/test.yml)
-[![Lint](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/lint.yml)
-[![Security Scan](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/security.yml)
-[![Docker Build](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml/badge.svg)](https://github.com/christianlouis/inboxconverge/actions/workflows/docker-build.yml)
+[![CI](https://github.com/christianlouis/InboxConverge/actions/workflows/ci.yml/badge.svg)](https://github.com/christianlouis/InboxConverge/actions/workflows/ci.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/christianlouis/InboxConverge?sort=semver&label=release)](https://github.com/christianlouis/InboxConverge/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 
-A Docker-based solution that automatically fetches emails from POP3 mailboxes and forwards them to Gmail, replacing Google's discontinued POP3 import feature.
+**Google is removing "Check mail from other accounts" (POP) and Gmailify in 2026. InboxConverge is the self-hosted replacement.**
 
-## Features
+Gmail's built-in POP fetcher and Gmailify are being shut down imminently. Google's suggested alternatives — asking your old provider to configure outbound forwarding, or reading mail in the Gmail mobile app over IMAP — don't replicate the seamless, automatic consolidation you had. InboxConverge does: it polls your POP3/IMAP mailboxes on a schedule and injects new messages directly into your Gmail inbox, exactly like the old feature, running on your own infrastructure.
 
-- **Multiple POP3 Accounts** — support for unlimited POP3 mailboxes
-- **Dual Delivery** — inject emails via **Gmail API** (preferred) or forward via **SMTP**
-- **Hybrid Configuration** — configure via environment variables, `.env` files, **or** the database
-- **Smart Throttling** — configurable rate limiting to stay within Gmail quotas
-- **Error Reporting** — multi-channel notifications (Apprise: email, Telegram, Slack, Discord, webhooks)
-- **Scheduled Polling** — configurable check intervals (default: every 5 minutes)
-- **Docker Ready** — fully containerized with Docker Compose support
-- **Secure** — runs as non-root user, SSL/TLS connections, encrypted credential storage
+> **Google's own announcement:** *"Gmail no longer supports fetching email from third-party accounts via POP. The 'Check mail from other accounts' option is no longer available in Gmail."*
+>
+> InboxConverge puts that option back — permanently, on your own terms.
 
-### SaaS Platform (in development)
+## Who this is for
 
-The repository also includes a multi-tenant SaaS backend built with FastAPI, PostgreSQL, Redis, and Celery. It adds multi-user support, OAuth2 authentication, POP3/IMAP protocol support, encrypted credential storage, and background job processing. See the [SaaS README](docs/README_SAAS.md) for details.
+- You used Gmail's "Check mail from other accounts" and it's going away
+- You have one or more external mailboxes (work, old ISP, custom domain) that you want consolidated into Gmail automatically
+- You don't want to rely on your old provider supporting outbound forwarding
+- You want email delivered cleanly into Gmail without headers being mangled or spam filters misfiring
 
-## Quick Start
+## What you get
 
-### Using a Pre-built Docker Image (Recommended)
+| | Google POP Import (shutting down 2026) | InboxConverge |
+|---|---|---|
+| Still works? | ❌ Shutting down 2026 | ✅ |
+| Multiple source accounts | Limited | ✅ Unlimited |
+| Automatic, scheduled polling | ✅ | ✅ Every 5 min (configurable) |
+| Original headers preserved | ❌ | ✅ Via Gmail API injection |
+| Counts against sending quota | ❌ N/A | ✅ No (Gmail API) / ⚠️ Yes (SMTP) |
+| Alerts when something breaks | ❌ | ✅ Email, Slack, Telegram, Discord… |
+| Self-hosted, no third-party dependency | ❌ | ✅ Docker, runs anywhere |
+| Open source | ❌ | ✅ MIT |
+
+## Get started in 5 minutes
 
 ```bash
-# Pull and configure
-curl -O https://raw.githubusercontent.com/christianlouis/inboxconverge/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/christianlouis/inboxconverge/main/.env.example
+# 1. Grab the config files
+curl -O https://raw.githubusercontent.com/christianlouis/InboxConverge/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/christianlouis/InboxConverge/main/.env.example
 
-# Edit .env with your credentials
+# 2. Fill in your credentials
 nano .env
 
-# Start
+# 3. Launch
 docker-compose up -d
 ```
 
-### Building from Source
+Minimum `.env` to get going:
 
-```bash
-git clone https://github.com/christianlouis/inboxconverge.git
-cd inboxconverge
-cp .env.example .env   # then edit .env
-docker-compose up -d
+```dotenv
+# Source mailbox — add _2_, _3_, … for additional accounts
+POP3_ACCOUNT_1_HOST=pop.yourprovider.com
+POP3_ACCOUNT_1_USER=you@yourprovider.com
+POP3_ACCOUNT_1_PASSWORD=your-pop3-password
+
+# Destination — Gmail App Password (quickest way to start)
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+
+# Required internal secrets (generate once, keep private)
+SECRET_KEY=<python -c 'import secrets; print(secrets.token_urlsafe(32))'>
+ENCRYPTION_KEY=<python -c 'import secrets; print(secrets.token_urlsafe(32))'>
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/inboxconverge
 ```
 
-See the [Quick Start Guide](docs/QUICKSTART.md) for detailed instructions.
+See the [Quick Start Guide](docs/QUICKSTART.md) for a full walkthrough, including the recommended Gmail API setup which preserves headers and avoids sending-quota limits.
 
-## Configuration
+## Two ways to deliver mail into Gmail
 
-### Hybrid Configuration (Environment + Database)
+**Gmail API injection (recommended)** — messages land in your inbox with original `From`, `Reply-To`, and `Message-ID` intact, don't count against your sending quota, and bypass the spam-filter penalties that forwarded mail often triggers. Requires a one-time Google OAuth2 authorisation.
 
-The application supports a **hybrid configuration model**:
+**SMTP with App Password (zero-setup fallback)** — works immediately with a [Gmail App Password](https://myaccount.google.com/apppasswords). Forwarded messages may be re-wrapped and count toward your 500-message/day free-tier limit. Good for getting started quickly; upgrade to the API later.
 
-| Source | Priority | Use For |
-|--------|----------|---------|
-| **Database** (`app_settings` table) | Highest | SMTP, processing, Gmail API, notifications |
-| **Environment variables / `.env`** | Fallback | All settings; required for bootstrap settings |
-| **Built-in defaults** | Lowest | Sensible defaults for all non-bootstrap settings |
+## Key settings
 
-**Bootstrap settings** (`DATABASE_URL`, `SECRET_KEY`, `ENCRYPTION_KEY`) always come from environment variables because the database connection depends on them.
+| Variable | Default | What it does |
+|---|---|---|
+| `CHECK_INTERVAL_MINUTES` | `5` | How often mailboxes are polled |
+| `MAX_EMAILS_PER_RUN` | `50` | Maximum messages fetched per account per run |
+| `THROTTLE_EMAILS_PER_MINUTE` | `10` | Rate cap toward Gmail |
 
-All other settings (SMTP, processing intervals, Gmail API, etc.) can be managed via the admin API at `/api/v1/settings` and are stored in the PostgreSQL database. When a database setting exists, it takes priority over the corresponding environment variable.
-
-### POP3 Accounts
-
-Add multiple POP3 accounts by incrementing the account number in your `.env`:
-
-```bash
-POP3_ACCOUNT_1_HOST=pop.provider1.com
-POP3_ACCOUNT_1_USER=user1@provider1.com
-POP3_ACCOUNT_1_PASSWORD=password1
-
-POP3_ACCOUNT_2_HOST=pop.provider2.com
-POP3_ACCOUNT_2_USER=user2@provider2.com
-POP3_ACCOUNT_2_PASSWORD=password2
-```
-
-### Email Delivery Methods
-
-The forwarder supports two delivery methods for getting emails into Gmail:
-
-#### Gmail API Injection (Preferred)
-
-Emails are injected directly into your Gmail account using Google's `users.messages.insert()` API. This is the **recommended method** because it:
-
-- Preserves original email headers and metadata exactly as-is
-- Does not modify `From`, `Reply-To`, or `Message-ID` headers
-- Applies Gmail labels (e.g., `INBOX`) on injection
-- Does not count against Gmail's SMTP sending quotas
-- Does not require an SMTP App Password
-
-**Setup:**
-
-1. Configure Google OAuth2 credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-2. Authenticate via the SaaS web UI or API (`POST /api/v1/providers/gmail-credential`)
-3. Set `delivery_method` to `gmail_api` when creating mail accounts
-
-**Required OAuth2 Scopes:**
-- `https://www.googleapis.com/auth/gmail.insert`
-- `https://www.googleapis.com/auth/gmail.labels`
-
-#### SMTP Forwarding (Fallback)
-
-Emails are forwarded to Gmail via SMTP. This is the legacy method and is used as a fallback when Gmail API credentials are not available.
-
-**Limitations vs Gmail API:**
-- Modifies email headers (adds `Received`, may rewrite `From`)
-- Counts against Gmail's SMTP sending quota (500/day for free accounts)
-- Requires a Gmail App Password (see below)
-- May trigger spam filters for forwarded mail
-
-**Setup:**
-
-1. Go to your [Google Account Security](https://myaccount.google.com/security)
-2. Under "Signing in to Google," select **App Passwords**
-3. Generate a new app password for "Mail"
-4. Set `SMTP_PASSWORD` in your environment or database settings
-
-### Environment Variables
-
-> **Note:** All settings marked ★ can also be managed via the database
-> through the admin API (`/api/v1/settings`). Database values take precedence.
-
-#### Bootstrap Settings (env only)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | `postgresql+asyncpg://...` | PostgreSQL connection string |
-| `SECRET_KEY` | Yes | — | JWT signing key (min 32 chars) |
-| `ENCRYPTION_KEY` | Yes | — | Credential encryption key (min 32 chars) |
-
-#### POP3/IMAP Accounts (env only — or via API)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `POP3_ACCOUNT_N_HOST` | Yes | — | POP3 server hostname |
-| `POP3_ACCOUNT_N_PORT` | No | `995` | POP3 server port |
-| `POP3_ACCOUNT_N_USER` | Yes | — | POP3 username |
-| `POP3_ACCOUNT_N_PASSWORD` | Yes | — | POP3 password |
-| `POP3_ACCOUNT_N_USE_SSL` | No | `true` | Use SSL/TLS |
-
-#### SMTP Settings (★ database-configurable)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SMTP_HOST` | No | `smtp.gmail.com` | SMTP server |
-| `SMTP_PORT` | No | `587` | SMTP port |
-| `SMTP_USER` | For SMTP | — | SMTP username |
-| `SMTP_PASSWORD` | For SMTP | — | SMTP password (App Password) |
-| `SMTP_USE_TLS` | No | `true` | Use STARTTLS |
-
-#### Gmail API Settings (★ database-configurable)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GOOGLE_CLIENT_ID` | For Gmail API | — | Google OAuth2 client ID |
-| `GOOGLE_CLIENT_SECRET` | For Gmail API | — | Google OAuth2 client secret |
-| `GMAIL_API_ENABLED` | No | `true` | Enable Gmail API delivery |
-
-#### Processing Settings (★ database-configurable)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `CHECK_INTERVAL_MINUTES` | No | `5` | Polling interval |
-| `MAX_EMAILS_PER_RUN` | No | `50` | Max emails per account per run |
-| `THROTTLE_EMAILS_PER_MINUTE` | No | `10` | Rate limit |
-| `LOG_LEVEL` | No | `INFO` | Logging level |
-
-## How It Works
-
-```
-┌─────────────────┐
-│  POP3 Server 1  │
-└────────┬────────┘
-         │ (Fetch emails)
-         ▼
-┌─────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-│  POP3 Server 2  │─────▶│    Forwarder     │─────▶│  Gmail API       │
-└─────────────────┘      │    Container     │      │  (Preferred)     │
-         │               │                  │      └──────────────────┘
-┌────────▼────────┐      │  Config from:    │      ┌──────────────────┐
-│  POP3 Server N  │      │  • Database      │─────▶│  Gmail SMTP      │
-└─────────────────┘      │  • Environment   │      │  (Fallback)      │
-                         └──────┬───────────┘      └──────────────────┘
-                                │ (Notifications)
-                                ▼
-                      ┌─────────────────┐
-                      │  Apprise        │
-                      │  (Email, Slack, │
-                      │   Telegram ...) │
-                      └─────────────────┘
-```
-
-1. **Polling** — checks POP3/IMAP mailboxes at the configured interval
-2. **Fetching** — retrieves new emails from each account
-3. **Delivery** — injects into Gmail via API (preferred) or forwards via SMTP (fallback)
-4. **Cleanup** — deletes from source after successful delivery
-5. **Throttling** — respects rate limits to avoid quota issues
-6. **Notifications** — sends alerts via Apprise (email, Telegram, Slack, Discord, webhooks)
-
-## Development
-
-```bash
-# Install dependencies
-make install-dev
-
-# Run linting & formatting
-make lint
-make format
-
-# Run tests
-make test
-
-# Start backend in dev mode
-make run-dev
-```
-
-See the [Testing Guide](docs/TESTING_GUIDE.md) for the full test workflow.
+All settings except the three bootstrap secrets can be changed at runtime in the admin web UI — no restart needed.
 
 ## Documentation
 
-Detailed documentation lives in the [`docs/`](docs/) directory:
-
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System design and component overview |
-| [Quick Start](docs/QUICKSTART.md) | Step-by-step setup guide |
-| [Migration Guide](docs/MIGRATION_GUIDE.md) | Upgrading from v1 to v2 |
-| [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) | Production deployment guide |
-| [Roadmap](docs/ROADMAP.md) | Planned features and milestones |
-| [Testing Guide](docs/TESTING_GUIDE.md) | How to run and write tests |
-| [Coding Patterns](docs/CODING_PATTERNS.md) | Code style and conventions |
-| [SaaS README](docs/README_SAAS.md) | Multi-tenant SaaS platform details |
-
-## Releases
-
-This project uses [Semantic Versioning](https://semver.org/) and
-[Conventional Commits](https://www.conventionalcommits.org/) to automate
-release numbering. Every push to `main` triggers the
-[Semantic Release workflow](.github/workflows/release.yml), which:
-
-1. Inspects commit messages since the last release.
-2. Determines the next version number (`patch`, `minor`, or `major`) based on
-   the commit prefixes (`fix:`, `feat:`, `feat!:` / `BREAKING CHANGE`).
-3. Creates a git tag (`vX.Y.Z`), updates the `version` field in
-   `pyproject.toml`, generates a GitHub Release with release notes, and
-   updates `CHANGELOG.md` — all automatically.
-
-| Commit prefix | Version bump |
-|---------------|-------------|
-| `fix:`, `perf:` | Patch (`0.0.x`) |
-| `feat:` | Minor (`0.x.0`) |
-| `feat!:` / `BREAKING CHANGE` | Major (`x.0.0`) |
-
-Browse all releases on the [Releases page](https://github.com/christianlouis/InboxConverge/releases).
+| | |
+|---|---|
+| [Quick Start](docs/QUICKSTART.md) | Step-by-step setup, Gmail API & SMTP |
+| [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) | Production hardening guide |
+| [Architecture](docs/ARCHITECTURE.md) | How the pieces fit together |
+| [Migration Guide](docs/MIGRATION_GUIDE.md) | Upgrading from an older version |
+| [Roadmap](docs/ROADMAP.md) | What's coming next |
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
-
-- Reporting bugs and suggesting features
-- Development setup and code style
-- Pull request process
+Bug reports, feature requests, and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
-To report a vulnerability, please see [SECURITY.md](SECURITY.md). **Do not open public issues for security concerns.**
+Please report vulnerabilities privately via [SECURITY.md](SECURITY.md) rather than opening a public issue.
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
-
-## Support
-
-- [Issue Tracker](https://github.com/christianlouis/inboxconverge/issues)
-- [Discussions](https://github.com/christianlouis/inboxconverge/discussions)
+MIT — see [LICENSE](LICENSE).
