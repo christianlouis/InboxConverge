@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Celery tasks test coverage**: Added 40 unit tests for `backend/app/workers/tasks.py`, raising coverage from 9.22% to 96%. Tests cover `_as_utc` helper, `process_mail_account` (Gmail API and SMTP forwarding, credential revocation, empty-email detection, error handling), `process_all_enabled_accounts` (stale-run cleanup, interval checking), and `cleanup_old_logs` (data retention, stale-run recovery).
+
 - **Admin endpoint test coverage**: Added 87 unit tests for `admin.py` covering all 17 endpoints (stats, user CRUD, plan CRUD, notification config CRUD, notification testing, processing runs/logs with GDPR masking and pagination). Coverage improved from 24% to 100%.
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
 - **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components, utility functions, and API interceptors. Installed `@testing-library/react`, `@testing-library/jest-dom`, and `@testing-library/user-event`. New suites: `date-utils.test.ts` (30 tests), `api.test.ts` (9 tests), `AuthGuard.test.tsx` (6 tests), `QueryProvider.test.tsx` (2 tests), `DashboardLayout.test.tsx` (14 tests), `NotificationWizard.test.tsx` (32 tests), `ProviderWizard.test.tsx` (20 tests). Total frontend: 119 tests across 8 suites.
