@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Domain-based logo fallback for mail accounts**: `ProviderLogoBanner` now shows provider logos even for accounts that have no `provider_name` set, by extracting the domain from the email address and matching it against a new `DOMAIN_ICON_MAP`. Covers Gmail, GMX, WEB.DE, Yahoo Mail, AOL, T-Online, Outlook/Hotmail, IONOS, Freenet, iCloud, Posteo, and Proton Mail.
+- **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components, utility functions, and API interceptors. Installed `@testing-library/react`, `@testing-library/jest-dom`, and `@testing-library/user-event`. New suites: `date-utils.test.ts` (30 tests), `api.test.ts` (9 tests), `AuthGuard.test.tsx` (6 tests), `QueryProvider.test.tsx` (2 tests), `DashboardLayout.test.tsx` (14 tests), `NotificationWizard.test.tsx` (32 tests), `ProviderWizard.test.tsx` (20 tests). Total frontend: 119 tests across 8 suites.
 
 ### Fixed
 

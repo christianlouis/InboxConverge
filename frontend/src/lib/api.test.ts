@@ -45,6 +45,7 @@ jest.mock('axios', () => ({
 }));
 
 // Force module initialization to capture interceptors
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('./api');
 
 describe('API module setup', () => {
