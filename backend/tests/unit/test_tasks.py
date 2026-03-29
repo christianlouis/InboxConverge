@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.models.database_models import DeliveryMethod, DownloadedMessageId
 from app.workers.tasks import _as_utc
 
 # ---------------------------------------------------------------------------
@@ -209,7 +210,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_api_forwarding_success(self):
         """Successful Gmail API forwarding updates run status and account."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(
@@ -270,7 +270,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_smtp_forwarding_user_config(self):
         """SMTP forwarding uses per-user SMTP config when available."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(
@@ -325,7 +324,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_smtp_forwarding_global_config(self):
         """SMTP forwarding falls back to global config when user has none."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.SMTP)
@@ -389,7 +387,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_smtp_missing_credentials_fails_run(self):
         """Run is marked 'failed' when SMTP credentials are missing."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.SMTP)
@@ -449,7 +446,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_cred_missing_falls_back_to_smtp(self):
         """Falls back to SMTP when Gmail creds are not found."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -512,7 +508,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_empty_email_skipped(self):
         """Empty emails are logged as warnings and their UIDs persisted."""
-        from app.models.database_models import DeliveryMethod
 
         empty_email = _build_empty_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -565,7 +560,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_email_forwarding_failure_partial(self):
         """Partial failures are recorded in run status and account."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.SMTP)
@@ -622,7 +616,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_credential_revocation_on_401(self):
         """Gmail 401 error invalidates credentials and sends notification."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -676,7 +669,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_credential_revocation_on_403(self):
         """Gmail 403 error also invalidates credentials."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -727,7 +719,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_credential_revocation_on_invalid_grant(self):
         """Gmail invalid_grant error also invalidates credentials."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -776,7 +767,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_refreshed_gmail_token_persisted(self):
         """A refreshed Gmail access token is written back to the DB."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -840,7 +830,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_outer_exception_marks_run_failed(self):
         """An unexpected exception triggers rollback and marks the run failed."""
-        from app.models.database_models import DeliveryMethod
 
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
 
@@ -880,7 +869,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_no_new_emails(self):
         """When fetch_emails returns empty, run completes cleanly."""
-        from app.models.database_models import DeliveryMethod
 
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
 
@@ -926,7 +914,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_notification_failure_does_not_break_task(self):
         """A failing notification does not crash the task."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.SMTP)
@@ -980,7 +967,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_already_seen_uids_skipped(self):
         """Previously downloaded UIDs should not be re-persisted."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -1034,7 +1020,6 @@ class TestProcessMailAccount:
 
         # Count DownloadedMessageId objects added — uid-1 is already seen
         # so should NOT create a new DownloadedMessageId for it
-        from app.models.database_models import DownloadedMessageId
 
         added_downloaded = [
             c
@@ -1046,7 +1031,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_gmail_no_refresh_token(self):
         """Gmail credential without refresh_token works (refresh_token=None)."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -1104,7 +1088,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_emails_uids_length_mismatch(self):
         """When emails and UIDs lists differ in length, truncation occurs."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -1155,7 +1138,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_email_header_parse_error(self):
         """Malformed email headers don't crash the processing loop."""
-        from app.models.database_models import DeliveryMethod
 
         # Produce bytes that email_lib.message_from_bytes can technically
         # parse but where header extraction will return empty strings.
@@ -1205,7 +1187,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_multipart_empty_email_detected(self):
         """A multipart email with no real content is detected as empty."""
-        from app.models.database_models import DeliveryMethod
 
         # Build a multipart email with no subject/from and empty parts
         multipart_empty = (
@@ -1265,7 +1246,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_non_multipart_empty_email_detected(self):
         """A non-multipart email with only whitespace body is detected as empty."""
-        from app.models.database_models import DeliveryMethod
 
         # Non-multipart, no subject, no from, whitespace body
         non_multipart_empty = b"Content-Type: text/plain\r\n" b"\r\n" b"   \r\n"
@@ -1315,7 +1295,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_revocation_notification_failure_swallowed(self):
         """Notification failure during credential revocation is swallowed."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
@@ -1369,7 +1348,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_outer_error_commit_failure(self):
         """When error handler's commit fails, it's caught and logged."""
-        from app.models.database_models import DeliveryMethod
 
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
 
@@ -1403,7 +1381,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_outer_error_notification_failure(self):
         """When notification fails during outer error handler, it's swallowed."""
-        from app.models.database_models import DeliveryMethod
 
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
 
@@ -1436,7 +1413,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_rollback_failure_swallowed(self):
         """When rollback itself fails during error handling, it's caught."""
-        from app.models.database_models import DeliveryMethod
 
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
 
@@ -1470,7 +1446,6 @@ class TestProcessMailAccount:
     @pytest.mark.asyncio
     async def test_email_header_parse_raises_exception(self):
         """ValueError/TypeError during header parsing is caught gracefully."""
-        from app.models.database_models import DeliveryMethod
 
         raw_email = _build_raw_email()
         account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
