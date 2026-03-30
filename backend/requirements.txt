@@ -41,7 +41,7 @@ redis==7.3.0
 cryptography==46.0.6  # Updated: Fixed NULL pointer dereference (was 42.0.0)
 
 # Notifications
-apprise==1.7.1
+apprise==1.9.9
 
 # Monitoring & Logging
 prometheus-client==0.19.0
