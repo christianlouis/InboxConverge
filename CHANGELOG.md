@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.2 (2026-04-05)
+
+### Code Style
+
+- Reformat test_gdpr.py and test_gmail_labels.py to fix black CI check
+  ([`7afa33f`](https://github.com/christianlouis/InboxConverge/commit/7afa33f3758d289bb0971e3f83bcc30b39e436f1))
+
+
 ## [Unreleased]
 
 ### Added
