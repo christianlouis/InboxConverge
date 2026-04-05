@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Added
+
+- **Backend test coverage expanded** (+150 tests, 361 → 511 total): added `test_gdpr.py` (GDPR masking utilities), `test_gmail_labels.py` (Gmail label helpers), `test_notification_service.py` (Apprise notification service), `test_auth_service.py` (OAuth service token exchange and token creation), `test_version_endpoint.py`, `test_auth_endpoints.py` (register, login, Google OAuth, authorize-url, domain helpers), `test_users_endpoints.py` (profile CRUD, SMTP config upsert/delete), `test_notifications_endpoints.py` (full CRUD + test-send), `test_logs_endpoints.py` (processing-runs pagination/filtering + run log retrieval), and `test_app_settings_endpoints.py` (list, upsert, delete, seed-defaults with bootstrap key guards).
 ## v0.6.1 (2026-04-05)
 
 ### Bug Fixes

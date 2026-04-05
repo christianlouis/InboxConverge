@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Expanded backend test coverage**: Added 150 new unit tests across 10 new test files, increasing the backend test count from 361 to 511. New coverage includes `core/gdpr.py`, `utils/gmail_labels.py`, `services/notification_service.py`, `services/auth_service.py`, and API endpoints for auth, users, notifications, processing-runs/logs, app-settings, and version.
+
 - [x] **Improved test coverage for `mail_processor.py`**: Added 46 new unit tests covering POP3 connection testing, POP3 email fetching, IMAP edge cases, email forwarding (STARTTLS/SSL), and `fetch_emails`/`test_connection` routing. Coverage increased from ~42% to 98%.
 
 - [x] **Log noise reduction**: Suppressed `ignored untagged response` INFO messages from `aioimaplib` in Celery workers (set logger to WARNING). Eliminated repeated `file_cache is only supported with oauth2client<4.0.0` warnings from the Gmail API client by passing `cache_discovery=False` to `googleapiclient.discovery.build()`.
