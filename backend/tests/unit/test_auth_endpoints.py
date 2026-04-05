@@ -314,7 +314,9 @@ class TestGoogleAuthorizeUrl:
         assert response.status_code == 200
         data = response.json()
         assert "authorization_url" in data
-        assert "accounts.google.com" in data["authorization_url"]
+        assert data["authorization_url"].startswith(
+            "https://accounts.google.com/o/oauth2/v2/auth"
+        )
 
     async def test_url_contains_redirect_uri(self, anon_client):
         redirect = "http://myapp.example.com/callback"

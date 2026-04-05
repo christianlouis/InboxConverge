@@ -77,7 +77,7 @@ class TestExtractGrantedScopes:
     def test_dict_format(self):
         data = {"granted_scopes": ["https://mail.google.com/", "openid"]}
         result = extract_granted_scopes(data)
-        assert "https://mail.google.com/" in result
+        assert result == ["https://mail.google.com/", "openid"]
 
     def test_dict_missing_granted_scopes(self):
         result = extract_granted_scopes({})
@@ -124,7 +124,7 @@ class TestBuildGmailCredentialScopes:
         )
         assert "granted_scopes" in result
         assert "import_label_templates" in result
-        assert "https://mail.google.com/" in result["granted_scopes"]
+        assert result["granted_scopes"] == ["https://mail.google.com/"]
 
     def test_none_granted_scopes(self):
         result = build_gmail_credential_scopes(None)
