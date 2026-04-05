@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.1 (2026-04-05)
+
+### Bug Fixes
+
+- Upgrade pytest-asyncio to 1.3.0 for pytest 9.x compatibility
+  ([`39052af`](https://github.com/christianlouis/InboxConverge/commit/39052af4e2a5df1dd29062b7dcced9b1f2f17baf))
+
+### Chores
+
+- **ci**: Bump actions/checkout from 4 to 6
+  ([`68a6163`](https://github.com/christianlouis/InboxConverge/commit/68a6163fef8e81e250d6959d94be2174bf9fba31))
+
+- **ci**: Bump codecov/codecov-action from 5 to 6
+  ([`594e380`](https://github.com/christianlouis/InboxConverge/commit/594e3803013363c0360d32fc329e9b427fa62835))
+
+- **ci**: Bump docker/build-push-action from 5 to 7
+  ([`2c26c15`](https://github.com/christianlouis/InboxConverge/commit/2c26c156f63cc7335cf7799a443c63d734c047f7))
+
+- **ci**: Bump docker/metadata-action from 5 to 6
+  ([`0e87da8`](https://github.com/christianlouis/InboxConverge/commit/0e87da85a61b9c1a764313231b69882b9aa55137))
+
+- **ci**: Bump mikefarah/yq from 4.44.6 to 4.52.5
+  ([`f4c8e4a`](https://github.com/christianlouis/InboxConverge/commit/f4c8e4a1dc98d221eabd137bb71459ebec9de254))
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([`348c347`](https://github.com/christianlouis/InboxConverge/commit/348c3477dcbb0c504681cc71df6d7d098ae378df))
+
+- **deps**: Bump @types/node from 20.19.30 to 25.5.0 in /frontend
+  ([`917dacc`](https://github.com/christianlouis/InboxConverge/commit/917dacc7cb9f1fa35a8dc2a72664b7d022039f2c))
+
+- **deps**: Bump aiohttp from 3.13.3 to 3.13.4 in /backend
+  ([`d919939`](https://github.com/christianlouis/InboxConverge/commit/d91993964783c6bfde48b6f115abb6d02b0eec5c))
+
+- **deps**: Bump apprise from 1.7.1 to 1.9.9 in /backend
+  ([`094b1e1`](https://github.com/christianlouis/InboxConverge/commit/094b1e177fcefc77b417a6715446fa13527c1a16))
+
+- **deps**: Bump axios from 1.13.6 to 1.14.0 in /frontend
+  ([`3b580c3`](https://github.com/christianlouis/InboxConverge/commit/3b580c36c751d962e4c164596ce65ef4e7ce5048))
+
+- **deps**: Bump bcrypt from 4.3.0 to 5.0.0 in /backend
+  ([`f0213a0`](https://github.com/christianlouis/InboxConverge/commit/f0213a0b03b05195329323d68a870a51e0a97150))
+
+- **deps**: Bump celery from 5.6.2 to 5.6.3 in /backend
+  ([`5992a9e`](https://github.com/christianlouis/InboxConverge/commit/5992a9e802686227675867a259771dcb3ecf41bb))
+
+- **deps**: Bump httpx from 0.26.0 to 0.28.1 in /backend
+  ([`c50cf6e`](https://github.com/christianlouis/InboxConverge/commit/c50cf6e0b32f2d115e9345054b777d3ab8a63f2b))
+
+- **deps**: Bump next from 16.1.7 to 16.2.1 in /frontend
+  ([`ec90cd6`](https://github.com/christianlouis/InboxConverge/commit/ec90cd600b03fd0aea64a9c395b11b7faaa0d52a))
+
+- **deps**: Bump prometheus-client from 0.19.0 to 0.24.1 in /backend
+  ([`77c8426`](https://github.com/christianlouis/InboxConverge/commit/77c84266fd5ea93f9c59e4ef3d9b37990f232883))
+
+- **deps**: Bump pytest from 7.4.4 to 9.0.2 in /backend
+  ([`4a6f93e`](https://github.com/christianlouis/InboxConverge/commit/4a6f93e5acf5a2f7766e25444a20e11a5918a2b6))
+
+- **deps**: Bump python-dotenv from 1.0.0 to 1.2.2 in /backend
+  ([`4dbe30b`](https://github.com/christianlouis/InboxConverge/commit/4dbe30b0eadb829e0d112b2c9ce877353b9d903e))
+
+- **deps**: Bump redis from 7.3.0 to 7.4.0 in /backend
+  ([`b914ac0`](https://github.com/christianlouis/InboxConverge/commit/b914ac0ecd8a14bb1c3a96a232de330622c93ac7))
+
+- **deps**: Bump typescript from 5.9.3 to 6.0.2 in /frontend
+  ([`726e089`](https://github.com/christianlouis/InboxConverge/commit/726e089c464b81e33ee872cd200b346cb996dcf6))
+
+- **deps**: Bump uvicorn from 0.27.0 to 0.42.0 in /backend
+  ([`ac6a837`](https://github.com/christianlouis/InboxConverge/commit/ac6a837522c1dcfee3fdc9b6e9dca2f94460053f))
+
+### Documentation
+
+- Fix CHANGELOG entry to only reference pytest-asyncio bump
+  ([`0521c97`](https://github.com/christianlouis/InboxConverge/commit/0521c97394ff3f4e909f9b463bd15958ac06b76f))
+
+- Fix secret key generation syntax in README quickstart
+  ([`9c12555`](https://github.com/christianlouis/InboxConverge/commit/9c12555a8116e1db605d3fc3042de48d292b2be2))
+
+- Rewrite README focused on Google 2026 POP/Gmailify shutdown replacement
+  ([`06efeed`](https://github.com/christianlouis/InboxConverge/commit/06efeed7be70a2d1da3a9e55a63cb8c9556b8c31))
+
+
 ## [Unreleased]
 
 ### Changed
