@@ -3,7 +3,6 @@ Unit tests for Gmail label utilities (utils/gmail_labels.py).
 Pure function tests – no database or HTTP layer required.
 """
 
-
 from app.utils.gmail_labels import (
     DEFAULT_IMPORT_LABEL_TEMPLATES,
     MAX_IMPORT_LABELS,

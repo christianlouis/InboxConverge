@@ -3,7 +3,6 @@ Unit tests for GDPR data masking utilities (core/gdpr.py).
 No database or HTTP layer required – pure function tests.
 """
 
-
 from app.core.gdpr import mask_email, mask_name, mask_from_header
 
 
