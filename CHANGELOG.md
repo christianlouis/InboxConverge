@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bumped `pytest` from 7.4.4 to 9.0.2 and `pytest-asyncio` from 0.23.3 to 1.3.0 to restore compatibility in the backend test suite.
+- Bumped `pytest-asyncio` from 0.23.3 to 1.3.0 to restore compatibility with pytest 9.0.2 in the backend test suite.
 
 ## v0.6.0 (2026-03-29)
 
