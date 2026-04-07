@@ -432,9 +432,7 @@ class MailProcessor:
 
         return emails, new_uids
 
-    async def post_process_imap(
-        self, successfully_forwarded_uids: List[str]
-    ) -> None:
+    async def post_process_imap(self, successfully_forwarded_uids: List[str]) -> None:
         """Mark successfully forwarded IMAP messages as \\Seen and optionally delete.
 
         Because fetch uses ``BODY.PEEK[]`` (which does NOT set \\Seen), this
@@ -485,9 +483,7 @@ class MailProcessor:
                 except Exception:
                     pass
 
-    async def post_process_pop3(
-        self, successfully_forwarded_uids: List[str]
-    ) -> None:
+    async def post_process_pop3(self, successfully_forwarded_uids: List[str]) -> None:
         """Delete successfully forwarded POP3 messages from the source mailbox.
 
         Opens a fresh POP3 session, maps stable UIDs back to current message
@@ -569,7 +565,8 @@ class MailProcessor:
         else:
             await self.post_process_imap(successfully_forwarded_uids)
 
-
+    @staticmethod
+    async def forward_email(
         email_data: bytes,
         source_account_name: str,
         destination: str,

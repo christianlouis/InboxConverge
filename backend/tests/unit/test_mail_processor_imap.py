@@ -814,12 +814,13 @@ class TestPostProcessImap:
         mock_imap.uid = AsyncMock(return_value=_make_imap_response())
         mock_imap.logout = AsyncMock()
 
-        with patch(
-            "app.services.mail_processor.aioimaplib.IMAP4",
-            return_value=mock_imap,
-        ) as mock_cls, patch(
-            "app.services.mail_processor.aioimaplib.IMAP4_SSL"
-        ) as mock_ssl_cls:
+        with (
+            patch(
+                "app.services.mail_processor.aioimaplib.IMAP4",
+                return_value=mock_imap,
+            ) as mock_cls,
+            patch("app.services.mail_processor.aioimaplib.IMAP4_SSL") as mock_ssl_cls,
+        ):
             await processor.post_process_imap(["1"])
             mock_cls.assert_called_once()
             mock_ssl_cls.assert_not_called()
@@ -852,11 +853,14 @@ class TestPostProcessMessages:
 
         account = _make_account(protocol="imap_ssl")
         processor = MailProcessor(account=account, decrypted_password="pw")
-        with patch.object(
-            processor, "post_process_imap", new_callable=AsyncMock
-        ) as mock_imap, patch.object(
-            processor, "post_process_pop3", new_callable=AsyncMock
-        ) as mock_pop3:
+        with (
+            patch.object(
+                processor, "post_process_imap", new_callable=AsyncMock
+            ) as mock_imap,
+            patch.object(
+                processor, "post_process_pop3", new_callable=AsyncMock
+            ) as mock_pop3,
+        ):
             await processor.post_process_messages(["1", "2"])
             mock_imap.assert_awaited_once_with(["1", "2"])
             mock_pop3.assert_not_awaited()
@@ -869,12 +873,14 @@ class TestPostProcessMessages:
             "app.models.database_models", fromlist=["MailProtocol"]
         ).MailProtocol.POP3_SSL
         processor = MailProcessor(account=account, decrypted_password="pw")
-        with patch.object(
-            processor, "post_process_pop3", new_callable=AsyncMock
-        ) as mock_pop3, patch.object(
-            processor, "post_process_imap", new_callable=AsyncMock
-        ) as mock_imap:
+        with (
+            patch.object(
+                processor, "post_process_pop3", new_callable=AsyncMock
+            ) as mock_pop3,
+            patch.object(
+                processor, "post_process_imap", new_callable=AsyncMock
+            ) as mock_imap,
+        ):
             await processor.post_process_messages(["a"])
             mock_pop3.assert_awaited_once_with(["a"])
             mock_imap.assert_not_awaited()
-

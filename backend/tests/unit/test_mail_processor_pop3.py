@@ -632,9 +632,6 @@ class TestPostProcessPop3:
         await proc.post_process_pop3(["uid-a"])  # must not raise
 
 
-
-
-
 class TestForwardEmail:
     """Unit tests for forward_email()."""
 
