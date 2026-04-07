@@ -591,6 +591,7 @@ class TestProcessMailAccount:
         session.refresh = AsyncMock()
 
         mock_processor = AsyncMock()
+        mock_processor.post_process_messages = AsyncMock()
         # Two emails: first succeeds, second fails
         mock_processor.fetch_emails.return_value = (
             [raw_email, raw_email],
@@ -614,6 +615,8 @@ class TestProcessMailAccount:
             await process_mail_account.run(1)
 
         assert session.commit.await_count >= 2
+        # Only the successfully forwarded UID should be post-processed
+        mock_processor.post_process_messages.assert_awaited_once_with(["uid-1"])
 
     @pytest.mark.asyncio
     async def test_gmail_credential_revocation_on_401(self):
