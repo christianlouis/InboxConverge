@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Fix Pydantic V2 deprecation warnings**: Replaced `.dict()` with `.model_dump()` in `admin.py` and `notifications.py`. Fixed `RuntimeWarning: coroutine never awaited` for `db.add()` in test mocks (`test_tasks.py`, `test_config_service.py`).
+
 - [x] **Expanded backend test coverage**: Added 150 new unit tests across 10 new test files, increasing the backend test count from 361 to 511. New coverage includes `core/gdpr.py`, `utils/gmail_labels.py`, `services/notification_service.py`, `services/auth_service.py`, and API endpoints for auth, users, notifications, processing-runs/logs, app-settings, and version.
 
 - [x] **Improved test coverage for `mail_processor.py`**: Added 46 new unit tests covering POP3 connection testing, POP3 email fetching, IMAP edge cases, email forwarding (STARTTLS/SSL), and `fetch_emails`/`test_connection` routing. Coverage increased from ~42% to 98%.
