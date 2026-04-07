@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+- Replace deprecated Pydantic V2 `.dict()` calls with `.model_dump()` in `admin.py` and `notifications.py` endpoints.
+- Fix `RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited` in `test_tasks.py` and `test_config_service.py` by marking `db.add` as a synchronous `MagicMock` in test helpers.
+
 ## v0.6.3 (2026-04-07)
 
 ### Bug Fixes

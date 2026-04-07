@@ -29,7 +29,7 @@ async def create_notification_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new notification configuration"""
-    config = NotificationConfig(user_id=current_user.id, **config_in.dict())
+    config = NotificationConfig(user_id=current_user.id, **config_in.model_dump())
     db.add(config)
     await db.commit()
     await db.refresh(config)
@@ -91,7 +91,7 @@ async def update_notification_config(
             detail="Notification config not found",
         )
 
-    update_data = config_in.dict(exclude_unset=True)
+    update_data = config_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(config, field, value)
 

@@ -172,9 +172,8 @@ class TestConfigServiceSet:
         mock_result.scalar_one_or_none.return_value = None
 
         mock_db = AsyncMock()
+        mock_db.add = MagicMock()
         mock_db.execute.return_value = mock_result
-
-        # The method will call db.add() and db.commit()
         await ConfigService.set(
             "SMTP_HOST", "new.host.com", db=mock_db, category="smtp"
         )

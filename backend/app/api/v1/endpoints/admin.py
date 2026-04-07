@@ -322,7 +322,7 @@ async def create_admin_notification_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new admin notification configuration (admin only)"""
-    config = AdminNotificationConfig(**config_in.dict())
+    config = AdminNotificationConfig(**config_in.model_dump())
     db.add(config)
     await db.commit()
     await db.refresh(config)
@@ -370,7 +370,7 @@ async def update_admin_notification_config(
             detail="Admin notification config not found",
         )
 
-    update_data = config_in.dict(exclude_unset=True)
+    update_data = config_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(config, field, value)
 

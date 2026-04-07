@@ -77,6 +77,8 @@ def _mock_session_maker():
     is usable as ``async with session_maker_mock() as db:``.
     """
     session = AsyncMock()
+    # db.add() is synchronous in SQLAlchemy; prevent "coroutine never awaited" warnings
+    session.add = MagicMock()
 
     # Make the session usable as an async context manager
     ctx = AsyncMock()
