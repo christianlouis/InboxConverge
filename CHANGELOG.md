@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.4 (2026-04-07)
+
+### Bug Fixes
+
+- Replace deprecated .dict() with .model_dump() and fix db.add() AsyncMock warnings
+  ([`31dc059`](https://github.com/christianlouis/InboxConverge/commit/31dc059274f0e75f6ea46581b4b4ec0dca994d37))
+
+
 ## [Unreleased]
 
 ### Fixed
