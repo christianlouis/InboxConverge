@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.3 (2026-04-07)
+
+### Bug Fixes
+
+- **lint**: Specify explicit React version to fix ESLint 10 compatibility
+  ([`efa553c`](https://github.com/christianlouis/InboxConverge/commit/efa553c8d52b2e7595318b5e4897baf13b4d847d))
+
+### Chores
+
+- **ci**: Bump docker/login-action from 3 to 4
+  ([`6fe2f9a`](https://github.com/christianlouis/InboxConverge/commit/6fe2f9ad951a75d7c43bbb596cce9af552b82ece))
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([`466e852`](https://github.com/christianlouis/InboxConverge/commit/466e852c8bb587ed9f98198c8ef7a570e4cb1aec))
+
+- **deps**: Bump @types/node from 25.5.0 to 25.5.2 in /frontend
+  ([`cc1edd8`](https://github.com/christianlouis/InboxConverge/commit/cc1edd8f5d1893eeecc83afb7795983fe5181b71))
+
+- **deps**: Bump aiosmtplib from 3.0.1 to 5.1.0 in /backend
+  ([`284fbba`](https://github.com/christianlouis/InboxConverge/commit/284fbba47f1082cc52a3d23ec82ef24d443f1c17))
+
+- **deps**: Bump alembic from 1.13.1 to 1.18.4 in /backend
+  ([`bd51a5b`](https://github.com/christianlouis/InboxConverge/commit/bd51a5b541db60610976d784e3518b00b04d9b65))
+
+- **deps**: Bump email-validator from 2.1.0.post1 to 2.3.0 in /backend
+  ([`6f414e1`](https://github.com/christianlouis/InboxConverge/commit/6f414e175a117aa1faa57844797be33b258ac380))
+
+- **deps**: Bump eslint from 9.39.4 to 10.2.0 in /frontend
+  ([`4bb92ac`](https://github.com/christianlouis/InboxConverge/commit/4bb92ac9d030aef180b2b358f4e824068a6c5c74))
+
+- **deps**: Bump eslint-config-next from 16.2.1 to 16.2.2 in /frontend
+  ([`9d53b11`](https://github.com/christianlouis/InboxConverge/commit/9d53b117d4c10282c1525312e048a509fba4aa00))
+
+- **deps**: Bump faker from 22.6.0 to 40.12.0 in /backend
+  ([`9553fae`](https://github.com/christianlouis/InboxConverge/commit/9553fae6b7a06a1780672a8c3ecd1d98b945731d))
+
+- **deps**: Bump google-auth-httplib2 from 0.3.0 to 0.3.1 in /backend
+  ([`233595e`](https://github.com/christianlouis/InboxConverge/commit/233595e5ddf3caf135ff36ab15a702955868b131))
+
+- **deps**: Bump google-auth-oauthlib from 1.2.0 to 1.3.1 in /backend
+  ([`3bb7a7c`](https://github.com/christianlouis/InboxConverge/commit/3bb7a7cd460d01356c89914681d3bb1344231dae))
+
+- **deps**: Bump lucide-react from 0.577.0 to 1.7.0 in /frontend
+  ([`bfaa639`](https://github.com/christianlouis/InboxConverge/commit/bfaa639eedf97df6e81620590b1a21e6e780b1e3))
+
+- **deps**: Bump next from 16.2.1 to 16.2.2 in /frontend
+  ([`a5d8700`](https://github.com/christianlouis/InboxConverge/commit/a5d87001194b9f0764875975e0d792b85e073ceb))
+
+- **deps**: Bump python-multipart from 0.0.22 to 0.0.24 in /backend
+  ([`f479974`](https://github.com/christianlouis/InboxConverge/commit/f479974a5a432183de01a5c58264ff9e35376d7d))
+
+- **deps**: Bump sqlalchemy from 2.0.48 to 2.0.49 in /backend
+  ([`6283d1c`](https://github.com/christianlouis/InboxConverge/commit/6283d1c4b4a46afb43cbafbfbb570e7be23cdef8))
+
+- **deps**: Bump stripe from 14.4.1 to 15.0.1 in /backend
+  ([`582311a`](https://github.com/christianlouis/InboxConverge/commit/582311a18e6ec02ef90b6d049c709ef0057bb837))
+
+- **deps**: Bump uvicorn from 0.42.0 to 0.43.0 in /backend
+  ([`b2d044d`](https://github.com/christianlouis/InboxConverge/commit/b2d044d8c209853f5ee2e58ab7e6b701ba462015))
+
+
 ## v0.6.2 (2026-04-05)
 
 ### Code Style
