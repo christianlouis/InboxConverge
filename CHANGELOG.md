@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.5 (2026-04-07)
+
+### Bug Fixes
+
+- Remove duplicate MailProcessor import in test_mail_processor_imap.py
+  ([`74ef362`](https://github.com/christianlouis/InboxConverge/commit/74ef362833824c844bb34daa4a8ceb8f0aa3bc36))
+
+- Restore missing forward_email signature and reformat with black
+  ([`3dd71cd`](https://github.com/christianlouis/InboxConverge/commit/3dd71cd61d069776df2c3908392057e49f2f29f7))
+
+- Retry failed forwarded emails; only post-process successfully forwarded messages
+  ([`ff7b50d`](https://github.com/christianlouis/InboxConverge/commit/ff7b50d944960d4da419ede988c2b1f24316b88d))
+
+
 ## v0.6.4 (2026-04-07)
 
 ### Bug Fixes
