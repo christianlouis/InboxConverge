@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.6.3 (2026-04-07)
+
+### Bug Fixes
+
+- **lint**: Specify explicit React version to fix ESLint 10 compatibility
+  ([`efa553c`](https://github.com/christianlouis/InboxConverge/commit/efa553c8d52b2e7595318b5e4897baf13b4d847d))
+
+### Chores
+
+- **ci**: Bump docker/login-action from 3 to 4
+  ([`6fe2f9a`](https://github.com/christianlouis/InboxConverge/commit/6fe2f9ad951a75d7c43bbb596cce9af552b82ece))
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([`466e852`](https://github.com/christianlouis/InboxConverge/commit/466e852c8bb587ed9f98198c8ef7a570e4cb1aec))
+
+- **deps**: Bump @types/node from 25.5.0 to 25.5.2 in /frontend
+  ([`cc1edd8`](https://github.com/christianlouis/InboxConverge/commit/cc1edd8f5d1893eeecc83afb7795983fe5181b71))
+
+- **deps**: Bump aiosmtplib from 3.0.1 to 5.1.0 in /backend
+  ([`284fbba`](https://github.com/christianlouis/InboxConverge/commit/284fbba47f1082cc52a3d23ec82ef24d443f1c17))
+
+- **deps**: Bump alembic from 1.13.1 to 1.18.4 in /backend
+  ([`bd51a5b`](https://github.com/christianlouis/InboxConverge/commit/bd51a5b541db60610976d784e3518b00b04d9b65))
+
+- **deps**: Bump email-validator from 2.1.0.post1 to 2.3.0 in /backend
+  ([`6f414e1`](https://github.com/christianlouis/InboxConverge/commit/6f414e175a117aa1faa57844797be33b258ac380))
+
+- **deps**: Bump eslint from 9.39.4 to 10.2.0 in /frontend
+  ([`4bb92ac`](https://github.com/christianlouis/InboxConverge/commit/4bb92ac9d030aef180b2b358f4e824068a6c5c74))
+
+- **deps**: Bump eslint-config-next from 16.2.1 to 16.2.2 in /frontend
+  ([`9d53b11`](https://github.com/christianlouis/InboxConverge/commit/9d53b117d4c10282c1525312e048a509fba4aa00))
+
+- **deps**: Bump faker from 22.6.0 to 40.12.0 in /backend
+  ([`9553fae`](https://github.com/christianlouis/InboxConverge/commit/9553fae6b7a06a1780672a8c3ecd1d98b945731d))
+
+- **deps**: Bump google-auth-httplib2 from 0.3.0 to 0.3.1 in /backend
+  ([`233595e`](https://github.com/christianlouis/InboxConverge/commit/233595e5ddf3caf135ff36ab15a702955868b131))
+
+- **deps**: Bump google-auth-oauthlib from 1.2.0 to 1.3.1 in /backend
+  ([`3bb7a7c`](https://github.com/christianlouis/InboxConverge/commit/3bb7a7cd460d01356c89914681d3bb1344231dae))
+
+- **deps**: Bump lucide-react from 0.577.0 to 1.7.0 in /frontend
+  ([`bfaa639`](https://github.com/christianlouis/InboxConverge/commit/bfaa639eedf97df6e81620590b1a21e6e780b1e3))
+
+- **deps**: Bump next from 16.2.1 to 16.2.2 in /frontend
+  ([`a5d8700`](https://github.com/christianlouis/InboxConverge/commit/a5d87001194b9f0764875975e0d792b85e073ceb))
+
+- **deps**: Bump python-multipart from 0.0.22 to 0.0.24 in /backend
+  ([`f479974`](https://github.com/christianlouis/InboxConverge/commit/f479974a5a432183de01a5c58264ff9e35376d7d))
+
+- **deps**: Bump sqlalchemy from 2.0.48 to 2.0.49 in /backend
+  ([`6283d1c`](https://github.com/christianlouis/InboxConverge/commit/6283d1c4b4a46afb43cbafbfbb570e7be23cdef8))
+
+- **deps**: Bump stripe from 14.4.1 to 15.0.1 in /backend
+  ([`582311a`](https://github.com/christianlouis/InboxConverge/commit/582311a18e6ec02ef90b6d049c709ef0057bb837))
+
+- **deps**: Bump uvicorn from 0.42.0 to 0.43.0 in /backend
+  ([`b2d044d`](https://github.com/christianlouis/InboxConverge/commit/b2d044d8c209853f5ee2e58ab7e6b701ba462015))
+
+
+## v0.6.2 (2026-04-05)
+
+### Code Style
+
+- Reformat test_gdpr.py and test_gmail_labels.py to fix black CI check
+  ([`7afa33f`](https://github.com/christianlouis/InboxConverge/commit/7afa33f3758d289bb0971e3f83bcc30b39e436f1))
+
+
 ## [Unreleased]
 
 ### Added
@@ -17,6 +86,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests for provider endpoints (`test_providers.py`): 23 tests covering provider presets, Gmail credential CRUD, import labels, authorize URL, debug email, and OAuth callback
 - Unit tests for mail account endpoints (`test_mail_accounts.py`): 30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs, and processing logs
 - Unit tests for authentication endpoints (`test_auth.py`): 22 tests covering register, login, Google OAuth, authorize-url, and helper functions
+- **Backend test coverage expanded** (+150 tests, 361 → 511 total): added `test_gdpr.py` (GDPR masking utilities), `test_gmail_labels.py` (Gmail label helpers), `test_notification_service.py` (Apprise notification service), `test_auth_service.py` (OAuth service token exchange and token creation), `test_version_endpoint.py`, `test_auth_endpoints.py` (register, login, Google OAuth, authorize-url, domain helpers), `test_users_endpoints.py` (profile CRUD, SMTP config upsert/delete), `test_notifications_endpoints.py` (full CRUD + test-send), `test_logs_endpoints.py` (processing-runs pagination/filtering + run log retrieval), and `test_app_settings_endpoints.py` (list, upsert, delete, seed-defaults with bootstrap key guards).
+## v0.6.1 (2026-04-05)
+
+### Bug Fixes
+
+- Upgrade pytest-asyncio to 1.3.0 for pytest 9.x compatibility
+  ([`39052af`](https://github.com/christianlouis/InboxConverge/commit/39052af4e2a5df1dd29062b7dcced9b1f2f17baf))
+
+### Chores
+
+- **ci**: Bump actions/checkout from 4 to 6
+  ([`68a6163`](https://github.com/christianlouis/InboxConverge/commit/68a6163fef8e81e250d6959d94be2174bf9fba31))
+
+- **ci**: Bump codecov/codecov-action from 5 to 6
+  ([`594e380`](https://github.com/christianlouis/InboxConverge/commit/594e3803013363c0360d32fc329e9b427fa62835))
+
+- **ci**: Bump docker/build-push-action from 5 to 7
+  ([`2c26c15`](https://github.com/christianlouis/InboxConverge/commit/2c26c156f63cc7335cf7799a443c63d734c047f7))
+
+- **ci**: Bump docker/metadata-action from 5 to 6
+  ([`0e87da8`](https://github.com/christianlouis/InboxConverge/commit/0e87da85a61b9c1a764313231b69882b9aa55137))
+
+- **ci**: Bump mikefarah/yq from 4.44.6 to 4.52.5
+  ([`f4c8e4a`](https://github.com/christianlouis/InboxConverge/commit/f4c8e4a1dc98d221eabd137bb71459ebec9de254))
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([`348c347`](https://github.com/christianlouis/InboxConverge/commit/348c3477dcbb0c504681cc71df6d7d098ae378df))
+
+- **deps**: Bump @types/node from 20.19.30 to 25.5.0 in /frontend
+  ([`917dacc`](https://github.com/christianlouis/InboxConverge/commit/917dacc7cb9f1fa35a8dc2a72664b7d022039f2c))
+
+- **deps**: Bump aiohttp from 3.13.3 to 3.13.4 in /backend
+  ([`d919939`](https://github.com/christianlouis/InboxConverge/commit/d91993964783c6bfde48b6f115abb6d02b0eec5c))
+
+- **deps**: Bump apprise from 1.7.1 to 1.9.9 in /backend
+  ([`094b1e1`](https://github.com/christianlouis/InboxConverge/commit/094b1e177fcefc77b417a6715446fa13527c1a16))
+
+- **deps**: Bump axios from 1.13.6 to 1.14.0 in /frontend
+  ([`3b580c3`](https://github.com/christianlouis/InboxConverge/commit/3b580c36c751d962e4c164596ce65ef4e7ce5048))
+
+- **deps**: Bump bcrypt from 4.3.0 to 5.0.0 in /backend
+  ([`f0213a0`](https://github.com/christianlouis/InboxConverge/commit/f0213a0b03b05195329323d68a870a51e0a97150))
+
+- **deps**: Bump celery from 5.6.2 to 5.6.3 in /backend
+  ([`5992a9e`](https://github.com/christianlouis/InboxConverge/commit/5992a9e802686227675867a259771dcb3ecf41bb))
+
+- **deps**: Bump httpx from 0.26.0 to 0.28.1 in /backend
+  ([`c50cf6e`](https://github.com/christianlouis/InboxConverge/commit/c50cf6e0b32f2d115e9345054b777d3ab8a63f2b))
+
+- **deps**: Bump next from 16.1.7 to 16.2.1 in /frontend
+  ([`ec90cd6`](https://github.com/christianlouis/InboxConverge/commit/ec90cd600b03fd0aea64a9c395b11b7faaa0d52a))
+
+- **deps**: Bump prometheus-client from 0.19.0 to 0.24.1 in /backend
+  ([`77c8426`](https://github.com/christianlouis/InboxConverge/commit/77c84266fd5ea93f9c59e4ef3d9b37990f232883))
+
+- **deps**: Bump pytest from 7.4.4 to 9.0.2 in /backend
+  ([`4a6f93e`](https://github.com/christianlouis/InboxConverge/commit/4a6f93e5acf5a2f7766e25444a20e11a5918a2b6))
+
+- **deps**: Bump python-dotenv from 1.0.0 to 1.2.2 in /backend
+  ([`4dbe30b`](https://github.com/christianlouis/InboxConverge/commit/4dbe30b0eadb829e0d112b2c9ce877353b9d903e))
+
+- **deps**: Bump redis from 7.3.0 to 7.4.0 in /backend
+  ([`b914ac0`](https://github.com/christianlouis/InboxConverge/commit/b914ac0ecd8a14bb1c3a96a232de330622c93ac7))
+
+- **deps**: Bump typescript from 5.9.3 to 6.0.2 in /frontend
+  ([`726e089`](https://github.com/christianlouis/InboxConverge/commit/726e089c464b81e33ee872cd200b346cb996dcf6))
+
+- **deps**: Bump uvicorn from 0.27.0 to 0.42.0 in /backend
+  ([`ac6a837`](https://github.com/christianlouis/InboxConverge/commit/ac6a837522c1dcfee3fdc9b6e9dca2f94460053f))
+
+### Documentation
+
+- Fix CHANGELOG entry to only reference pytest-asyncio bump
+  ([`0521c97`](https://github.com/christianlouis/InboxConverge/commit/0521c97394ff3f4e909f9b463bd15958ac06b76f))
+
+- Fix secret key generation syntax in README quickstart
+  ([`9c12555`](https://github.com/christianlouis/InboxConverge/commit/9c12555a8116e1db605d3fc3042de48d292b2be2))
+
+- Rewrite README focused on Google 2026 POP/Gmailify shutdown replacement
+  ([`06efeed`](https://github.com/christianlouis/InboxConverge/commit/06efeed7be70a2d1da3a9e55a63cb8c9556b8c31))
+
+
+## [Unreleased]
+
+### Changed
+
+- Bumped `pytest-asyncio` from 0.23.3 to 1.3.0 to restore compatibility with pytest 9.0.2 in the backend test suite.
 
 ## v0.6.0 (2026-03-29)
 
@@ -44,6 +200,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [Unreleased]
+
+### Changed
+
+- **README rewrite**: Replaced README with a focused, marketing-oriented page targeting users affected by Google's 2026 shutdown of Gmail POP import ("Check mail from other accounts") and Gmailify. Fixed broken CI badge links (pointed to non-existent workflow files; now correctly references `ci.yml`). Removed verbose technical implementation sections in favour of a clear problem statement, comparison table, 5-minute quick-start, and concise delivery-method summary.
 
 ### Added
 
