@@ -163,7 +163,7 @@ class TestFetchImapEmailsUidCommands:
         # The fetch call should use UID FETCH
         fetch_call = [c for c in mock_imap.uid.call_args_list if c.args[0] == "fetch"]
         assert len(fetch_call) == 1
-        assert fetch_call[0] == call("fetch", "42", "(RFC822)")
+        assert fetch_call[0] == call("fetch", "42", "(BODY.PEEK[])")
 
     async def test_no_per_message_store_for_seen(self, processor, mock_imap):
         """RFC822 implicitly marks \\Seen; no extra STORE per message is needed."""
@@ -260,8 +260,12 @@ class TestFetchImapEmailsUidCommands:
         # RFC 3501 parenthesised flag syntax
         assert store_calls[0].args[3] == "(\\Seen)"
 
-    async def test_delete_after_forward_uses_single_batch_store(self):
-        """delete_after_forward=True must issue one UID STORE \\Deleted command."""
+    async def test_fetch_does_not_delete_after_forward(self):
+        """_fetch_imap_emails must NOT issue \\Deleted STORE even when delete_after_forward=True.
+
+        Deletion is deferred to post_process_imap() so that only successfully
+        forwarded messages are removed from the source mailbox.
+        """
         from app.services.mail_processor import MailProcessor
 
         account = _make_account(delete_after_forward=True)
@@ -295,17 +299,15 @@ class TestFetchImapEmailsUidCommands:
 
         assert new_uids == ["7", "8"]
 
-        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
-        # Exactly one STORE for deletion covering both UIDs
-        assert len(store_calls) == 1
-        uid_set_arg = store_calls[0].args[1]
-        parts = set(uid_set_arg.split(","))
-        assert parts == {"7", "8"}
-        assert store_calls[0].args[2] == "+FLAGS"
-        # RFC 3501 parenthesised flag syntax
-        assert store_calls[0].args[3] == "(\\Deleted)"
-        # expunge must also be called
-        mock_imap.expunge.assert_awaited_once()
+        # No STORE for \\Deleted should be issued during fetch
+        delete_store_calls = [
+            c
+            for c in mock_imap.uid.call_args_list
+            if c.args[0] == "store" and "(\\Deleted)" in c.args
+        ]
+        assert delete_store_calls == [], "fetch must not delete messages"
+        # expunge must NOT be called during fetch either
+        mock_imap.expunge.assert_not_awaited()
 
     async def test_individual_fetch_failure_does_not_abort(self, processor, mock_imap):
         """A single message fetch error should be logged but not stop processing."""
@@ -709,3 +711,170 @@ class TestFetchImapEdgeCases:
         assert len(emails) == 1
         assert emails[0] == email_bytes
         assert new_uids == ["99"]
+
+
+# ---------------------------------------------------------------------------
+# post_process_imap tests
+# ---------------------------------------------------------------------------
+
+
+class TestPostProcessImap:
+    """Tests for the post_process_imap() method."""
+
+    def _make_processor(self, delete_after_forward=False, protocol="imap_ssl"):
+        from app.services.mail_processor import MailProcessor
+
+        account = _make_account(
+            delete_after_forward=delete_after_forward, protocol=protocol
+        )
+        return MailProcessor(account=account, decrypted_password="secret")
+
+    def _mock_imap_client(self):
+        client = MagicMock()
+        client.wait_hello_from_server = AsyncMock()
+        client.login = AsyncMock()
+        client.select = AsyncMock()
+        client.uid = AsyncMock(return_value=_make_imap_response())
+        client.expunge = AsyncMock()
+        client.logout = AsyncMock()
+        return client
+
+    async def test_marks_seen_without_delete(self):
+        """post_process_imap marks UIDs \\Seen when delete_after_forward=False."""
+        processor = self._make_processor(delete_after_forward=False)
+        mock_imap = self._mock_imap_client()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            await processor.post_process_imap(["10", "11"])
+
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
+        assert len(store_calls) == 1
+        assert set(store_calls[0].args[1].split(",")) == {"10", "11"}
+        assert store_calls[0].args[3] == "(\\Seen)"
+        mock_imap.expunge.assert_not_awaited()
+
+    async def test_marks_seen_and_deleted_with_delete(self):
+        """post_process_imap marks \\Seen + \\Deleted and expunges when configured."""
+        processor = self._make_processor(delete_after_forward=True)
+        mock_imap = self._mock_imap_client()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            await processor.post_process_imap(["5", "6"])
+
+        store_calls = [c for c in mock_imap.uid.call_args_list if c.args[0] == "store"]
+        assert len(store_calls) == 2
+        flags_used = {c.args[3] for c in store_calls}
+        assert "(\\Seen)" in flags_used
+        assert "(\\Deleted)" in flags_used
+        mock_imap.expunge.assert_awaited_once()
+
+    async def test_noop_on_empty_uid_list(self):
+        """post_process_imap does nothing when the UID list is empty."""
+        processor = self._make_processor()
+        mock_imap = self._mock_imap_client()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            await processor.post_process_imap([])
+
+        mock_imap.login.assert_not_awaited()
+
+    async def test_exception_is_swallowed_and_logged(self):
+        """post_process_imap catches exceptions and does not propagate them."""
+        processor = self._make_processor()
+        mock_imap = self._mock_imap_client()
+        mock_imap.login = AsyncMock(side_effect=OSError("connection refused"))
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            await processor.post_process_imap(["1"])  # must not raise
+
+        mock_imap.logout.assert_awaited_once()
+
+    async def test_uses_imap4_for_non_ssl(self):
+        """Plain IMAP accounts must use IMAP4, not IMAP4_SSL."""
+        from app.services.mail_processor import MailProcessor
+
+        account = _make_account(protocol="imap")
+        processor = MailProcessor(account=account, decrypted_password="pw")
+        mock_imap = MagicMock()
+        mock_imap.wait_hello_from_server = AsyncMock()
+        mock_imap.login = AsyncMock()
+        mock_imap.select = AsyncMock()
+        mock_imap.uid = AsyncMock(return_value=_make_imap_response())
+        mock_imap.logout = AsyncMock()
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4",
+            return_value=mock_imap,
+        ) as mock_cls, patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL"
+        ) as mock_ssl_cls:
+            await processor.post_process_imap(["1"])
+            mock_cls.assert_called_once()
+            mock_ssl_cls.assert_not_called()
+
+    async def test_logout_called_even_on_error(self):
+        """logout() is called in the finally block even when an exception occurs."""
+        processor = self._make_processor()
+        mock_imap = self._mock_imap_client()
+        mock_imap.uid = AsyncMock(side_effect=Exception("store failed"))
+
+        with patch(
+            "app.services.mail_processor.aioimaplib.IMAP4_SSL",
+            return_value=mock_imap,
+        ):
+            await processor.post_process_imap(["99"])
+
+        mock_imap.logout.assert_awaited_once()
+
+
+# ---------------------------------------------------------------------------
+# post_process_messages routing test
+# ---------------------------------------------------------------------------
+
+
+class TestPostProcessMessages:
+    """post_process_messages() routes to the correct protocol handler."""
+
+    async def test_routes_to_imap_for_imap_ssl(self):
+        from app.services.mail_processor import MailProcessor
+
+        account = _make_account(protocol="imap_ssl")
+        processor = MailProcessor(account=account, decrypted_password="pw")
+        with patch.object(
+            processor, "post_process_imap", new_callable=AsyncMock
+        ) as mock_imap, patch.object(
+            processor, "post_process_pop3", new_callable=AsyncMock
+        ) as mock_pop3:
+            await processor.post_process_messages(["1", "2"])
+            mock_imap.assert_awaited_once_with(["1", "2"])
+            mock_pop3.assert_not_awaited()
+
+    async def test_routes_to_pop3_for_pop3_ssl(self):
+        from app.services.mail_processor import MailProcessor, MailProcessor
+
+        account = _make_account(protocol="imap_ssl")
+        account.protocol = __import__(
+            "app.models.database_models", fromlist=["MailProtocol"]
+        ).MailProtocol.POP3_SSL
+        processor = MailProcessor(account=account, decrypted_password="pw")
+        with patch.object(
+            processor, "post_process_pop3", new_callable=AsyncMock
+        ) as mock_pop3, patch.object(
+            processor, "post_process_imap", new_callable=AsyncMock
+        ) as mock_imap:
+            await processor.post_process_messages(["a"])
+            mock_pop3.assert_awaited_once_with(["a"])
+            mock_imap.assert_not_awaited()
+

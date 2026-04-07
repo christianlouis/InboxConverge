@@ -313,6 +313,15 @@ async def process_mail_account(account_id: int):
                             emails_forwarded += 1
                             successfully_forwarded_uids.append(uid)
                         else:
+                            logger.warning(
+                                "Email delivery returned False for uid=%s "
+                                "on account %s (subject=%r, from=%r); "
+                                "message will be retried on next run",
+                                uid,
+                                account.id,
+                                email_subject,
+                                email_from,
+                            )
                             emails_failed += 1
 
                 except Exception as e:
@@ -370,6 +379,20 @@ async def process_mail_account(account_id: int):
                         error_details={"error": error_msg} if error_msg else None,
                     )
                 )
+
+            # Post-process: mark successfully forwarded messages as \Seen (IMAP)
+            # and/or delete them from the source mailbox.  This is done AFTER
+            # the forwarding loop so that any message that failed to forward is
+            # left untouched in the source and will be retried on the next run.
+            if successfully_forwarded_uids:
+                try:
+                    await processor.post_process_messages(successfully_forwarded_uids)
+                except Exception as post_exc:
+                    logger.warning(
+                        "Failed to post-process messages for account %s: %s",
+                        account.id,
+                        post_exc,
+                    )
 
             # Persist new message UIDs so they are not processed again
             for uid in successfully_forwarded_uids:

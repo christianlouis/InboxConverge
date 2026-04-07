@@ -213,7 +213,6 @@ class MailProcessor:
 
                 fetched: List[bytes] = []
                 fetched_uids: List[str] = []
-                messages_to_delete: List[int] = []
                 fetched_count = 0
 
                 for msg_num, uid in uid_map.items():
@@ -233,7 +232,6 @@ class MailProcessor:
                         email_data = b"\r\n".join(lines)
                         fetched.append(email_data)
                         fetched_uids.append(uid)
-                        messages_to_delete.append(msg_num)
                         fetched_count += 1
                         logger.info(
                             f"Retrieved message {msg_num} (uid={uid}) "
@@ -241,14 +239,6 @@ class MailProcessor:
                         )
                     except Exception as e:
                         logger.error(f"Error retrieving message {msg_num}: {e}")
-
-                # Delete messages if configured
-                if self.account.delete_after_forward:
-                    for msg_id in messages_to_delete:
-                        try:
-                            pop_conn.dele(msg_id)
-                        except Exception as e:
-                            logger.error(f"Error deleting message {msg_id}: {e}")
 
                 pop_conn.quit()
                 return fetched, fetched_uids
@@ -370,19 +360,23 @@ class MailProcessor:
                         f"{self.account.id}: {e}"
                     )
 
-            # Fetch each new message.  RFC822 FETCH implicitly sets \Seen on
-            # the server so no extra STORE per message is required.
-            fetched_uids: List[bytes] = []
+            # Fetch each new message using BODY.PEEK[] so the \Seen flag is NOT
+            # set implicitly.  Successfully forwarded messages are marked \Seen
+            # (and optionally \Deleted) afterwards via post_process_imap().
+            # This ensures that emails which fail to forward remain \Unseen and
+            # are therefore retried on the next SEARCH UNSEEN run.
             for uid in uids_to_fetch:
                 uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
                 try:
-                    fetch_response = await imap_client.uid("fetch", uid_str, "(RFC822)")
+                    fetch_response = await imap_client.uid(
+                        "fetch", uid_str, "(BODY.PEEK[])"
+                    )
 
                     # Extract raw email bytes from the FETCH response lines.
                     # A UID FETCH response looks like:
-                    #   [b'<seq> (UID <uid> RFC822 {<size>}', <email_bytes>, b')']
-                    # Skip the header line (contains "RFC822") and grab the
-                    # first substantive bytes value.
+                    #   [b'<seq> (UID <uid> BODY[] {<size>}', <email_bytes>, b')']
+                    # Skip the status/header line (contains "BODY[" or "RFC822")
+                    # and grab the first substantive bytes value.
                     #
                     # aioimaplib stores IMAP literal data (the actual email
                     # content) as bytearray, not bytes.  We must accept both
@@ -392,7 +386,7 @@ class MailProcessor:
                     for line in fetch_response.lines:
                         if not isinstance(line, (bytes, bytearray)):
                             continue
-                        if b"RFC822" in line:
+                        if b"RFC822" in line or b"BODY[" in line:
                             continue
                         if line.startswith(b"*"):
                             continue
@@ -404,33 +398,18 @@ class MailProcessor:
                     if email_data and email_data.strip():
                         emails.append(email_data)
                         new_uids.append(uid_str)
-                        fetched_uids.append(uid)
                     else:
                         logger.warning(
                             f"No email data extracted for UID {uid_str} on "
                             f"account {self.account.id} "
                             f"(raw bytes: {len(email_data) if email_data else 0}); "
                             "this may indicate a server-side error producing empty "
-                            "IMAP RFC822 responses"
+                            "IMAP responses"
                         )
 
                 except Exception as e:
                     logger.error(
                         f"Error fetching message UID {uid_str} for account "
-                        f"{self.account.id}: {e}"
-                    )
-
-            # Batch-mark fetched messages for deletion if configured (one STORE
-            # command covers all UIDs instead of N individual commands).
-            # RFC 3501 requires parentheses around flag names: +FLAGS (\Deleted).
-            if self.account.delete_after_forward and fetched_uids:
-                uid_set = b",".join(fetched_uids).decode()
-                try:
-                    await imap_client.uid("store", uid_set, "+FLAGS", "(\\Deleted)")
-                    await imap_client.expunge()
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to delete messages for account "
                         f"{self.account.id}: {e}"
                     )
 
@@ -453,8 +432,144 @@ class MailProcessor:
 
         return emails, new_uids
 
-    @staticmethod
-    async def forward_email(
+    async def post_process_imap(
+        self, successfully_forwarded_uids: List[str]
+    ) -> None:
+        """Mark successfully forwarded IMAP messages as \\Seen and optionally delete.
+
+        Because fetch uses ``BODY.PEEK[]`` (which does NOT set \\Seen), this
+        step is required so successfully processed messages stop appearing in
+        ``SEARCH UNSEEN``.  Messages that failed to forward are intentionally
+        left \\Unseen so they are retried on the next processing run.
+
+        If ``delete_after_forward`` is enabled, the messages are also flagged
+        \\Deleted and the mailbox is expunged.
+        """
+        if not successfully_forwarded_uids:
+            return
+
+        imap_client = None
+        try:
+            if self.account.protocol == MailProtocol.IMAP_SSL:
+                imap_client = aioimaplib.IMAP4_SSL(
+                    host=self.account.host, port=self.account.port, timeout=30
+                )
+            else:
+                imap_client = aioimaplib.IMAP4(
+                    host=self.account.host, port=self.account.port, timeout=30
+                )
+
+            await imap_client.wait_hello_from_server()
+            await imap_client.login(self.account.username, self.password)
+            await imap_client.select("INBOX")
+
+            uid_set = ",".join(successfully_forwarded_uids)
+
+            # Mark as \Seen so they no longer appear in SEARCH UNSEEN.
+            await imap_client.uid("store", uid_set, "+FLAGS", "(\\Seen)")
+
+            if self.account.delete_after_forward:
+                await imap_client.uid("store", uid_set, "+FLAGS", "(\\Deleted)")
+                await imap_client.expunge()
+
+        except Exception as e:
+            logger.warning(
+                "Failed to post-process IMAP messages for account %s: %s",
+                self.account.id,
+                e,
+            )
+        finally:
+            if imap_client is not None:
+                try:
+                    await imap_client.logout()
+                except Exception:
+                    pass
+
+    async def post_process_pop3(
+        self, successfully_forwarded_uids: List[str]
+    ) -> None:
+        """Delete successfully forwarded POP3 messages from the source mailbox.
+
+        Opens a fresh POP3 session, maps stable UIDs back to current message
+        numbers via UIDL, and deletes only the messages that were successfully
+        forwarded.  Messages that failed to forward are intentionally left on
+        the server so they are retried on the next processing run.
+
+        This method is a no-op when ``delete_after_forward`` is ``False``.
+        """
+        if not successfully_forwarded_uids or not self.account.delete_after_forward:
+            return
+
+        loop = asyncio.get_event_loop()
+        uid_set = set(successfully_forwarded_uids)
+
+        def _delete_pop3() -> None:
+            if self.account.protocol == MailProtocol.POP3_SSL:
+                context = ssl.create_default_context()
+                pop_conn: poplib.POP3 = poplib.POP3_SSL(
+                    str(self.account.host),
+                    int(self.account.port),
+                    context=context,
+                    timeout=30,
+                )
+            else:
+                pop_conn = poplib.POP3(
+                    str(self.account.host), int(self.account.port), timeout=30
+                )
+
+            pop_conn.user(str(self.account.username))
+            pop_conn.pass_(self.password)
+
+            uidl_response = pop_conn.uidl()
+            for entry in uidl_response[1]:
+                parts = entry.decode().split(" ", 1)
+                if len(parts) != 2:
+                    continue
+                msg_num = int(parts[0])
+                uid = parts[1].strip()
+                if uid in uid_set:
+                    try:
+                        pop_conn.dele(msg_num)
+                    except Exception as e:
+                        logger.error(
+                            "Error deleting POP3 message %s (uid=%s) "
+                            "for account %s: %s",
+                            msg_num,
+                            uid,
+                            self.account.id,
+                            e,
+                        )
+
+            pop_conn.quit()
+
+        try:
+            await loop.run_in_executor(None, _delete_pop3)
+        except Exception as e:
+            logger.warning(
+                "Failed to delete POP3 messages for account %s: %s",
+                self.account.id,
+                e,
+            )
+
+    async def post_process_messages(
+        self, successfully_forwarded_uids: List[str]
+    ) -> None:
+        """Post-process successfully forwarded messages.
+
+        Routes to the protocol-specific post-processor:
+        * IMAP: marks messages \\Seen (and \\Deleted + expunges if configured).
+        * POP3: deletes messages from the source mailbox if configured.
+
+        Must be called *after* the forwarding loop so that messages which
+        failed to forward remain untouched in the source mailbox and are
+        retried on the next run.
+        """
+        if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
+            await self.post_process_pop3(successfully_forwarded_uids)
+        else:
+            await self.post_process_imap(successfully_forwarded_uids)
+
+
         email_data: bytes,
         source_account_name: str,
         destination: str,

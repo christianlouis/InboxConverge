@@ -438,8 +438,12 @@ class TestFetchPop3Emails:
         assert len(uids) == 2
 
     @patch("app.services.mail_processor.poplib")
-    async def test_delete_after_forward(self, mock_poplib):
-        """delete_after_forward=True issues dele() for fetched messages."""
+    async def test_no_delete_during_fetch(self, mock_poplib):
+        """_fetch_pop3_emails must NOT call dele() regardless of delete_after_forward.
+
+        Deletion is deferred to post_process_pop3() so that only successfully
+        forwarded messages are removed from the source mailbox.
+        """
         mock_conn = self._make_pop3_mock(uid_entries=[(1, "a"), (2, "b")])
         mock_poplib.POP3_SSL.return_value = mock_conn
 
@@ -447,9 +451,7 @@ class TestFetchPop3Emails:
         proc = MailProcessor(account, "secret")
         await proc._fetch_pop3_emails(10, set())
 
-        assert mock_conn.dele.call_count == 2
-        mock_conn.dele.assert_any_call(1)
-        mock_conn.dele.assert_any_call(2)
+        mock_conn.dele.assert_not_called()
 
     @patch("app.services.mail_processor.poplib")
     async def test_no_delete_when_disabled(self, mock_poplib):
@@ -483,17 +485,16 @@ class TestFetchPop3Emails:
         assert "b" not in uids
 
     @patch("app.services.mail_processor.poplib")
-    async def test_delete_error_does_not_abort(self, mock_poplib):
-        """A dele() error is logged but doesn't raise."""
+    async def test_fetch_does_not_call_dele(self, mock_poplib):
+        """_fetch_pop3_emails never calls dele() — deletion is in post_process_pop3."""
         mock_conn = self._make_pop3_mock(uid_entries=[(1, "a")])
-        mock_conn.dele.side_effect = Exception("delete failed")
         mock_poplib.POP3_SSL.return_value = mock_conn
 
         account = _make_account(protocol="pop3_ssl", delete_after_forward=True)
         proc = MailProcessor(account, "secret")
-        # Should not raise
         emails, uids = await proc._fetch_pop3_emails(10, set())
         assert len(emails) == 1
+        mock_conn.dele.assert_not_called()
 
     @patch("app.services.mail_processor.poplib")
     async def test_connection_failure_raises_mail_fetch_error(self, mock_poplib):
@@ -559,8 +560,79 @@ class TestFetchPop3Emails:
 
 
 # ---------------------------------------------------------------------------
-# forward_email
+# post_process_pop3 tests
 # ---------------------------------------------------------------------------
+
+
+class TestPostProcessPop3:
+    """Unit tests for post_process_pop3()."""
+
+    @patch("app.services.mail_processor.poplib")
+    async def test_deletes_only_forwarded_uids(self, mock_poplib):
+        """Only successfully forwarded UIDs are deleted from the source mailbox."""
+        mock_conn = MagicMock()
+        mock_conn.uidl.return_value = (b"+OK", [b"1 uid-a", b"2 uid-b", b"3 uid-c"], 0)
+        mock_poplib.POP3_SSL.return_value = mock_conn
+
+        account = _make_account(protocol="pop3_ssl", delete_after_forward=True)
+        proc = MailProcessor(account, "secret")
+        await proc.post_process_pop3(["uid-a", "uid-c"])
+
+        # Only messages 1 and 3 should be deleted (uid-a and uid-c)
+        assert mock_conn.dele.call_count == 2
+        mock_conn.dele.assert_any_call(1)
+        mock_conn.dele.assert_any_call(3)
+        mock_conn.quit.assert_called_once()
+
+    @patch("app.services.mail_processor.poplib")
+    async def test_noop_when_delete_after_forward_false(self, mock_poplib):
+        """post_process_pop3 does nothing when delete_after_forward=False."""
+        mock_conn = MagicMock()
+        mock_poplib.POP3_SSL.return_value = mock_conn
+
+        account = _make_account(protocol="pop3_ssl", delete_after_forward=False)
+        proc = MailProcessor(account, "secret")
+        await proc.post_process_pop3(["uid-a"])
+
+        mock_poplib.POP3_SSL.assert_not_called()
+
+    @patch("app.services.mail_processor.poplib")
+    async def test_noop_on_empty_uid_list(self, mock_poplib):
+        """post_process_pop3 does nothing when the UID list is empty."""
+        mock_conn = MagicMock()
+        mock_poplib.POP3_SSL.return_value = mock_conn
+
+        account = _make_account(protocol="pop3_ssl", delete_after_forward=True)
+        proc = MailProcessor(account, "secret")
+        await proc.post_process_pop3([])
+
+        mock_poplib.POP3_SSL.assert_not_called()
+
+    @patch("app.services.mail_processor.poplib")
+    async def test_dele_error_does_not_abort(self, mock_poplib):
+        """A dele() error is logged but post_process_pop3 does not raise."""
+        mock_conn = MagicMock()
+        mock_conn.uidl.return_value = (b"+OK", [b"1 uid-a"], 0)
+        mock_conn.dele.side_effect = Exception("delete failed")
+        mock_poplib.POP3_SSL.return_value = mock_conn
+
+        account = _make_account(protocol="pop3_ssl", delete_after_forward=True)
+        proc = MailProcessor(account, "secret")
+        await proc.post_process_pop3(["uid-a"])  # must not raise
+
+        mock_conn.quit.assert_called_once()
+
+    @patch("app.services.mail_processor.poplib")
+    async def test_connection_error_is_swallowed(self, mock_poplib):
+        """A connection failure is logged but does not propagate."""
+        mock_poplib.POP3_SSL.side_effect = OSError("connection refused")
+
+        account = _make_account(protocol="pop3_ssl", delete_after_forward=True)
+        proc = MailProcessor(account, "secret")
+        await proc.post_process_pop3(["uid-a"])  # must not raise
+
+
+
 
 
 class TestForwardEmail:
