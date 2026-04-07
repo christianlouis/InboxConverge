@@ -866,7 +866,7 @@ class TestPostProcessMessages:
             mock_pop3.assert_not_awaited()
 
     async def test_routes_to_pop3_for_pop3_ssl(self):
-        from app.services.mail_processor import MailProcessor, MailProcessor
+        from app.services.mail_processor import MailProcessor
 
         account = _make_account(protocol="imap_ssl")
         account.protocol = __import__(
