@@ -80,6 +80,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expanded `gmail_service.py` unit test coverage: 10 new tests covering `inject_email` HttpError branch, `get_or_create_label` (existing/create/HttpError/generic-error), `inject_debug_email` full flow, `get_refreshed_token` (changed/unchanged), and `service` property lazy initialization — 24 total tests in `test_gmail_service.py`
+- Expanded `api.ts` test coverage from 20% to near-complete: 56 new tests covering all 10 API objects (`authApi`, `userApi`, `mailAccountsApi`, `processingRunsApi`, `gmailApi`, `smtpApi`, `adminApi`, `notificationsApi`, `adminNotificationsApi`, `versionApi`) — 65 total tests in `api.test.ts`
+- Unit tests for `AddMailAccountModal` component (`AddMailAccountModal.test.tsx`): 28 tests covering create/edit mode rendering, provider wizard flow, form field changes, checkbox toggles, auto-detect, test connection, submit mutations, error extraction, and modal close interactions
+- Unit tests for provider endpoints (`test_providers.py`): 23 tests covering provider presets, Gmail credential CRUD, import labels, authorize URL, debug email, and OAuth callback
+- Unit tests for mail account endpoints (`test_mail_accounts.py`): 30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs, and processing logs
+- Unit tests for authentication endpoints (`test_auth.py`): 22 tests covering register, login, Google OAuth, authorize-url, and helper functions
 - **Backend test coverage expanded** (+150 tests, 361 → 511 total): added `test_gdpr.py` (GDPR masking utilities), `test_gmail_labels.py` (Gmail label helpers), `test_notification_service.py` (Apprise notification service), `test_auth_service.py` (OAuth service token exchange and token creation), `test_version_endpoint.py`, `test_auth_endpoints.py` (register, login, Google OAuth, authorize-url, domain helpers), `test_users_endpoints.py` (profile CRUD, SMTP config upsert/delete), `test_notifications_endpoints.py` (full CRUD + test-send), `test_logs_endpoints.py` (processing-runs pagination/filtering + run log retrieval), and `test_app_settings_endpoints.py` (list, upsert, delete, seed-defaults with bootstrap key guards).
 ## v0.6.1 (2026-04-05)
 

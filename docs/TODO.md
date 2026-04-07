@@ -122,9 +122,14 @@ Comprehensive task breakdown for repository improvements and production readines
 - [x] Write tests for Celery tasks (96% coverage for `tasks.py`)
 - [x] Write unit tests for admin endpoints (87 tests, 100% coverage on admin.py)
 - [x] **Frontend test coverage**: Added 113 new tests across 7 new test suites covering all components and utility functions. Installed `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. New suites: `date-utils` (30 tests), API interceptors (9 tests), `AuthGuard` (6 tests), `QueryProvider` (2 tests), `DashboardLayout` (14 tests), `NotificationWizard` (32 tests), `ProviderWizard` (20 tests). Total frontend: 119 tests across 8 suites.
+- [x] **AddMailAccountModal test coverage**: 28 tests covering create/edit mode rendering, provider wizard flow, form fields, auto-detect, test connection, submit mutations, error extraction, and modal interactions. Total frontend: 147 tests across 9 suites.
+- [x] **Expanded `api.ts` test coverage**: Added 56 new tests covering all 10 API objects (`authApi`, `userApi`, `mailAccountsApi`, `processingRunsApi`, `gmailApi`, `smtpApi`, `adminApi`, `notificationsApi`, `adminNotificationsApi`, `versionApi`). Every exported method now has at least one test verifying correct HTTP method, URL, parameters, and return value. Total: 65 tests in `api.test.ts`.
 
 ### In Progress 🔨
-- [ ] Write unit tests for authentication (target 80%+ coverage)
+- [x] Write unit tests for authentication (22 tests covering register, login, Google OAuth, authorize-url, and helper functions)
+- [x] Write unit tests for mail account endpoints (30 tests covering CRUD, toggle, pull-now, test connection, auto-detect, processing runs/logs)
+- [x] Write unit tests for provider endpoints (23 tests covering presets, Gmail credential CRUD, import labels, authorize URL, debug email, OAuth callback)
+- [x] **Expanded `gmail_service.py` test coverage**: 10 new tests covering `inject_email` HttpError branch, `get_or_create_label` (existing/create/HttpError/generic-error), `inject_debug_email` full flow, `get_refreshed_token` (changed/unchanged), and `service` property lazy initialization — 24 total tests in `test_gmail_service.py`
 - [ ] Write unit tests for mail processing
 - [ ] Write integration tests for API endpoints
 
