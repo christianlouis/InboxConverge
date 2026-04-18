@@ -269,9 +269,23 @@ export default function Home() {
       {/* Footer */}
       <footer className="mt-20 border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <p className="text-center text-gray-600 text-sm">
+          <p className="text-center text-gray-600 text-sm mb-3">
             © {new Date().getFullYear()} InboxConverge — made for people, not enterprises.
           </p>
+          <div className="flex justify-center gap-4 text-xs text-gray-400">
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-gray-600 transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+              Impressum
+            </Link>
+            <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+              Datenschutz
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

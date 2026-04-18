@@ -4,6 +4,8 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Google OAuth consent screen legal compliance**: Added English Privacy Policy (`/privacy`) with Google API Limited Use Disclosure, Terms of Service (`/terms`), legal footer links on the home page (resolves Google's "homepage has no privacy policy link" verification rejection), login page, and register page (consent text). Cross-link from `/datenschutz` to `/privacy` added.
+
 - [x] **Fix Pydantic V2 deprecation warnings**: Replaced `.dict()` with `.model_dump()` in `admin.py` and `notifications.py`. Fixed `RuntimeWarning: coroutine never awaited` for `db.add()` in test mocks (`test_tasks.py`, `test_config_service.py`).
 
 - [x] **Expanded backend test coverage**: Added 150 new unit tests across 10 new test files, increasing the backend test count from 361 to 511. New coverage includes `core/gdpr.py`, `utils/gmail_labels.py`, `services/notification_service.py`, `services/auth_service.py`, and API endpoints for auth, users, notifications, processing-runs/logs, app-settings, and version.

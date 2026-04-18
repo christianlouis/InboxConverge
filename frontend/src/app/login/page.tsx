@@ -151,6 +151,12 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 flex justify-center gap-4 text-xs text-gray-400">
+          <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-gray-600 transition-colors">
+            Terms
+          </Link>
           <Link href="/impressum" className="hover:text-gray-600 transition-colors">
             Impressum
           </Link>

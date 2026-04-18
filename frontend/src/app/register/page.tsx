@@ -156,7 +156,34 @@ export default function RegisterPage() {
               </Link>
             </p>
           </div>
+
+          <p className="text-xs text-center text-gray-400">
+            By creating an account you agree to our{' '}
+            <Link href="/terms" className="underline hover:text-gray-600">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="underline hover:text-gray-600">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
+
+        <div className="mt-4 flex justify-center gap-4 text-xs text-gray-400">
+          <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-gray-600 transition-colors">
+            Terms
+          </Link>
+          <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+            Impressum
+          </Link>
+          <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+            Datenschutz
+          </Link>
+        </div>
       </div>
     </div>
   );
