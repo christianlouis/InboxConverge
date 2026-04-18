@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Added
+
+- **English Privacy Policy** (`/privacy`): comprehensive public privacy policy in English including a Google API Services Limited Use Disclosure, explaining how `gmail.insert`, `gmail.labels`, and `gmail.readonly` scopes are used. Required for Google OAuth consent screen verification.
+- **Terms of Service** (`/terms`): full English terms of service covering acceptable use, Google API compliance, data, liability, and governing law.
+- **Home page footer legal links**: Privacy Policy, Terms of Service, Impressum, and Datenschutz links added to the public landing page footer — directly resolves the Google verification rejection ("homepage does not contain a link to your privacy policy").
+- **Login page footer**: now includes Privacy Policy and Terms of Service links alongside the existing Impressum / Datenschutz links.
+- **Register page consent text**: "By creating an account you agree to our Terms of Service and Privacy Policy" notice added below the sign-up form.
+- **Datenschutz cross-link**: German privacy page now links to the English `/privacy` page in section 2 and the bottom footer bar.
+
 ## v0.6.5 (2026-04-07)
 
 ### Bug Fixes

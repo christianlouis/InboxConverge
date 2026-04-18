@@ -83,13 +83,21 @@ export default function DatenschutzPage() {
           <h2 className="text-xl font-semibold text-gray-800 mb-3">
             2. Geltungsbereich dieser Datenschutzerklärung
           </h2>
-          <p className="text-gray-700">
+          <p className="text-gray-700 mb-3">
             Dieser Hinweis gilt für die {APP_NAME}-Webanwendung. Er gilt
             für alle Nutzer weltweit, einschließlich derjenigen in der
             Europäischen Union (EU), dem Europäischen Wirtschaftsraum (EWR),
             Deutschland, dem Vereinigten Königreich (UK), der Schweiz, der
             Ukraine, den Vereinigten Staaten (US), Kanada, Lateinamerika,
             dem asiatisch-pazifischen Raum und Japan.
+          </p>
+          <p className="text-gray-700">
+            Eine englischsprachige Fassung dieser Datenschutzerklärung ist
+            verfügbar unter:{' '}
+            <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+              /privacy
+            </Link>
+            .
           </p>
         </section>
 
@@ -372,7 +380,13 @@ export default function DatenschutzPage() {
           </p>
         </section>
 
-        <div className="border-t border-gray-200 pt-4 flex gap-4 text-sm text-gray-500">
+        <div className="border-t border-gray-200 pt-4 flex flex-wrap gap-4 text-sm text-gray-500">
+          <Link href="/privacy" className="hover:text-blue-600">
+            Privacy Policy (EN)
+          </Link>
+          <Link href="/terms" className="hover:text-blue-600">
+            Terms of Service
+          </Link>
           <Link href="/impressum" className="hover:text-blue-600">
             Impressum
           </Link>
