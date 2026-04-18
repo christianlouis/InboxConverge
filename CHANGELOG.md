@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.7.0 (2026-04-18)
+
+### Features
+
+- Add English privacy policy, ToS, and legal footer links for Google OAuth verification
+  ([`78610ef`](https://github.com/christianlouis/InboxConverge/commit/78610ef09da6fa21db8c9c82190f85c400de541f))
+
+
 ## [Unreleased]
 
 ### Added
