@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.1 (2026-05-03)
+
+### Bug Fixes
+
+- Normalise naive UTC expiry from google-auth to tz-aware in GmailService
+  ([`01a85eb`](https://github.com/christianlouis/InboxConverge/commit/01a85ebedef1508b13353c55aec073562ba367d6))
+
+
 ## v0.10.0 (2026-05-03)
 
 
