@@ -434,6 +434,20 @@ class GmailService:
 
         return label_ids
 
+    @staticmethod
+    def _tz_aware_expiry(expiry: Optional[datetime]) -> Optional[datetime]:
+        """Return *expiry* with UTC tzinfo attached if it is naive.
+
+        google-auth sets ``credentials.expiry`` as a naive UTC datetime
+        (``datetime.utcnow() + timedelta(...)``).  Storing a naive datetime
+        into a ``DateTime(timezone=True)`` column causes silent tz-mismatch
+        bugs in comparisons and storage, so we always normalise before
+        returning expiry values to callers.
+        """
+        if expiry is not None and expiry.tzinfo is None:
+            return expiry.replace(tzinfo=timezone.utc)
+        return expiry
+
     def is_token_expiring_soon(self, within_minutes: int = 30) -> bool:
         """
         Return True if the access token has already expired or will expire
@@ -495,7 +509,7 @@ class GmailService:
             )
             return {
                 "access_token": self.credentials.token,
-                "expiry": self.credentials.expiry,
+                "expiry": self._tz_aware_expiry(self.credentials.expiry),
             }
         except google.auth.exceptions.RefreshError as e:
             error_msg = f"Gmail refresh token has been revoked or is invalid — the user must re-authorise. Detail: {e}"
@@ -529,6 +543,6 @@ class GmailService:
             )
             return {
                 "access_token": current_token,
-                "expiry": self.credentials.expiry,
+                "expiry": self._tz_aware_expiry(self.credentials.expiry),
             }
         return None
