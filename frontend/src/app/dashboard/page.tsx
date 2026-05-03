@@ -2,7 +2,7 @@
 
 import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount } from '@/lib/api';
 import { formatRelative } from '@/lib/date-utils';
 import Link from 'next/link';
@@ -15,6 +15,7 @@ import {
   XCircle,
   AlertTriangle,
   Inbox,
+  RotateCcw,
 } from 'lucide-react';
 
 interface StatCardProps {
@@ -43,6 +44,14 @@ function StatCard({ title, value, icon: Icon, iconColor }: StatCardProps) {
 function AccountStatusRow({ account }: { account: MailAccount }) {
   const hasError = !!account.last_error_message;
   const lastChecked = account.last_check_at;
+  const queryClient = useQueryClient();
+
+  const clearErrorMutation = useMutation({
+    mutationFn: () => mailAccountsApi.clearError(account.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
+    },
+  });
 
   return (
     <div className="px-5 py-4 border-b border-gray-100 last:border-b-0">
@@ -84,7 +93,16 @@ function AccountStatusRow({ account }: { account: MailAccount }) {
       {hasError && (
         <div className="mt-2 flex items-start gap-1.5 p-2 bg-red-50 border border-red-200 rounded">
           <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-red-700 line-clamp-2">{account.last_error_message}</p>
+          <p className="text-xs text-red-700 line-clamp-2 flex-1">{account.last_error_message}</p>
+          <button
+            onClick={() => clearErrorMutation.mutate()}
+            disabled={clearErrorMutation.isPending}
+            title="Clear error status"
+            className="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-red-600 bg-red-100 hover:bg-red-200 rounded transition-colors disabled:opacity-50"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Clear
+          </button>
         </div>
       )}
 

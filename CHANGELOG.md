@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Friendly error messages**: Introduced `_format_connection_error()` helper in
+  `mail_processor.py` that translates raw OS/socket/SSL/POP3/IMAP exceptions into
+  human-readable sentences including the host:port and actionable guidance (DNS
+  failure, TLS error, connection timeout, authentication rejection, etc.).  The
+  helper is applied at every `raise MailFetchError` / `raise MailConnectionError`
+  site and in both `_test_pop3_connection` and `_test_imap_connection`.
+
+- **Per-account debug logging** (`debug_logging` column on `MailAccount`): when
+  enabled, the next processing run records a structured connection trace
+  (connect timing, TLS details, auth, INBOX selection, message UIDs/sizes,
+  elapsed milliseconds per phase) via the new `MailDebugRecorder` class.  The
+  trace is persisted as a `ProcessingLog` row with `level="DEBUG"` and surfaced
+  in the "Mailbox Activity" logs page as a collapsible "Connection trace" panel.
+  Debug logging auto-disables after 5 completed runs in a 24-hour window.
+
+- **"Clear error" button**: new `POST /api/v1/mail-accounts/{id}/clear-error`
+  endpoint that nulls `last_error_message`/`last_error_at` and resets `status`
+  to `ACTIVE` when currently `ERROR`.  Wired into the error banners on both the
+  Accounts page and the Mailbox Activity (Logs) page.
+
+- **Debug-logging toggle** in the account edit form (Add/Edit Account modal):
+  checkbox labelled "Debug logging (auto-disables after 5 runs)".
+
+- Alembic migration `0002_add_debug_logging.py` adding the `debug_logging`
+  boolean column to `mail_accounts` (idempotent via `ADD COLUMN IF NOT EXISTS`).
+
+### Fixed
+
+- **Empty IMAP error messages** — `IMAP fetch error:` with a blank suffix was
+  caused by `asyncio.TimeoutError` and `aioimaplib.Abort` having an empty
+  `str()`.  The new `_format_connection_error()` helper always produces a
+  non-empty, human-readable message.
+
+- **Cryptic DNS error** — `POP3 fetch error: [Errno -5] No address associated
+  with hostname` is now surfaced as `Could not resolve hostname 'pop.web.de' —
+  check that the server address is correct (DNS lookup failed: …)`.
+
+- **Sticky ERROR status after transient fetch failures**: the `tasks.py`
+  processing loop previously set `account.status = ERROR` and
+  `last_error_message = "{N} emails failed to forward"` even when the
+  connection and fetch succeeded but some individual email-forward operations
+  failed.  Now, a successful fetch (no exception from `fetch_emails`) always
+  clears `last_error_message`/`last_error_at` and sets `status = ACTIVE`,
+  regardless of per-email forwarding failures.  Per-email failures continue to
+  be tracked in `ProcessingLog` and the run's `emails_failed` counter.
 ### Fixed
 
 - OAuth Google sign-in: added `exc_info=True` to the catch-all exception handler in `auth_service.py` so the full traceback is always emitted to the log instead of only `str(e)`.

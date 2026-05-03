@@ -39,6 +39,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
     check_interval_minutes: account?.check_interval_minutes || 5,
     max_emails_per_check: account?.max_emails_per_check || 50,
     delete_after_forward: account?.delete_after_forward ?? true,
+    debug_logging: account?.debug_logging ?? false,
     provider_name: account?.provider_name ?? null,
   });
 
@@ -188,6 +189,7 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
           check_interval_minutes: formData.check_interval_minutes,
           max_emails_per_check: formData.max_emails_per_check,
           delete_after_forward: formData.delete_after_forward,
+          debug_logging: formData.debug_logging,
         };
         if (formData.password) {
           updateData.password = formData.password;
@@ -381,6 +383,20 @@ export function AddMailAccountModal({ account, onClose }: AddMailAccountModalPro
                       />
                       <label htmlFor="is_enabled" className="ml-2 block text-sm text-gray-700">
                         Enabled
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="debug_logging"
+                        id="debug_logging"
+                        checked={formData.debug_logging ?? false}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="debug_logging" className="ml-2 block text-sm text-gray-700">
+                        Debug logging
+                        <span className="ml-1 text-xs text-gray-400">(auto-disables after 5 runs)</span>
                       </label>
                     </div>
                   </div>

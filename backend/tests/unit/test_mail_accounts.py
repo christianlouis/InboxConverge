@@ -81,6 +81,7 @@ def _make_account(**overrides) -> MagicMock:
         check_interval_minutes=5,
         max_emails_per_check=50,
         delete_after_forward=True,
+        debug_logging=False,
         provider_name="Gmail",
         auto_detected=False,
         total_emails_processed=100,
