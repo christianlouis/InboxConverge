@@ -217,6 +217,13 @@ async def save_gmail_credential(
     Save Gmail API OAuth2 credentials for the current user.
     These are used to inject emails directly into Gmail via the API.
     """
+    logger.debug(
+        "OAuth [Gmail credential]: verifying credentials for user_id=%s "
+        "(gmail=%s, has_refresh_token=%s)",
+        current_user.id,
+        credential_in.gmail_email,
+        bool(credential_in.refresh_token),
+    )
     # Verify the credentials work
     gmail_service = GmailService(
         access_token=credential_in.access_token,
@@ -227,6 +234,12 @@ async def save_gmail_credential(
 
     is_valid = await gmail_service.verify_access()
     if not is_valid:
+        logger.warning(
+            "OAuth [Gmail credential]: credential verification failed for user_id=%s "
+            "(gmail=%s)",
+            current_user.id,
+            credential_in.gmail_email,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Gmail API credentials are invalid or expired",
@@ -258,6 +271,11 @@ async def save_gmail_credential(
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
+        logger.info(
+            "OAuth [Gmail credential]: updated credential for user_id=%s (gmail=%s)",
+            current_user.id,
+            credential_in.gmail_email,
+        )
         return existing
     else:
         # Create new
@@ -273,6 +291,11 @@ async def save_gmail_credential(
         db.add(credential)
         await db.commit()
         await db.refresh(credential)
+        logger.info(
+            "OAuth [Gmail credential]: created new credential for user_id=%s (gmail=%s)",
+            current_user.id,
+            credential_in.gmail_email,
+        )
         return credential
 
 
@@ -313,6 +336,11 @@ async def delete_gmail_credential(
             detail="No Gmail credentials found",
         )
 
+    logger.info(
+        "OAuth [Gmail credential]: deleting credential for user_id=%s (gmail=%s)",
+        current_user.id,
+        credential.gmail_email,
+    )
     await db.delete(credential)
     await db.commit()
 
@@ -335,9 +363,17 @@ async def update_gmail_import_labels(
             detail="No Gmail credentials found. Connect Gmail first.",
         )
 
+    validated = _validated_import_label_templates(labels_in.import_label_templates)
+    logger.info(
+        "OAuth [Gmail credential]: updating import labels for user_id=%s "
+        "(gmail=%s, labels=%s)",
+        current_user.id,
+        credential.gmail_email,
+        validated,
+    )
     credential.scopes = build_gmail_credential_scopes(  # type: ignore[assignment]
         extract_granted_scopes(credential.scopes),
-        _validated_import_label_templates(labels_in.import_label_templates),
+        validated,
     )
     await db.commit()
     await db.refresh(credential)
@@ -363,6 +399,13 @@ async def get_gmail_authorize_url(
             detail="Google OAuth2 is not configured on this server.",
         )
 
+    logger.info(
+        "OAuth [Gmail connect]: authorization URL requested for user_id=%s "
+        "(redirect_uri=%s, scopes=%s)",
+        current_user.id,
+        redirect_uri,
+        GMAIL_API_SCOPES,
+    )
     scope = urlquote(" ".join(GMAIL_API_SCOPES))
     url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
@@ -393,6 +436,10 @@ async def send_gmail_debug_email(
     Useful for verifying that Gmail API delivery is working end-to-end
     without requiring an active mail-account polling cycle.
     """
+    logger.info(
+        "OAuth [Gmail debug-email]: debug injection requested by user_id=%s",
+        current_user.id,
+    )
     result = await db.execute(
         select(GmailCredential).where(
             GmailCredential.user_id == current_user.id,
@@ -402,11 +449,23 @@ async def send_gmail_debug_email(
     credential = result.scalar_one_or_none()
 
     if not credential:
+        logger.warning(
+            "OAuth [Gmail debug-email]: no valid credential found for user_id=%s",
+            current_user.id,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No valid Gmail credentials found. Connect Gmail first.",
         )
 
+    logger.debug(
+        "OAuth [Gmail debug-email]: using credential for user_id=%s (gmail=%s, "
+        "token_expiry=%s, has_refresh_token=%s)",
+        current_user.id,
+        credential.gmail_email,
+        credential.token_expiry,
+        bool(credential.encrypted_refresh_token),
+    )
     access_token = decrypt_credential(credential.encrypted_access_token)  # type: ignore[arg-type]
     refresh_token = (
         decrypt_credential(credential.encrypted_refresh_token)  # type: ignore[arg-type]
@@ -427,6 +486,12 @@ async def send_gmail_debug_email(
             import_label_templates=credential.import_label_templates,
         )
     except GmailInjectionError as exc:
+        logger.error(
+            "OAuth [Gmail debug-email]: injection failed for user_id=%s (gmail=%s): %s",
+            current_user.id,
+            credential.gmail_email,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Gmail injection failed: {exc}",
@@ -435,6 +500,12 @@ async def send_gmail_debug_email(
     # Persist refreshed token if the google-auth library renewed it
     refreshed = gmail_service.get_refreshed_token()
     if refreshed:
+        logger.debug(
+            "OAuth [Gmail debug-email]: access token was auto-refreshed for "
+            "user_id=%s; persisting new expiry=%s",
+            current_user.id,
+            refreshed.get("expiry"),
+        )
         credential.encrypted_access_token = encrypt_credential(  # type: ignore[assignment]
             refreshed["access_token"]
         )
@@ -442,6 +513,13 @@ async def send_gmail_debug_email(
             credential.token_expiry = refreshed["expiry"]  # type: ignore[assignment]
         await db.commit()
 
+    logger.info(
+        "OAuth [Gmail debug-email]: injection succeeded for user_id=%s (gmail=%s, "
+        "message_id=%s)",
+        current_user.id,
+        credential.gmail_email,
+        inject_result.get("message_id"),
+    )
     return {
         "message": "Debug email injected successfully",
         "message_id": inject_result.get("message_id"),
@@ -482,7 +560,18 @@ async def gmail_oauth_callback(
             detail="Google OAuth2 is not configured on this server.",
         )
 
+    logger.info(
+        "OAuth [Gmail connect]: callback received for user_id=%s (redirect_uri=%s)",
+        current_user.id,
+        callback_in.redirect_uri,
+    )
+
     # Exchange code for tokens
+    logger.debug(
+        "OAuth [Gmail connect]: exchanging authorization code for tokens "
+        "(user_id=%s)",
+        current_user.id,
+    )
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -496,7 +585,13 @@ async def gmail_oauth_callback(
         )
 
     if token_resp.status_code != 200:
-        logger.error(f"Gmail token exchange failed: {token_resp.text}")
+        logger.error(
+            "OAuth [Gmail connect]: token exchange failed for user_id=%s "
+            "(status=%s, body=%s)",
+            current_user.id,
+            token_resp.status_code,
+            token_resp.text,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to exchange authorization code with Google.",
@@ -506,13 +601,41 @@ async def gmail_oauth_callback(
     access_token: Optional[str] = token_data.get("access_token")
     refresh_token: Optional[str] = token_data.get("refresh_token")
 
+    logger.debug(
+        "OAuth [Gmail connect]: token exchange succeeded for user_id=%s — "
+        "scopes=%s, has_refresh_token=%s, expires_in=%s",
+        current_user.id,
+        token_data.get("scope", ""),
+        bool(refresh_token),
+        token_data.get("expires_in"),
+    )
+
     if not access_token:
+        logger.error(
+            "OAuth [Gmail connect]: Google response contained no access_token "
+            "for user_id=%s (keys_present=%s)",
+            current_user.id,
+            list(token_data.keys()),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Google did not return an access token.",
         )
 
+    if not refresh_token:
+        logger.warning(
+            "OAuth [Gmail connect]: Google did not return a refresh_token for "
+            "user_id=%s — token refresh may fail after 1 hour. "
+            "This can happen if the user has previously authorised the app and "
+            "access_type=offline was not honoured.",
+            current_user.id,
+        )
+
     # Fetch the Gmail email address to associate with this credential
+    logger.debug(
+        "OAuth [Gmail connect]: fetching Google profile for user_id=%s",
+        current_user.id,
+    )
     async with httpx.AsyncClient() as client:
         profile_resp = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
@@ -522,6 +645,20 @@ async def gmail_oauth_callback(
     gmail_email = current_user.email  # fallback
     if profile_resp.status_code == 200:
         gmail_email = profile_resp.json().get("email", current_user.email)
+        logger.debug(
+            "OAuth [Gmail connect]: Google profile retrieved for user_id=%s "
+            "(gmail=%s)",
+            current_user.id,
+            gmail_email,
+        )
+    else:
+        logger.warning(
+            "OAuth [Gmail connect]: could not fetch Google profile for user_id=%s "
+            "(status=%s); falling back to account email=%s",
+            current_user.id,
+            profile_resp.status_code,
+            current_user.email,
+        )
 
     # Calculate token expiry (Google access tokens last 1 hour)
     token_expiry = datetime.now(timezone.utc) + timedelta(
@@ -529,6 +666,11 @@ async def gmail_oauth_callback(
     )
 
     # Verify the credentials actually work with the Gmail API
+    logger.debug(
+        "OAuth [Gmail connect]: verifying Gmail API access for user_id=%s (gmail=%s)",
+        current_user.id,
+        gmail_email,
+    )
     gmail_service = GmailService(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -537,6 +679,12 @@ async def gmail_oauth_callback(
     )
     is_valid = await gmail_service.verify_access()
     if not is_valid:
+        logger.error(
+            "OAuth [Gmail connect]: Gmail API access verification failed for "
+            "user_id=%s (gmail=%s) — ensure gmail.insert scope was granted",
+            current_user.id,
+            gmail_email,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Obtained tokens but could not verify Gmail API access. "
@@ -566,6 +714,15 @@ async def gmail_oauth_callback(
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
+        logger.info(
+            "OAuth [Gmail connect]: updated credential for user_id=%s "
+            "(gmail=%s, token_expiry=%s, has_refresh_token=%s, scopes=%s)",
+            current_user.id,
+            gmail_email,
+            token_expiry,
+            bool(encrypted_refresh),
+            token_data.get("scope", ""),
+        )
         return existing
     else:
         credential = GmailCredential(
@@ -581,4 +738,13 @@ async def gmail_oauth_callback(
         db.add(credential)
         await db.commit()
         await db.refresh(credential)
+        logger.info(
+            "OAuth [Gmail connect]: created new credential for user_id=%s "
+            "(gmail=%s, token_expiry=%s, has_refresh_token=%s, scopes=%s)",
+            current_user.id,
+            gmail_email,
+            token_expiry,
+            bool(encrypted_refresh),
+            token_data.get("scope", ""),
+        )
         return credential
