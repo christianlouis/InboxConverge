@@ -142,7 +142,11 @@ class OAuthService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error("OAuth [Google sign-in]: unexpected error: %s", e)
+            logger.error(
+                "OAuth [Google sign-in]: unexpected error: %s",
+                e,
+                exc_info=True,
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="OAuth authentication failed",

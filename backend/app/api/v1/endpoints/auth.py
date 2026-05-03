@@ -187,88 +187,102 @@ async def google_oauth(
         auth_request.redirect_uri,
     )
 
-    # Get user info from Google
-    user_info = await oauth_service.get_google_user_info(
-        code=auth_request.code, redirect_uri=auth_request.redirect_uri
-    )
-
-    if not user_info.get("verified_email"):
-        OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="error").inc()
-        logger.warning(
-            "OAuth [Google sign-in]: rejecting unverified email=%s",
-            user_info.get("email"),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not verified with Google",
+    try:
+        # Get user info from Google
+        user_info = await oauth_service.get_google_user_info(
+            code=auth_request.code, redirect_uri=auth_request.redirect_uri
         )
 
-    email = user_info["email"]
-    google_id = user_info["google_id"]
-
-    # Check if user exists
-    result = await db.execute(
-        select(User).where((User.email == email) | (User.google_id == google_id))
-    )
-    user = result.scalar_one_or_none()
-
-    if user:
-        # Update Google ID if not set
-        if not user.google_id:
-            user.google_id = google_id  # type: ignore[assignment]
-            user.oauth_provider = "google"  # type: ignore[assignment]
-            logger.info(
-                "OAuth [Google sign-in]: linked Google ID to existing account "
-                "(email=%s)",
-                email,
+        if not user_info.get("verified_email"):
+            OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="error").inc()
+            logger.warning(
+                "OAuth [Google sign-in]: rejecting unverified email=%s",
+                user_info.get("email"),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not verified with Google",
             )
 
-        # Update last login
-        user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+        email = user_info["email"]
+        google_id = user_info["google_id"]
 
-        # Domain restriction — superusers always bypass
-        if not user.is_superuser:
+        # Check if user exists
+        result = await db.execute(
+            select(User).where((User.email == email) | (User.google_id == google_id))
+        )
+        user = result.scalar_one_or_none()
+
+        if user:
+            # Update Google ID if not set
+            if not user.google_id:
+                user.google_id = google_id  # type: ignore[assignment]
+                user.oauth_provider = "google"  # type: ignore[assignment]
+                logger.info(
+                    "OAuth [Google sign-in]: linked Google ID to existing account "
+                    "(email=%s)",
+                    email,
+                )
+
+            # Update last login
+            user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+
+            # Domain restriction — superusers always bypass
+            if not user.is_superuser:
+                _check_domain_allowed(email)
+
+            # Auto-promote to superuser if this is the configured admin email
+            if not user.is_superuser and _is_admin_email(email):
+                user.is_superuser = True  # type: ignore[assignment]
+                logger.info(f"Auto-promoted admin user via Google OAuth: {user.email}")
+
+            logger.info(f"Existing user logged in with Google: {user.email}")
+            AUTH_LOGINS_TOTAL.labels(method="google", status="success").inc()
+        else:
+            # Domain restriction check before creating the account
             _check_domain_allowed(email)
 
-        # Auto-promote to superuser if this is the configured admin email
-        if not user.is_superuser and _is_admin_email(email):
-            user.is_superuser = True  # type: ignore[assignment]
-            logger.info(f"Auto-promoted admin user via Google OAuth: {user.email}")
+            # Create new user
+            user = User(
+                email=email,
+                full_name=user_info.get("full_name"),
+                google_id=google_id,
+                oauth_provider="google",
+                subscription_tier=_default_tier(),
+                is_active=True,
+                last_login_at=datetime.now(timezone.utc),
+                is_superuser=_is_admin_email(email),
+            )
+            db.add(user)
 
-        logger.info(f"Existing user logged in with Google: {user.email}")
-        AUTH_LOGINS_TOTAL.labels(method="google", status="success").inc()
-    else:
-        # Domain restriction check before creating the account
-        _check_domain_allowed(email)
+            logger.info(f"New user registered with Google: {user.email}")
+            AUTH_REGISTRATIONS_TOTAL.labels(method="google", status="success").inc()
 
-        # Create new user
-        user = User(
-            email=email,
-            full_name=user_info.get("full_name"),
-            google_id=google_id,
-            oauth_provider="google",
-            subscription_tier=_default_tier(),
-            is_active=True,
-            last_login_at=datetime.now(timezone.utc),
-            is_superuser=_is_admin_email(email),
+        await db.commit()
+        await db.refresh(user)
+
+        # Create tokens
+        tokens = oauth_service.create_tokens_for_user(user)
+        logger.debug(
+            "OAuth [Google sign-in]: sign-in complete, JWT tokens issued for user_id=%s",
+            user.id,
         )
-        db.add(user)
 
-        logger.info(f"New user registered with Google: {user.email}")
-        AUTH_REGISTRATIONS_TOTAL.labels(method="google", status="success").inc()
+        OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="success").inc()
+        return tokens
 
-    await db.commit()
-    await db.refresh(user)
-
-    # Create tokens
-    tokens = oauth_service.create_tokens_for_user(user)
-    logger.debug(
-        "OAuth [Google sign-in]: sign-in complete, JWT tokens issued for user_id=%s",
-        user.id,
-    )
-
-    OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="success").inc()
-    return tokens
+    except HTTPException:
+        raise
+    except Exception:
+        OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="error").inc()
+        logger.error(
+            "OAuth [Google sign-in]: unhandled error during sign-in flow",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="OAuth authentication failed",
+        )
 
 
 @router.get("/google/authorize-url")
