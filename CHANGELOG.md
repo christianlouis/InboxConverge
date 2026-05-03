@@ -56,6 +56,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clears `last_error_message`/`last_error_at` and sets `status = ACTIVE`,
   regardless of per-email forwarding failures.  Per-email failures continue to
   be tracked in `ProcessingLog` and the run's `emails_failed` counter.
+### Fixed
+
+- OAuth Google sign-in: added `exc_info=True` to the catch-all exception handler in `auth_service.py` so the full traceback is always emitted to the log instead of only `str(e)`.
+- OAuth Google sign-in: added an endpoint-level try/except in the `/auth/google` handler to catch and log any unexpected errors (e.g. database failures) that occurred after the Google token exchange, which previously surfaced as silent 500s.
+
+## v0.8.1 (2026-05-03)
+
+### Bug Fixes
+
+- Downgrade eslint to ^9 and typescript to ^5 for eslint-config-next compatibility
+  ([`f39241a`](https://github.com/christianlouis/InboxConverge/commit/f39241a547662fa8ae4ad408d2565ff0e50d9d55))
+
+### Chores
+
+- **deps**: Bump react and @types/react in /frontend
+  ([`00d06c6`](https://github.com/christianlouis/InboxConverge/commit/00d06c63de26f0bbbb5184ba219ad6b02eec4ec8))
+
 
 ## v0.8.0 (2026-05-03)
 
