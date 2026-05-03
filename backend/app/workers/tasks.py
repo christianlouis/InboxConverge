@@ -903,7 +903,7 @@ async def refresh_gmail_tokens():
                             await send_user_notification(
                                 db=notif_db,
                                 user_id=int(cred.user_id),
-                                title="InboxConverge: Gmail Re-authorisation Required",
+                                title="InboxRescue: Gmail Re-authorisation Required",
                                 body=(
                                     "Your Gmail access has been revoked. "
                                     "Please open Settings → Gmail API and click "

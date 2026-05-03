@@ -469,7 +469,7 @@ class GmailService:
             )
             GMAIL_TOKEN_REFRESHES_TOTAL.inc()
             logger.info(
-                "Gmail access token refreshed proactively; " "new expiry: %s",
+                "Gmail access token refreshed proactively; new expiry: %s",
                 self.credentials.expiry,
             )
             return {
@@ -477,10 +477,7 @@ class GmailService:
                 "expiry": self.credentials.expiry,
             }
         except google.auth.exceptions.RefreshError as e:
-            error_msg = (
-                f"Gmail refresh token has been revoked or is invalid — "
-                f"the user must re-authorise. Detail: {e}"
-            )
+            error_msg = f"Gmail refresh token has been revoked or is invalid — the user must re-authorise. Detail: {e}"
             logger.error(error_msg)
             raise GmailAuthError(error_msg)
         except Exception as e:
