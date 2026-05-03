@@ -133,7 +133,7 @@ class _POP3WithIPv4Pref(poplib.POP3):
         self._ipv4_addr = _ipv4_addr
         super().__init__(host, port, timeout)
 
-    def _create_socket(self, timeout):  # type: ignore[override]
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
         if self._ipv4_addr:
             return socket.create_connection((self._ipv4_addr, self.port), timeout)
         return super()._create_socket(timeout)
@@ -162,7 +162,7 @@ class _POP3SSLWithIPv4Pref(poplib.POP3_SSL):
         self._ipv4_addr = _ipv4_addr
         super().__init__(host, port, timeout=timeout, context=context)
 
-    def _create_socket(self, timeout):  # type: ignore[override]
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
         if self._ipv4_addr:
             return socket.create_connection((self._ipv4_addr, self.port), timeout)
         return super()._create_socket(timeout)
@@ -235,10 +235,10 @@ class _IMAP4SSLwithSNI(aioimaplib.IMAP4_SSL):
     ) -> None:
         if ssl_context is None:
             ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-        local_loop = loop if loop is not None else asyncio.get_running_loop()
-        self.protocol = aioimaplib.IMAP4ClientProtocol(local_loop, conn_lost_cb)
-        self._client_task = local_loop.create_task(
-            local_loop.create_connection(
+        active_loop = loop if loop is not None else asyncio.get_running_loop()
+        self.protocol = aioimaplib.IMAP4ClientProtocol(active_loop, conn_lost_cb)
+        self._client_task = active_loop.create_task(
+            active_loop.create_connection(
                 lambda: self.protocol,
                 host,
                 port,
@@ -314,13 +314,13 @@ def _format_connection_error(
 
     # DNS resolution failure (socket.gaierror is a subclass of OSError)
     if isinstance(exc, socket.gaierror):
-        # errno -3 / EAI_AGAIN means the DNS server is temporarily unavailable –
+        # errno -3 / EAI_AGAIN means the DNS server is temporarily unavailable --
         # this is a transient infrastructure error, not a misconfigured address.
         if exc.args[0] == socket.EAI_AGAIN:
             if host:
                 return (
-                    f"Temporary DNS failure while resolving '{host}' — "
-                    f"the DNS server may be temporarily unavailable ({exc})"
+                    f"Temporary DNS failure while resolving '{host}' --"
+                    f" the DNS server may be temporarily unavailable ({exc})"
                 )
             return f"Temporary DNS failure: {exc}"
         if host:
