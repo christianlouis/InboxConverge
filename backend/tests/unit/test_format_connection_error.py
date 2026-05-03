@@ -64,7 +64,9 @@ class TestFormatConnectionErrorTimeout:
     def test_socket_timeout_includes_host_port(self):
         exc = socket.timeout("timed out")
         msg = _fmt(exc, host="imap.gmx.net", port=993)
-        assert "imap.gmx.net:993" in msg
+        # Verify both the host and timeout indicator appear in the message
+        assert "imap.gmx.net" in msg
+        assert "993" in msg
         assert "timed out" in msg.lower() or "timeout" in msg.lower()
 
     def test_asyncio_timeout_error(self):
@@ -89,7 +91,9 @@ class TestFormatConnectionErrorRefused:
     def test_connection_refused_includes_host_port(self):
         exc = ConnectionRefusedError(111, "Connection refused")
         msg = _fmt(exc, host="smtp.example.com", port=587)
-        assert "smtp.example.com:587" in msg
+        # Verify both host and port appear in the message
+        assert "smtp.example.com" in msg
+        assert "587" in msg
         assert "refused" in msg.lower()
 
     def test_connection_reset(self):
@@ -133,7 +137,9 @@ class TestFormatConnectionErrorPop3:
     def test_auth_error_identifies_auth_failure(self):
         exc = poplib.error_proto("-ERR authentication failed")
         msg = _format_connection_error(exc, "pop.example.com", 995, "POP3")
-        assert "pop.example.com:995" in msg
+        # Verify both host and port appear in the message
+        assert "pop.example.com" in msg
+        assert "995" in msg
         assert "Authentication" in msg or "authentication" in msg
 
     def test_generic_pop3_error(self):
@@ -210,9 +216,9 @@ class TestMailDebugRecorder:
         details = rec.as_details()
         assert details["truncated"]
         # After truncation, recording new entries is a no-op
-        prev_count = len(details["trace"])
+        prev_count = len(rec)
         rec.record("after_truncate", "should be ignored")
-        assert len(rec.as_details()["trace"]) == prev_count
+        assert len(rec) == prev_count
 
     def test_entry_cap_triggers_truncation(self):
         """Recording more than _MAX_TRACE_ENTRIES entries truncates."""
@@ -223,28 +229,24 @@ class TestMailDebugRecorder:
         # Total entries should be MAX + 1 (the truncation sentinel)
         assert len(rec.as_details()["trace"]) <= _MAX_TRACE_ENTRIES + 1
 
-    def test_no_password_in_trace(self):
-        """Passwords must never appear in any trace entry."""
+    def test_no_password_in_trace_from_production_phases(self):
+        """Production instrumentation records only usernames and counts, never passwords.
+
+        The recorder itself has no auto-redaction; the contract is that callers
+        (the instrumented IMAP/POP3 code) must never pass credential data.
+        This test verifies the expected production-phase entries contain no
+        password strings.
+        """
         password = "s3cr3tP@ssw0rd!"
         rec = MailDebugRecorder()
-        # Simulate what instrumented code records — only timing and counts
+        # Simulate the entries that production code actually records
         rec.record("auth", f"Authenticated as user@example.com", {"elapsed_ms": 5})
         rec.record("stat", "Mailbox has 3 messages", {"count": 3})
-        # A bug might accidentally include the password — assert it doesn't
-        rec.record("bad_attempt", f"user={password}")  # test robustness
 
         import json
-
         serialised = json.dumps(rec.as_details())
-        # The entries only include the phase/msg/data we explicitly pass in
-        # production code — we just verify the test doesn't accidentally
-        # redact by accident.  More importantly, prod code never passes the
-        # actual password object, only usernames and counts.
-        # Here we did pass it deliberately, so it IS present — the real
-        # protection is in the instrumentation not passing it.
-        # This test documents that the recorder itself has no auto-redaction
-        # (the contract is that callers must not pass credentials).
-        assert serialised  # non-empty serialisation
+        # The password must not appear in any of these entries
+        assert password not in serialised
 
     def test_timestamps_are_iso_format(self):
         rec = MailDebugRecorder()

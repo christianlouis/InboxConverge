@@ -479,7 +479,7 @@ async def process_mail_account(account_id: int):
                         mail_account_id=account.id,
                         processing_run_id=run.id,
                         level="DEBUG",
-                        message=f"Connection trace ({len(_debug_recorder._entries)} entries)",
+                        message=f"Connection trace ({len(_debug_recorder)} entries)",
                         success=True,
                         error_details=_debug_recorder.as_details(),
                     )

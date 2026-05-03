@@ -4,7 +4,6 @@ Supports both POP3 and IMAP protocols with secure connections.
 """
 
 import asyncio
-import json as _json
 import poplib
 import re
 import smtplib
@@ -198,7 +197,7 @@ class MailDebugRecorder:
         if data:
             entry["data"] = data
         try:
-            entry_bytes = len(_json.dumps(entry, default=str))
+            entry_bytes = len(str(entry))
         except Exception:
             entry_bytes = 256  # conservative fallback
         if (
@@ -222,6 +221,9 @@ class MailDebugRecorder:
 
     def has_entries(self) -> bool:
         return bool(self._entries)
+
+    def __len__(self) -> int:
+        return len(self._entries)
 
     def as_details(self) -> Dict[str, Any]:
         """Return the trace as a dict suitable for storage in error_details."""
