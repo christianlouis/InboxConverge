@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import logging
 from alembic.config import Config as AlembicConfig
-from alembic import command as alembic_command
+from alembic import command as alembic_command  # type: ignore[attr-defined]
 
 from app.core.config import settings
 from app.core.middleware import SecurityHeadersMiddleware, CSRFProtectionMiddleware

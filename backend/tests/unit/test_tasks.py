@@ -1945,7 +1945,9 @@ class TestNotificationBackoff:
         account = _make_account(delivery_method=DeliveryMethod.SMTP, **overrides)
         account.debug_logging = False
         account.debug_logging_run_count = 0
-        account.error_notification_sent = overrides.get("error_notification_sent", False)
+        account.error_notification_sent = overrides.get(
+            "error_notification_sent", False
+        )
         account.status = MagicMock(value="active")
         return account
 
@@ -1995,7 +1997,10 @@ class TestNotificationBackoff:
         mock_send_notification = AsyncMock(return_value=1)
 
         with (
-            patch(f"{MODULE}.async_session_maker", side_effect=[maker(), session_maker_side_effect()]),
+            patch(
+                f"{MODULE}.async_session_maker",
+                side_effect=[maker(), session_maker_side_effect()],
+            ),
             patch(f"{MODULE}.engine", AsyncMock()),
             patch(f"{MODULE}.decrypt_credential", return_value="pw"),
             patch(f"{MODULE}.MailProcessor", return_value=mock_processor),

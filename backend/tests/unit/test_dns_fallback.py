@@ -13,7 +13,6 @@ import socket
 import struct
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from app.services.mail_processor import (
     _build_dns_query,
@@ -23,7 +22,6 @@ from app.services.mail_processor import (
     _dns_cache,
     _dns_cache_lock,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

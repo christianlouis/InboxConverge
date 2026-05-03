@@ -196,7 +196,7 @@ def _resolve_ipv4_sync(host: str, port: int) -> Optional[str]:
     try:
         infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
         if infos:
-            ipv4 = infos[0][4][0]
+            ipv4: str = infos[0][4][0]  # type: ignore[assignment]
             if settings.DNS_CACHE_FALLBACK_ENABLED:
                 _set_cached_ipv4(host, port, ipv4)
             return ipv4
@@ -250,10 +250,10 @@ class _POP3WithIPv4Pref(poplib.POP3):
         self._ipv4_addr = _ipv4_addr
         super().__init__(host, port, timeout)
 
-    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override,misc]
         if self._ipv4_addr:
             return socket.create_connection((self._ipv4_addr, self.port), timeout)
-        return super()._create_socket(timeout)
+        return super()._create_socket(timeout)  # type: ignore[misc]
 
 
 class _POP3SSLWithIPv4Pref(poplib.POP3_SSL):
@@ -279,10 +279,10 @@ class _POP3SSLWithIPv4Pref(poplib.POP3_SSL):
         self._ipv4_addr = _ipv4_addr
         super().__init__(host, port, timeout=timeout, context=context)
 
-    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override,misc]
         if self._ipv4_addr:
             return socket.create_connection((self._ipv4_addr, self.port), timeout)
-        return super()._create_socket(timeout)
+        return super()._create_socket(timeout)  # type: ignore[misc]
 
 
 def _make_pop3_conn(
