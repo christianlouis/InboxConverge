@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+
+- OAuth Google sign-in: added `exc_info=True` to the catch-all exception handler in `auth_service.py` so the full traceback is always emitted to the log instead of only `str(e)`.
+- OAuth Google sign-in: added an endpoint-level try/except in the `/auth/google` handler to catch and log any unexpected errors (e.g. database failures) that occurred after the Google token exchange, which previously surfaced as silent 500s.
+
 ## v0.8.0 (2026-05-03)
 
 ### Bug Fixes
