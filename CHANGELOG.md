@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.2 (2026-05-03)
+
+### Bug Fixes
+
+- Add sender_email to UserSmtpConfig to fix SMTP From header (501 bad sender address)
+  ([`a21e2f7`](https://github.com/christianlouis/InboxConverge/commit/a21e2f7df62ef79271efab172a88d1ead06bfe67))
+
+
 ## v0.10.1 (2026-05-03)
 
 ### Bug Fixes
