@@ -71,10 +71,28 @@ const CHANNEL_FIELDS: Record<string, ChannelField[]> = {
     },
   ],
   email: [
-    { key: 'username', label: 'Username / Email', placeholder: 'user@example.com' },
+    {
+      key: 'username',
+      label: 'SMTP Username',
+      placeholder: 'user@example.com or API key',
+      hint: 'SMTP authentication username — can be an API key (e.g. Postmark)',
+    },
     { key: 'password', label: 'SMTP Password', placeholder: '••••••••', type: 'password' },
     { key: 'host', label: 'SMTP Host', placeholder: 'smtp.example.com' },
     { key: 'port', label: 'SMTP Port', placeholder: '587', optional: true },
+    {
+      key: 'sender',
+      label: 'Sender Email (From)',
+      placeholder: 'noreply@example.com',
+      hint: 'Email address shown as the sender. Defaults to SMTP Username if blank.',
+      optional: true,
+    },
+    {
+      key: 'recipient',
+      label: 'Recipient Email (To)',
+      placeholder: 'you@example.com',
+      hint: 'Email address where notifications are delivered.',
+    },
   ],
   webhook: [
     {
@@ -113,11 +131,15 @@ function buildAppriseUrl(channel: string, fields: Record<string, string>): strin
       if (match) return `slack://${match[1]}/${match[2]}/${match[3]}/`;
       return '';
     }
-    case 'email':
-      if (!fields.username || !fields.password || !fields.host) return '';
+    case 'email': {
+      if (!fields.username || !fields.password || !fields.host || !fields.recipient) return '';
+      const params = new URLSearchParams();
+      params.set('to', fields.recipient);
+      if (fields.sender) params.set('from', fields.sender);
       return `mailto://${encodeURIComponent(fields.username)}:${encodeURIComponent(fields.password)}@${fields.host}${
         fields.port ? `:${fields.port}` : ''
-      }`;
+      }/?${params.toString()}`;
+    }
     case 'webhook':
       return fields.url || '';
     case 'custom':

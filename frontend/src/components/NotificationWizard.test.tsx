@@ -79,10 +79,12 @@ describe('NotificationWizard', () => {
 
     it('should show Email fields', () => {
       goToStep2('Email');
-      expect(screen.getByText('Username / Email')).toBeInTheDocument();
+      expect(screen.getByText('SMTP Username')).toBeInTheDocument();
       expect(screen.getByText('SMTP Password')).toBeInTheDocument();
       expect(screen.getByText('SMTP Host')).toBeInTheDocument();
       expect(screen.getByText('SMTP Port')).toBeInTheDocument();
+      expect(screen.getByText('Sender Email (From)')).toBeInTheDocument();
+      expect(screen.getByText('Recipient Email (To)')).toBeInTheDocument();
     });
 
     it('should show Webhook fields', () => {
@@ -293,6 +295,72 @@ describe('NotificationWizard', () => {
         apprise_url: 'tgram://mybot/mychat/',
       });
       expect(url).toBe('tgram://mybot/mychat/');
+    });
+
+    it('should build correct Email URL with recipient only', () => {
+      render(<NotificationWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
+      fireEvent.click(screen.getByText('Email'));
+
+      fireEvent.change(screen.getByPlaceholderText('user@example.com or API key'), {
+        target: { value: 'apikey' },
+      });
+      fireEvent.change(document.querySelector('input[type="password"]')!, {
+        target: { value: 'secret' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('smtp.example.com'), {
+        target: { value: 'smtp.postmarkapp.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('587'), {
+        target: { value: '587' },
+      });
+      // sender left blank (optional)
+      fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+        target: { value: 'me@example.com' },
+      });
+
+      fireEvent.click(screen.getByText('Next').closest('button')!);
+      fireEvent.change(screen.getByPlaceholderText('e.g. My Telegram Alert'), {
+        target: { value: 'Postmark' },
+      });
+      fireEvent.click(screen.getByText('Save Channel').closest('button')!);
+
+      const url = mockOnComplete.mock.calls[0][0].apprise_url as string;
+      expect(url).toContain('mailto://apikey:secret@smtp.postmarkapp.com:587/');
+      expect(url).toContain('to=me%40example.com');
+      expect(url).not.toContain('from=');
+    });
+
+    it('should build correct Email URL with both sender and recipient', () => {
+      render(<NotificationWizard onComplete={mockOnComplete} onCancel={mockOnCancel} />);
+      fireEvent.click(screen.getByText('Email'));
+
+      fireEvent.change(screen.getByPlaceholderText('user@example.com or API key'), {
+        target: { value: 'apikey' },
+      });
+      fireEvent.change(document.querySelector('input[type="password"]')!, {
+        target: { value: 'secret' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('smtp.example.com'), {
+        target: { value: 'smtp.postmarkapp.com' },
+      });
+      // port left blank (optional)
+      fireEvent.change(screen.getByPlaceholderText('noreply@example.com'), {
+        target: { value: 'noreply@example.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+        target: { value: 'me@example.com' },
+      });
+
+      fireEvent.click(screen.getByText('Next').closest('button')!);
+      fireEvent.change(screen.getByPlaceholderText('e.g. My Telegram Alert'), {
+        target: { value: 'Postmark' },
+      });
+      fireEvent.click(screen.getByText('Save Channel').closest('button')!);
+
+      const url = mockOnComplete.mock.calls[0][0].apprise_url as string;
+      expect(url).toContain('mailto://apikey:secret@smtp.postmarkapp.com/');
+      expect(url).toContain('to=me%40example.com');
+      expect(url).toContain('from=noreply%40example.com');
     });
   });
 
