@@ -4,10 +4,14 @@ Supports both POP3 and IMAP protocols with secure connections.
 """
 
 import asyncio
+import json as _json
 import poplib
 import re
 import smtplib
+import socket
 import ssl
+import time as _time
+from datetime import datetime, timezone
 from email import parser
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -45,12 +49,197 @@ class MailForwardError(Exception):
     pass
 
 
+def _format_connection_error(
+    exc: BaseException,
+    host: str = "",
+    port: int = 0,
+    protocol: str = "",
+) -> str:
+    """Return a human-readable error message for a mail connection failure.
+
+    Never returns an empty string – always includes the exception type as a
+    fallback so the dashboard always shows an actionable message.
+    """
+    loc = f"{host}:{port}" if host else ""
+    proto = f"{protocol} " if protocol else ""
+
+    # DNS resolution failure (socket.gaierror is a subclass of OSError)
+    if isinstance(exc, socket.gaierror):
+        if host:
+            return (
+                f"Could not resolve hostname '{host}' — check that the server "
+                f"address is correct (DNS lookup failed: {exc})"
+            )
+        return f"DNS lookup failed: {exc}"
+
+    # Connection / operation timeout
+    if isinstance(exc, (socket.timeout, asyncio.TimeoutError, TimeoutError)):
+        if loc:
+            return (
+                f"{proto}connection to {loc} timed out — the server may be "
+                f"slow or blocking connections"
+            )
+        return f"{proto}connection timed out"
+
+    # Connection refused by the server
+    if isinstance(exc, ConnectionRefusedError):
+        if loc:
+            return (
+                f"Connection refused by {loc} — check that the host and port "
+                f"are correct and the server is running"
+            )
+        return f"Connection refused: {exc}"
+
+    # Server closed the connection unexpectedly
+    if isinstance(exc, ConnectionResetError):
+        if loc:
+            return f"Connection reset by {loc} — the server closed the connection unexpectedly"
+        return f"Connection reset: {exc}"
+
+    # TLS certificate verification failure
+    if isinstance(exc, ssl.SSLCertVerificationError):
+        reason = getattr(exc, "reason", "") or str(exc)
+        if loc:
+            return f"TLS certificate verification failed for {loc}: {reason}"
+        return f"TLS certificate verification failed: {reason}"
+
+    # Generic TLS/SSL error
+    if isinstance(exc, ssl.SSLError):
+        reason = getattr(exc, "reason", "") or str(exc)
+        if loc:
+            return f"TLS/SSL error connecting to {loc}: {reason}"
+        return f"TLS/SSL error: {reason}"
+
+    # POP3 protocol error (auth rejection, server-side error, etc.)
+    if isinstance(exc, poplib.error_proto):
+        msg = str(exc).strip() or repr(exc)
+        msg_lower = msg.lower()
+        if any(
+            k in msg_lower
+            for k in (
+                "auth",
+                "login",
+                "password",
+                "user",
+                "pass",
+                "invalid",
+                "denied",
+                "failed",
+            )
+        ):
+            if loc:
+                return f"Authentication rejected by {loc}: {msg}"
+            return f"POP3 authentication failed: {msg}"
+        if loc:
+            return f"POP3 server {loc} returned an error: {msg}"
+        return f"POP3 error: {msg}"
+
+    # IMAP connection aborted by the server
+    try:
+        if isinstance(exc, aioimaplib.Abort):
+            msg = str(exc).strip() or "server closed the connection"
+            if loc:
+                return f"IMAP connection to {loc} was aborted: {msg}"
+            return f"IMAP connection aborted: {msg}"
+    except TypeError:
+        # aioimaplib may be mocked in tests, making Abort a non-type
+        pass
+
+    # Generic OSError with an OS-level error code
+    if isinstance(exc, OSError) and exc.errno:
+        strerror = exc.strerror or str(exc)
+        if loc:
+            return f"Network error connecting to {loc}: {strerror}"
+        return f"Network error: {strerror}"
+
+    # Catch-all: produce a non-empty string regardless of the exception type
+    msg = str(exc).strip()
+    if not msg:
+        # Some exceptions (e.g. bare asyncio.TimeoutError) have no message
+        msg = type(exc).__name__
+    if loc:
+        return f"{proto}error communicating with {loc}: {msg}"
+    return f"{type(exc).__name__}: {msg or repr(exc)}"
+
+
+# Maximum number of entries / bytes kept in a single debug trace
+_MAX_TRACE_ENTRIES = 200
+_MAX_TRACE_BYTES = 65_536  # 64 KiB
+
+
+class MailDebugRecorder:
+    """Collects a structured trace of an IMAP/POP3 connection for debug display.
+
+    Thread-safe for list.append() calls thanks to the CPython GIL.  The
+    recorder is passed into :class:`MailProcessor` when
+    ``account.debug_logging`` is True and persisted as a
+    ``ProcessingLog`` row with ``level="DEBUG"`` at the end of the run.
+    """
+
+    def __init__(self) -> None:
+        self._entries: List[Dict[str, Any]] = []
+        self._total_bytes: int = 0
+        self._truncated: bool = False
+
+    def record(
+        self,
+        phase: str,
+        message: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Append a trace entry (no-op once the size cap is reached)."""
+        if self._truncated:
+            return
+        entry: Dict[str, Any] = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "phase": phase,
+            "msg": message,
+        }
+        if data:
+            entry["data"] = data
+        try:
+            entry_bytes = len(_json.dumps(entry, default=str))
+        except Exception:
+            entry_bytes = 256  # conservative fallback
+        if (
+            len(self._entries) >= _MAX_TRACE_ENTRIES
+            or self._total_bytes + entry_bytes > _MAX_TRACE_BYTES
+        ):
+            self._entries.append(
+                {
+                    "ts": entry["ts"],
+                    "phase": "truncated",
+                    "msg": (
+                        f"Trace truncated after {len(self._entries)} entries "
+                        f"(size limit {_MAX_TRACE_BYTES // 1024} KiB reached)"
+                    ),
+                }
+            )
+            self._truncated = True
+            return
+        self._entries.append(entry)
+        self._total_bytes += entry_bytes
+
+    def has_entries(self) -> bool:
+        return bool(self._entries)
+
+    def as_details(self) -> Dict[str, Any]:
+        """Return the trace as a dict suitable for storage in error_details."""
+        return {"trace": self._entries, "truncated": self._truncated}
+
+
 class MailProcessor:
     """Handles mail fetching and forwarding operations"""
 
-    def __init__(self, account: MailAccount, decrypted_password: str):
+    def __init__(
+        self,
+        account: MailAccount,
+        decrypted_password: str,
+        debug_recorder: Optional[MailDebugRecorder] = None,
+    ):
         self.account = account
         self.password = decrypted_password
+        self._debug = debug_recorder
 
     async def test_connection(self) -> Tuple[bool, str]:
         """
@@ -70,9 +259,11 @@ class MailProcessor:
         """Test POP3 connection"""
         try:
             loop = asyncio.get_event_loop()
+            _dbg = self._debug
 
             # Run blocking POP3 operations in thread pool
             def connect_pop3():
+                _t0 = _time.monotonic()
                 if self.account.protocol == MailProtocol.POP3_SSL:
                     context = ssl.create_default_context()
                     pop_conn = poplib.POP3_SSL(
@@ -85,14 +276,32 @@ class MailProcessor:
                     pop_conn = poplib.POP3(
                         self.account.host, self.account.port, timeout=10
                     )
+                if _dbg:
+                    _dbg.record(
+                        "connect",
+                        f"Connected to {self.account.host}:{self.account.port} "
+                        f"({'SSL' if self.account.protocol == MailProtocol.POP3_SSL else 'plain'})",
+                        {"elapsed_ms": round((_time.monotonic() - _t0) * 1000)},
+                    )
 
                 # Try authentication
+                _t1 = _time.monotonic()
                 pop_conn.user(self.account.username)
                 pop_conn.pass_(self.password)
+                if _dbg:
+                    _dbg.record(
+                        "auth",
+                        f"Authenticated as {self.account.username}",
+                        {"elapsed_ms": round((_time.monotonic() - _t1) * 1000)},
+                    )
 
                 # Get mailbox stats
                 message_count, mailbox_size = pop_conn.stat()
-
+                if _dbg:
+                    _dbg.record(
+                        "stat",
+                        f"Mailbox has {message_count} messages ({mailbox_size} bytes)",
+                    )
                 pop_conn.quit()
                 return message_count, mailbox_size
 
@@ -100,13 +309,16 @@ class MailProcessor:
 
             return True, f"Connection successful. {message_count} messages in mailbox."
 
-        except poplib.error_proto as e:
-            error_msg = str(e)
-            if "authentication" in error_msg.lower() or "auth" in error_msg.lower():
-                return False, f"Authentication failed: {error_msg}"
-            return False, f"POP3 protocol error: {error_msg}"
         except Exception as e:
-            return False, f"Connection failed: {str(e)}"
+            return (
+                False,
+                _format_connection_error(
+                    e,
+                    str(self.account.host),
+                    int(self.account.port),
+                    "POP3",
+                ),
+            )
 
     async def _test_imap_connection(self) -> Tuple[bool, str]:
         """Test IMAP connection"""
@@ -121,28 +333,64 @@ class MailProcessor:
                     host=self.account.host, port=self.account.port, timeout=10
                 )
 
+            _t0 = _time.monotonic()
             await imap_client.wait_hello_from_server()
+            if self._debug:
+                self._debug.record(
+                    "connect",
+                    f"Connected to {self.account.host}:{self.account.port} "
+                    f"({'SSL' if self.account.protocol == MailProtocol.IMAP_SSL else 'plain'})",
+                    {"elapsed_ms": round((_time.monotonic() - _t0) * 1000)},
+                )
 
             # Authenticate
+            _t1 = _time.monotonic()
             response = await imap_client.login(self.account.username, self.password)
 
             if response.result != "OK":
-                return False, f"Authentication failed: {response.lines}"
+                return (
+                    False,
+                    f"Authentication rejected by {self.account.host}:{self.account.port}: "
+                    f"{response.lines}",
+                )
+            if self._debug:
+                self._debug.record(
+                    "auth",
+                    f"Authenticated as {self.account.username}",
+                    {"elapsed_ms": round((_time.monotonic() - _t1) * 1000)},
+                )
 
             # Select inbox
             await imap_client.select("INBOX")
+            if self._debug:
+                self._debug.record("select", "Selected INBOX")
 
             # Get message count
             response = await imap_client.search("ALL")
             message_ids = response.lines[0].split()
             message_count = len(message_ids)
+            if self._debug:
+                self._debug.record(
+                    "search",
+                    f"INBOX contains {message_count} messages",
+                )
 
             await imap_client.logout()
+            if self._debug:
+                self._debug.record("logout", "Logged out successfully")
 
             return True, f"Connection successful. {message_count} messages in mailbox."
 
         except Exception as e:
-            return False, f"IMAP connection failed: {str(e)}"
+            return (
+                False,
+                _format_connection_error(
+                    e,
+                    str(self.account.host),
+                    int(self.account.port),
+                    "IMAP",
+                ),
+            )
 
     async def fetch_emails(
         self,
@@ -178,8 +426,10 @@ class MailProcessor:
 
         try:
             loop = asyncio.get_event_loop()
+            _dbg = self._debug  # capture for thread-pool closure
 
             def fetch_pop3() -> Tuple[List[bytes], List[str]]:
+                _t_conn = _time.monotonic()
                 # Connect
                 if self.account.protocol == MailProtocol.POP3_SSL:
                     context = ssl.create_default_context()
@@ -193,10 +443,24 @@ class MailProcessor:
                     pop_conn = poplib.POP3(  # type: ignore[assignment]
                         str(self.account.host), int(self.account.port), timeout=30
                     )
+                if _dbg:
+                    _dbg.record(
+                        "connect",
+                        f"Connected to {self.account.host}:{self.account.port} "
+                        f"({'SSL' if self.account.protocol == MailProtocol.POP3_SSL else 'plain'})",
+                        {"elapsed_ms": round((_time.monotonic() - _t_conn) * 1000)},
+                    )
 
                 # Authenticate
+                _t_auth = _time.monotonic()
                 pop_conn.user(str(self.account.username))
                 pop_conn.pass_(self.password)
+                if _dbg:
+                    _dbg.record(
+                        "auth",
+                        f"Authenticated as {self.account.username}",
+                        {"elapsed_ms": round((_time.monotonic() - _t_auth) * 1000)},
+                    )
 
                 # Retrieve UIDL map: {msg_number: uid_string}
                 uidl_response = pop_conn.uidl()
@@ -207,6 +471,13 @@ class MailProcessor:
                         uid_map[int(parts[0])] = parts[1].strip()
 
                 num_messages = len(uid_map)
+                if _dbg:
+                    _dbg.record(
+                        "uidl",
+                        f"Mailbox contains {num_messages} messages; "
+                        f"{len(already_seen_uids)} already downloaded",
+                        {"total": num_messages, "already_seen": len(already_seen_uids)},
+                    )
                 logger.info(
                     f"Found {num_messages} messages for account {self.account.id}"
                 )
@@ -228,26 +499,59 @@ class MailProcessor:
                         continue
 
                     try:
+                        _t_msg = _time.monotonic()
                         response, lines, octets = pop_conn.retr(msg_num)
                         email_data = b"\r\n".join(lines)
                         fetched.append(email_data)
                         fetched_uids.append(uid)
                         fetched_count += 1
+                        elapsed = round((_time.monotonic() - _t_msg) * 1000)
                         logger.info(
                             f"Retrieved message {msg_num} (uid={uid}) "
                             f"from account {self.account.id}"
                         )
+                        if _dbg:
+                            _dbg.record(
+                                "fetch_msg",
+                                f"Fetched message {msg_num} (uid={uid}): "
+                                f"{len(email_data)} bytes",
+                                {
+                                    "msg_num": msg_num,
+                                    "uid": uid,
+                                    "size_bytes": len(email_data),
+                                    "elapsed_ms": elapsed,
+                                },
+                            )
                     except Exception as e:
                         logger.error(f"Error retrieving message {msg_num}: {e}")
+                        if _dbg:
+                            _dbg.record(
+                                "fetch_error",
+                                f"Failed to retrieve message {msg_num} (uid={uid}): {e}",
+                                {"msg_num": msg_num, "uid": uid},
+                            )
 
                 pop_conn.quit()
+                if _dbg:
+                    _dbg.record(
+                        "quit",
+                        f"Disconnected — fetched {fetched_count} new message(s)",
+                        {"fetched": fetched_count},
+                    )
                 return fetched, fetched_uids
 
             emails, new_uids = await loop.run_in_executor(None, fetch_pop3)
 
         except Exception as e:
             logger.error(f"Error fetching POP3 emails: {e}")
-            raise MailFetchError(f"POP3 fetch error: {str(e)}")
+            raise MailFetchError(
+                _format_connection_error(
+                    e,
+                    str(self.account.host),
+                    int(self.account.port),
+                    "POP3",
+                )
+            )
 
         return emails, new_uids
 
@@ -290,27 +594,71 @@ class MailProcessor:
                     host=self.account.host, port=self.account.port, timeout=30
                 )
 
+            _t_conn = _time.monotonic()
             await imap_client.wait_hello_from_server()
+            if self._debug:
+                self._debug.record(
+                    "connect",
+                    f"Connected to {self.account.host}:{self.account.port} "
+                    f"({'SSL' if self.account.protocol == MailProtocol.IMAP_SSL else 'plain'})",
+                    {"elapsed_ms": round((_time.monotonic() - _t_conn) * 1000)},
+                )
+
+            _t_auth = _time.monotonic()
             await imap_client.login(self.account.username, self.password)
+            if self._debug:
+                self._debug.record(
+                    "auth",
+                    f"Authenticated as {self.account.username}",
+                    {"elapsed_ms": round((_time.monotonic() - _t_auth) * 1000)},
+                )
+
             await imap_client.select("INBOX")
+            if self._debug:
+                self._debug.record("select", "Selected INBOX")
 
             # Step 1: Standard sequence-based SEARCH for UNSEEN messages.
             # aioimaplib's .uid() wrapper explicitly blocks "search", so we
             # use the plain SEARCH command and resolve to UIDs in step 2.
+            _t_search = _time.monotonic()
             response = await imap_client.search("UNSEEN")
             if (
                 response.result != "OK"
                 or not response.lines
                 or not response.lines[0].strip()
             ):
+                if self._debug:
+                    self._debug.record(
+                        "search",
+                        "SEARCH UNSEEN returned 0 messages",
+                        {"elapsed_ms": round((_time.monotonic() - _t_search) * 1000)},
+                    )
                 logger.info(f"Found 0 unread messages for account {self.account.id}")
                 # logout is handled by the finally block below
                 return emails, new_uids
 
             seq_nums: List[bytes] = response.lines[0].split()
             if not seq_nums:
+                if self._debug:
+                    self._debug.record(
+                        "search",
+                        "SEARCH UNSEEN returned 0 messages",
+                        {"elapsed_ms": round((_time.monotonic() - _t_search) * 1000)},
+                    )
                 logger.info(f"Found 0 unread messages for account {self.account.id}")
                 return emails, new_uids
+
+            if self._debug:
+                self._debug.record(
+                    "search",
+                    f"SEARCH UNSEEN found {len(seq_nums)} message(s); "
+                    f"limiting to {min(len(seq_nums), max_count)}",
+                    {
+                        "total_unseen": len(seq_nums),
+                        "max_count": max_count,
+                        "elapsed_ms": round((_time.monotonic() - _t_search) * 1000),
+                    },
+                )
 
             # Limit to max_count before doing any further work.
             seq_nums = seq_nums[:max_count]
@@ -333,6 +681,16 @@ class MailProcessor:
                 f"Found {len(all_unseen_uids)} unread messages for account "
                 f"{self.account.id}"
             )
+            if self._debug:
+                self._debug.record(
+                    "fetch_uids",
+                    f"Resolved {len(all_unseen_uids)} UID(s); "
+                    f"{len(already_seen_uids)} already downloaded",
+                    {
+                        "uids": [u.decode() for u in all_unseen_uids[:10]],
+                        "already_seen": len(already_seen_uids),
+                    },
+                )
 
             # Step 4: Split into stale UIDs (already in our DB but still
             # UNSEEN on the server — e.g. a previous STORE failed) and
@@ -345,6 +703,14 @@ class MailProcessor:
                     stale_uid_bytes.append(uid)
                 else:
                     uids_to_fetch.append(uid)
+
+            if self._debug and stale_uid_bytes:
+                self._debug.record(
+                    "stale_uids",
+                    f"Re-marking {len(stale_uid_bytes)} stale UID(s) as \\Seen "
+                    f"(already downloaded but still UNSEEN on server)",
+                    {"count": len(stale_uid_bytes)},
+                )
 
             # Re-mark stale UIDs as \Seen in a single batch STORE command so
             # they stop appearing in UNSEEN searches without consuming one
@@ -368,6 +734,7 @@ class MailProcessor:
             for uid in uids_to_fetch:
                 uid_str = uid.decode() if isinstance(uid, bytes) else str(uid)
                 try:
+                    _t_msg = _time.monotonic()
                     fetch_response = await imap_client.uid(
                         "fetch", uid_str, "(BODY.PEEK[])"
                     )
@@ -396,8 +763,19 @@ class MailProcessor:
                         break
 
                     if email_data and email_data.strip():
+                        elapsed = round((_time.monotonic() - _t_msg) * 1000)
                         emails.append(email_data)
                         new_uids.append(uid_str)
+                        if self._debug:
+                            self._debug.record(
+                                "fetch_msg",
+                                f"Fetched UID {uid_str}: {len(email_data)} bytes",
+                                {
+                                    "uid": uid_str,
+                                    "size_bytes": len(email_data),
+                                    "elapsed_ms": elapsed,
+                                },
+                            )
                     else:
                         logger.warning(
                             f"No email data extracted for UID {uid_str} on "
@@ -406,12 +784,27 @@ class MailProcessor:
                             "this may indicate a server-side error producing empty "
                             "IMAP responses"
                         )
+                        if self._debug:
+                            self._debug.record(
+                                "fetch_empty",
+                                f"UID {uid_str} returned empty body — skipped",
+                                {
+                                    "uid": uid_str,
+                                    "raw_bytes": len(email_data) if email_data else 0,
+                                },
+                            )
 
                 except Exception as e:
                     logger.error(
                         f"Error fetching message UID {uid_str} for account "
                         f"{self.account.id}: {e}"
                     )
+                    if self._debug:
+                        self._debug.record(
+                            "fetch_error",
+                            f"Failed to fetch UID {uid_str}: {e}",
+                            {"uid": uid_str},
+                        )
 
         except MailFetchError:
             raise
@@ -419,7 +812,19 @@ class MailProcessor:
             logger.error(
                 f"Error fetching IMAP emails for account {self.account.id}: {e}"
             )
-            raise MailFetchError(f"IMAP fetch error: {str(e)}")
+            if self._debug:
+                self._debug.record(
+                    "error",
+                    f"Fatal error: {_format_connection_error(e, str(self.account.host), int(self.account.port), 'IMAP')}",
+                )
+            raise MailFetchError(
+                _format_connection_error(
+                    e,
+                    str(self.account.host),
+                    int(self.account.port),
+                    "IMAP",
+                )
+            )
         finally:
             # Always attempt a clean logout.  If the server already sent BYE
             # the logout call will fail silently rather than masking the real
@@ -427,6 +832,8 @@ class MailProcessor:
             if imap_client is not None:
                 try:
                     await imap_client.logout()
+                    if self._debug:
+                        self._debug.record("logout", "Logged out successfully")
                 except Exception:
                     pass
 

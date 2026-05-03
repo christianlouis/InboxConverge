@@ -243,6 +243,42 @@ async def toggle_mail_account(
     return account
 
 
+@router.post("/{account_id}/clear-error", response_model=MailAccountResponse)
+async def clear_account_error(
+    account_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Clear the error status of a mail account.
+
+    Resets last_error_message, last_error_at and sets status to ACTIVE
+    if the account is currently in ERROR state.  Use this after fixing the
+    underlying problem (e.g. wrong password, DNS issue) to immediately remove
+    the error indicator without waiting for the next successful fetch.
+    """
+    result = await db.execute(
+        select(MailAccount).where(
+            MailAccount.id == account_id, MailAccount.user_id == current_user.id
+        )
+    )
+    account = result.scalar_one_or_none()
+
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mail account not found"
+        )
+
+    account.last_error_message = None  # type: ignore[assignment]
+    account.last_error_at = None  # type: ignore[assignment]
+    if account.status == AccountStatus.ERROR:
+        account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
+
+    await db.commit()
+    await db.refresh(account)
+
+    return account
+
+
 @router.post("/{account_id}/pull-now", status_code=status.HTTP_202_ACCEPTED)
 async def pull_now(
     account_id: int,

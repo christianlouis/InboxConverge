@@ -171,6 +171,9 @@ class MailAccount(Base):
     provider_name = Column(String(100), nullable=True)  # e.g., "Gmail", "GMX"
     auto_detected = Column(Boolean, default=False)
 
+    # Debug logging
+    debug_logging = Column(Boolean, default=False)
+
     # Statistics
     total_emails_processed = Column(Integer, default=0)
     total_emails_failed = Column(Integer, default=0)

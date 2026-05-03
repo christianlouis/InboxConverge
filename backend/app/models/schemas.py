@@ -114,6 +114,7 @@ class MailAccountBase(BaseModel):
     max_emails_per_check: int = Field(default=50, gt=0, le=1000)
     delete_after_forward: bool = True
     provider_name: Optional[str] = Field(None, max_length=100)
+    debug_logging: bool = False
 
 
 class MailAccountCreate(MailAccountBase):
@@ -137,6 +138,7 @@ class MailAccountUpdate(BaseModel):
     max_emails_per_check: Optional[int] = Field(None, gt=0, le=1000)
     delete_after_forward: Optional[bool] = None
     provider_name: Optional[str] = Field(None, max_length=100)
+    debug_logging: Optional[bool] = None
 
 
 class MailAccountResponse(MailAccountBase):

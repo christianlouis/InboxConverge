@@ -6,6 +6,7 @@ import asyncio
 import email as email_lib
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from celery import Task
 import logging
 
@@ -31,12 +32,12 @@ from app.models.database_models import (
     DownloadedMessageId,
     UserSmtpConfig,
 )
-from app.services.mail_processor import MailProcessor
+from app.services.mail_processor import MailProcessor, MailDebugRecorder
 from app.services.gmail_service import GmailService, GmailAuthError
 from app.services.config_service import ConfigService
 from app.services.notification_service import send_user_notification
 from app.core.config import settings
-from sqlalchemy import select, delete, or_
+from sqlalchemy import select, delete, or_, func
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +117,13 @@ async def process_mail_account(account_id: int):
             )
             already_seen_uids = set(seen_result.scalars().all())
 
+            # Create debug recorder if debug logging is enabled for this account
+            _debug_recorder: Optional[MailDebugRecorder] = (
+                MailDebugRecorder() if account.debug_logging else None  # type: ignore[attr-defined]
+            )
+
             # Create processor
-            processor = MailProcessor(account, password)
+            processor = MailProcessor(account, password, debug_recorder=_debug_recorder)
 
             # Fetch emails (returns raw bytes + new UIDs)
             emails, new_uids = await processor.fetch_emails(
@@ -465,6 +471,20 @@ async def process_mail_account(account_id: int):
                         post_exc,
                     )
 
+            # Persist debug connection trace (if debug logging was enabled)
+            if _debug_recorder and _debug_recorder.has_entries():
+                db.add(
+                    ProcessingLog(
+                        user_id=account.user_id,
+                        mail_account_id=account.id,
+                        processing_run_id=run.id,
+                        level="DEBUG",
+                        message=f"Connection trace ({len(_debug_recorder._entries)} entries)",
+                        success=True,
+                        error_details=_debug_recorder.as_details(),
+                    )
+                )
+
             # Persist new message UIDs so they are not processed again
             for uid in successfully_forwarded_uids:
                 if uid not in already_seen_uids:
@@ -513,15 +533,36 @@ async def process_mail_account(account_id: int):
             account.total_emails_failed += emails_failed  # type: ignore[assignment]
             account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
 
-            if emails_failed == 0:
-                account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
-                account.last_error_message = None  # type: ignore[assignment]
-                account.last_error_at = None  # type: ignore[assignment]
-            else:
-                account.status = AccountStatus.ERROR  # type: ignore[assignment]
-                account.last_error_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                account.last_error_message = f"{emails_failed} emails failed to forward"  # type: ignore[assignment]
+            # The fetch/connection succeeded: always clear any connection-level error
+            # and mark the account ACTIVE regardless of per-email forwarding failures.
+            # Per-email failures are already tracked in ProcessingLog and the
+            # run's emails_failed counter so the user can drill into them without
+            # having the account badge stuck in ERROR indefinitely.
+            account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+            account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
+            account.last_error_message = None  # type: ignore[assignment]
+            account.last_error_at = None  # type: ignore[assignment]
+
+            # Auto-disable debug logging after 5 completed runs in the past 24 h
+            # to prevent it being left on indefinitely.
+            if account.debug_logging:  # type: ignore[attr-defined]
+                _24h_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+                _debug_run_count = (
+                    await db.execute(
+                        select(func.count(ProcessingRun.id)).where(
+                            ProcessingRun.mail_account_id == account.id,
+                            ProcessingRun.started_at >= _24h_ago,
+                            ProcessingRun.status.in_(["completed", "partial_failure"]),
+                        )
+                    )
+                ).scalar_one()
+                if _debug_run_count >= 5:
+                    account.debug_logging = False  # type: ignore[assignment]
+                    logger.info(
+                        "Auto-disabled debug logging for account %s after %d runs in 24 h",
+                        account.id,
+                        _debug_run_count,
+                    )
 
             await db.commit()
 
