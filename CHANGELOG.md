@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.8.1 (2026-05-03)
+
+### Bug Fixes
+
+- Downgrade eslint to ^9 and typescript to ^5 for eslint-config-next compatibility
+  ([`f39241a`](https://github.com/christianlouis/InboxConverge/commit/f39241a547662fa8ae4ad408d2565ff0e50d9d55))
+
+### Chores
+
+- **deps**: Bump react and @types/react in /frontend
+  ([`00d06c6`](https://github.com/christianlouis/InboxConverge/commit/00d06c63de26f0bbbb5184ba219ad6b02eec4ec8))
+
+
 ## v0.8.0 (2026-05-03)
 
 ### Bug Fixes
