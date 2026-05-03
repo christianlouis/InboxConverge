@@ -22,7 +22,6 @@ from app.services.mail_processor import (
     _MAX_TRACE_ENTRIES,
 )
 
-
 # ---------------------------------------------------------------------------
 # _format_connection_error – helpers
 # ---------------------------------------------------------------------------
@@ -244,6 +243,7 @@ class TestMailDebugRecorder:
         rec.record("stat", "Mailbox has 3 messages", {"count": 3})
 
         import json
+
         serialised = json.dumps(rec.as_details())
         # The password must not appear in any of these entries
         assert password not in serialised
