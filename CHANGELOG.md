@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Send Test Email button for SMTP Fallback**: a new "Send Test Email" button
+  appears on the Settings page next to the Save/Remove SMTP controls once a
+  configuration is saved.  It calls a new `POST /users/smtp-config/test`
+  endpoint that sends a test message to the user's registered email address
+  using the stored SMTP credentials, and displays an inline success or error
+  banner with the result.
+
 - **Friendly error messages**: Introduced `_format_connection_error()` helper in
   `mail_processor.py` that translates raw OS/socket/SSL/POP3/IMAP exceptions into
   human-readable sentences including the host:port and actionable guidance (DNS

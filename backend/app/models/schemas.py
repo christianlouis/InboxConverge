@@ -498,6 +498,11 @@ class UserSmtpConfigResponse(UserSmtpConfigBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SmtpTestResponse(BaseModel):
+    success: bool
+    message: str
+
+
 # Gmail OAuth Schemas
 class GmailAuthorizeResponse(BaseModel):
     authorization_url: str

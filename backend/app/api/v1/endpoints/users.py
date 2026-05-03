@@ -1,18 +1,24 @@
 """User management endpoints"""
 
+import asyncio
+import smtplib
+from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.deps import get_current_active_user
-from app.core.security import encrypt_credential
+from app.core.security import encrypt_credential, decrypt_credential
 from app.models.database_models import User, UserSmtpConfig
 from app.models.schemas import (
     UserDetailResponse,
     UserUpdate,
     UserSmtpConfigUpdate,
     UserSmtpConfigResponse,
+    SmtpTestResponse,
 )
 
 router = APIRouter()
@@ -134,3 +140,87 @@ async def delete_smtp_config(
     if config:
         await db.delete(config)
         await db.commit()
+
+
+@router.post("/smtp-config/test", response_model=SmtpTestResponse)
+async def test_smtp_config(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send a test email using the current user's saved SMTP configuration"""
+    result = await db.execute(
+        select(UserSmtpConfig).where(UserSmtpConfig.user_id == current_user.id)
+    )
+    config = result.scalar_one_or_none()
+
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No SMTP configuration found. Save one first.",
+        )
+
+    if not config.encrypted_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No SMTP password stored. Save the configuration with a password first.",
+        )
+
+    password = decrypt_credential(config.encrypted_password)  # type: ignore[arg-type]
+    recipient = current_user.email  # type: ignore[arg-type]
+
+    def _send_test() -> None:
+        msg = MIMEText(
+            "This is a test email sent by InboxConverge to verify your SMTP settings.",
+            "plain",
+            "utf-8",
+        )
+        msg["From"] = config.username  # type: ignore[index]
+        msg["To"] = recipient
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid()
+        msg["Subject"] = "InboxConverge – SMTP Test"
+
+        if config.use_tls:  # type: ignore[union-attr]
+            server: smtplib.SMTP = smtplib.SMTP(
+                config.host, config.port, timeout=30  # type: ignore[arg-type]
+            )
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(
+                config.host, config.port, timeout=30  # type: ignore[arg-type]
+            )
+
+        try:
+            server.login(config.username, password)  # type: ignore[arg-type]
+            server.send_message(msg)
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
+
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send_test)
+        return SmtpTestResponse(
+            success=True,
+            message=f"Test email sent successfully to {recipient}.",
+        )
+    except smtplib.SMTPAuthenticationError as exc:
+        smtp_err = exc.smtp_error
+        detail = (
+            smtp_err.decode(errors="replace")
+            if isinstance(smtp_err, bytes)
+            else str(exc)
+        )
+        return SmtpTestResponse(
+            success=False,
+            message=f"Authentication failed: {detail}",
+        )
+    except smtplib.SMTPException as exc:
+        return SmtpTestResponse(success=False, message=f"SMTP error: {exc}")
+    except OSError as exc:
+        return SmtpTestResponse(
+            success=False,
+            message=f"Connection error: {exc}",
+        )
