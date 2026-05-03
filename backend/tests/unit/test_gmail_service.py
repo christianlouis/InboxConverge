@@ -419,3 +419,72 @@ class TestGmailService:
             # Second access should NOT call build again
             _ = service.service
             mock_build.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # _tz_aware_expiry – timezone normalisation helper
+    # ------------------------------------------------------------------
+    def test_tz_aware_expiry_naive_becomes_utc(self):
+        """A naive datetime is made tz-aware (UTC)."""
+        naive = datetime(2026, 6, 1, 12, 0, 0)  # no tzinfo
+        result = GmailService._tz_aware_expiry(naive)
+        assert result is not None
+        assert result.tzinfo is not None
+        assert result.utcoffset().total_seconds() == 0
+        assert result.replace(tzinfo=None) == naive
+
+    def test_tz_aware_expiry_aware_unchanged(self):
+        """An already tz-aware datetime is returned as-is."""
+        aware = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        result = GmailService._tz_aware_expiry(aware)
+        assert result is aware
+
+    def test_tz_aware_expiry_none_unchanged(self):
+        """None is returned unchanged."""
+        assert GmailService._tz_aware_expiry(None) is None
+
+    # ------------------------------------------------------------------
+    # get_refreshed_token – naive expiry is normalised to UTC
+    # ------------------------------------------------------------------
+    def test_get_refreshed_token_naive_expiry_becomes_utc(self):
+        """get_refreshed_token converts a naive expiry from google-auth to UTC-aware."""
+        service = GmailService(access_token="original-token")
+
+        # google-auth sets credentials.expiry as naive UTC
+        naive_expiry = datetime(2099, 1, 1, 0, 0, 0)  # no tzinfo
+        service.credentials.token = "new-refreshed-token"
+        service.credentials.expiry = naive_expiry
+
+        result = service.get_refreshed_token()
+        assert result is not None
+        expiry = result["expiry"]
+        assert expiry is not None
+        assert expiry.tzinfo is not None, "expiry must be tz-aware for DB storage"
+        assert expiry.utcoffset().total_seconds() == 0
+        assert expiry.replace(tzinfo=None) == naive_expiry
+
+    # ------------------------------------------------------------------
+    # proactive_refresh – naive expiry is normalised to UTC
+    # ------------------------------------------------------------------
+    @pytest.mark.asyncio
+    async def test_proactive_refresh_naive_expiry_becomes_utc(self):
+        """proactive_refresh converts a naive expiry from google-auth to UTC-aware."""
+        service = GmailService(
+            access_token="old-token",
+            refresh_token="refresh-token",
+        )
+
+        naive_expiry = datetime(2099, 6, 1, 0, 0, 0)  # no tzinfo
+
+        def _fake_refresh(_request):
+            service.credentials.token = "new-token"
+            service.credentials.expiry = naive_expiry
+
+        with patch.object(service.credentials, "refresh", side_effect=_fake_refresh):
+            result = await service.proactive_refresh()
+
+        assert result["access_token"] == "new-token"
+        expiry = result["expiry"]
+        assert expiry is not None
+        assert expiry.tzinfo is not None, "expiry must be tz-aware for DB storage"
+        assert expiry.utcoffset().total_seconds() == 0
+        assert expiry.replace(tzinfo=None) == naive_expiry
