@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.9.1 (2026-05-03)
+
+### Bug Fixes
+
+- Add separate sender/recipient email fields for SMTP notification channel
+  ([`c3e608d`](https://github.com/christianlouis/InboxConverge/commit/c3e608d82fc8d7459ca02865700ba99283cf348b))
+
+
 ## v0.9.0 (2026-05-03)
 
 ### Bug Fixes
