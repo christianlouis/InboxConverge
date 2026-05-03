@@ -87,6 +87,13 @@ class GmailService:
             scopes=GMAIL_SCOPES,
         )
         self._service = None
+        logger.debug(
+            "OAuth [GmailService]: initialized — has_refresh_token=%s, "
+            "has_client_id=%s, has_client_secret=%s",
+            bool(refresh_token),
+            bool(client_id),
+            bool(client_secret),
+        )
 
     @property
     def service(self):
@@ -244,7 +251,21 @@ class GmailService:
                 operation="get_profile", status="success"
             ).inc()
             GMAIL_API_DURATION_SECONDS.labels(operation="get_profile").observe(_dur)
-            return result.get("emailAddress")
+            email = result.get("emailAddress")
+            logger.debug("OAuth [GmailService]: fetched email address=%s", email)
+            return email
+        except google.auth.exceptions.RefreshError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(
+                operation="get_profile", status="error"
+            ).inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_profile").observe(_dur)
+            logger.error(
+                "OAuth [GmailService]: token refresh failed while fetching email "
+                "address — refresh token may be revoked. Detail: %s",
+                e,
+            )
+            return None
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(
@@ -501,6 +522,11 @@ class GmailService:
         current_token = self.credentials.token
         if current_token and current_token != self._initial_access_token:
             GMAIL_TOKEN_REFRESHES_TOTAL.inc()
+            logger.debug(
+                "OAuth [GmailService]: access token was auto-refreshed during API "
+                "call; new expiry=%s",
+                self.credentials.expiry,
+            )
             return {
                 "access_token": current_token,
                 "expiry": self.credentials.expiry,
