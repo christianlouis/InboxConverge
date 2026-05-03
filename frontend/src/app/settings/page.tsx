@@ -148,6 +148,7 @@ function SettingsContent() {
     host: 'smtp.gmail.com',
     port: 587,
     username: '',
+    sender_email: '',
     password: '',
     use_tls: true,
   });
@@ -187,6 +188,7 @@ function SettingsContent() {
       host: smtpConfig.host,
       port: smtpConfig.port,
       username: smtpConfig.username,
+      sender_email: smtpConfig.sender_email,
       use_tls: smtpConfig.use_tls,
       password: '', // never pre-fill password
     }));
@@ -246,7 +248,7 @@ function SettingsContent() {
     mutationFn: smtpApi.remove,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['smtp-config'] });
-      setSmtpForm({ host: 'smtp.gmail.com', port: 587, username: '', password: '', use_tls: true });
+      setSmtpForm({ host: 'smtp.gmail.com', port: 587, username: '', sender_email: '', password: '', use_tls: true });
     },
   });
 
@@ -302,6 +304,7 @@ function SettingsContent() {
         host: smtpForm.host,
         port: smtpForm.port,
         username: smtpForm.username,
+        sender_email: smtpForm.sender_email,
         password: smtpForm.password || undefined,
         use_tls: smtpForm.use_tls,
       });
@@ -599,6 +602,21 @@ function SettingsContent() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="you@example.com"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sender Email</label>
+                <input
+                  type="email"
+                  name="sender_email"
+                  value={smtpForm.sender_email}
+                  onChange={handleSmtpChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="sender@example.com"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  The From: address used when forwarding mail. Required when your SMTP username is an API token rather than an email address (e.g. Postmark, SendGrid).
+                </p>
               </div>
 
               <div>

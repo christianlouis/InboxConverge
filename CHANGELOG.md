@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current streak has already been notified.  When the account recovers the flag is
   cleared and a single recovery notification is sent; the next failure streak will
   then fire a fresh alert.
+## v0.10.2 (2026-05-03)
+
+### Bug Fixes
+
+- Add sender_email to UserSmtpConfig to fix SMTP From header (501 bad sender address)
+  ([`a21e2f7`](https://github.com/christianlouis/InboxConverge/commit/a21e2f7df62ef79271efab172a88d1ead06bfe67))
+
 
 ## v0.10.1 (2026-05-03)
 
@@ -43,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## v0.10.0 (2026-05-03)
+
+### Bug Fixes
+
+- **SMTP Fallback sender address**: Add `sender_email` field to `UserSmtpConfig` so the SMTP `From:` header uses a real email address instead of the SMTP authentication token. Providers like Postmark use a UUID API token as the username, which caused a `501 Bad sender address syntax` error. The new field is optional; when left blank the `username` value is used as a fallback (preserving existing behaviour for providers where username == email address). Includes a new Alembic migration (`0003`) and a Sender Email input in the Settings page.
 
 
 ## v0.9.2 (2026-05-03)

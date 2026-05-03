@@ -481,6 +481,7 @@ class UserSmtpConfigBase(BaseModel):
     host: str = "smtp.gmail.com"
     port: int = Field(587, gt=0, lt=65536)
     username: str = ""
+    sender_email: str = ""
     use_tls: bool = True
 
 
