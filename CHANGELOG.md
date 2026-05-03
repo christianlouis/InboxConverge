@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.9.0 (2026-05-03)
+
+### Bug Fixes
+
+- Apply black formatting to test_format_connection_error.py (--target-version py312)
+  ([`79d664c`](https://github.com/christianlouis/InboxConverge/commit/79d664c0e4907159e6f2558f9449522411ecda73))
+
+- Remove unused imports and bare f-string in test_format_connection_error.py (ruff F401/F541)
+  ([`b1dd171`](https://github.com/christianlouis/InboxConverge/commit/b1dd1714f7e2d40826e03ccfd6e6868002f2699e))
+
+
 ## [Unreleased]
 
 ### Added
