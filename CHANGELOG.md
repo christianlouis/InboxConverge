@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.4 (2026-05-03)
+
+### Bug Fixes
+
+- Resolve all lint errors (black, ruff, mypy)
+  ([`fcdd51e`](https://github.com/christianlouis/InboxConverge/commit/fcdd51e6aa571da1c5716e90f8b15dacc23a3d78))
+
+
 ## v0.10.3 (2026-05-03)
 
 
