@@ -534,6 +534,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Duration display rounding bug**: `formatDuration` in the frontend Processing Logs page now
   uses `Math.floor` instead of `Math.round` for the seconds component, eliminating the "60s"
   artefact that appeared for durations very close to a whole minute boundary.
+- **Frontend dependency conflict**: Bumped `react` from `19.2.4` to `19.2.5` in `frontend/package.json` to match `react-dom@19.2.5`, resolving the `ERESOLVE` peer-dependency conflict that broke `npm ci`.
 
 ### Changed
 - **Decoupled Gmail permissions from Google Sign-In**: The "Sign in with Google" OAuth flow now only requests basic profile scopes (`openid`, `email`, `profile`) instead of also requesting Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`). Users can grant Gmail access separately via the "Connect Gmail" button in Settings. This results in a simpler, permission-free login experience.
