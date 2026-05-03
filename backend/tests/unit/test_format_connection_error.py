@@ -13,12 +13,10 @@ import poplib
 import socket
 import ssl
 
-import pytest
 
 from app.services.mail_processor import (
     MailDebugRecorder,
     _format_connection_error,
-    _MAX_TRACE_BYTES,
     _MAX_TRACE_ENTRIES,
 )
 
@@ -239,7 +237,7 @@ class TestMailDebugRecorder:
         password = "s3cr3tP@ssw0rd!"
         rec = MailDebugRecorder()
         # Simulate the entries that production code actually records
-        rec.record("auth", f"Authenticated as user@example.com", {"elapsed_ms": 5})
+        rec.record("auth", "Authenticated as user@example.com", {"elapsed_ms": 5})
         rec.record("stat", "Mailbox has 3 messages", {"count": 3})
 
         import json
