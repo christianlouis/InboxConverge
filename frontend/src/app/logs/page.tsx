@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { processingRunsApi, mailAccountsApi, MailAccount, ProcessingRun, ProcessingLog } from '@/lib/api';
 import { formatRelative, formatDate, formatDuration } from '@/lib/date-utils';
 import {
@@ -17,17 +17,24 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  RotateCcw,
+  Bug,
 } from 'lucide-react';
 
 function RunDetailRow({ run }: { run: ProcessingRun }) {
   const [expanded, setExpanded] = useState(false);
   const [logsPage, setLogsPage] = useState(1);
+  const [traceExpanded, setTraceExpanded] = useState(false);
 
   const { data: logsData, isLoading: logsLoading } = useQuery({
     queryKey: ['run-logs', run.id, logsPage],
     queryFn: () => processingRunsApi.getLogs(run.id, { page: logsPage, page_size: 20 }),
     enabled: expanded,
   });
+
+  // Separate DEBUG-level connection trace entries from email-level logs
+  const debugLogs = (logsData?.items ?? []).filter((l: ProcessingLog) => l.level === 'DEBUG');
+  const emailLogs = (logsData?.items ?? []).filter((l: ProcessingLog) => l.level !== 'DEBUG');
 
   return (
     <>
@@ -62,11 +69,47 @@ function RunDetailRow({ run }: { run: ProcessingRun }) {
                 {run.error_message}
               </div>
             )}
+
+            {/* Connection trace (DEBUG-level logs) */}
+            {!logsLoading && debugLogs.length > 0 && (
+              <div className="mb-3">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setTraceExpanded((v) => !v); }}
+                  className="flex items-center gap-1.5 text-xs font-medium text-purple-700 hover:text-purple-900 mb-1"
+                >
+                  <Bug className="h-3.5 w-3.5" />
+                  Connection trace
+                  {traceExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+                {traceExpanded && debugLogs.map((log: ProcessingLog) => {
+                  const trace = (log.error_details as { trace?: unknown[]; truncated?: boolean } | null)?.trace ?? [];
+                  const truncated = (log.error_details as { trace?: unknown[]; truncated?: boolean } | null)?.truncated ?? false;
+                  return (
+                    <div key={log.id} className="bg-gray-900 text-gray-100 rounded p-3 text-xs font-mono overflow-x-auto max-h-80 overflow-y-auto">
+                      {(trace as { ts: string; phase: string; msg: string; data?: Record<string, unknown> }[]).map((entry, i) => (
+                        <div key={i} className="flex gap-2 mb-0.5">
+                          <span className="text-gray-400 flex-shrink-0">{new Date(entry.ts).toISOString().slice(11, 23)}</span>
+                          <span className={`flex-shrink-0 ${entry.phase === 'error' || entry.phase === 'fetch_error' ? 'text-red-400' : entry.phase === 'truncated' ? 'text-yellow-400' : 'text-green-400'}`}>[{entry.phase}]</span>
+                          <span>{entry.msg}</span>
+                          {entry.data && (
+                            <span className="text-gray-500 ml-1">{JSON.stringify(entry.data)}</span>
+                          )}
+                        </div>
+                      ))}
+                      {truncated && (
+                        <div className="text-yellow-400 mt-1">⚠ Trace was truncated (size limit reached)</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {logsLoading ? (
               <div className="flex items-center gap-2 text-sm text-gray-500 py-1">
                 <RefreshCw className="h-4 w-4 animate-spin" /> Loading…
               </div>
-            ) : logsData && logsData.items.length > 0 ? (
+            ) : emailLogs.length > 0 ? (
               <>
                 <table className="w-full text-xs">
                   <thead>
@@ -78,7 +121,7 @@ function RunDetailRow({ run }: { run: ProcessingRun }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {logsData.items.map((log: ProcessingLog) => (
+                    {emailLogs.map((log: ProcessingLog) => (
                       <tr key={log.id} className="border-t border-gray-100">
                         <td className="py-1 pr-4 text-gray-500 whitespace-nowrap">
                           {formatDate(log.timestamp)}
@@ -100,7 +143,7 @@ function RunDetailRow({ run }: { run: ProcessingRun }) {
                     ))}
                   </tbody>
                 </table>
-                {logsData.pages > 1 && (
+                {logsData && logsData.pages > 1 && (
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
                     <button
                       onClick={(e) => {
@@ -126,9 +169,9 @@ function RunDetailRow({ run }: { run: ProcessingRun }) {
                   </div>
                 )}
               </>
-            ) : (
+            ) : !logsLoading && debugLogs.length === 0 ? (
               <p className="text-xs text-gray-400 py-1">No per-email logs for this run.</p>
-            )}
+            ) : null}
           </td>
         </tr>
       )}
@@ -146,6 +189,14 @@ function MailboxCard({
   const [showHistory, setShowHistory] = useState(false);
   const hasError = !!account.last_error_message;
   const lastChecked = account.last_check_at;
+  const queryClient = useQueryClient();
+
+  const clearErrorMutation = useMutation({
+    mutationFn: () => mailAccountsApi.clearError(account.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
+    },
+  });
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -186,7 +237,16 @@ function MailboxCard({
       {hasError && (
         <div className="mx-5 mb-3 p-2 bg-red-50 border border-red-200 rounded flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-red-700">{account.last_error_message}</p>
+          <p className="text-xs text-red-700 flex-1">{account.last_error_message}</p>
+          <button
+            onClick={() => clearErrorMutation.mutate()}
+            disabled={clearErrorMutation.isPending}
+            title="Clear error status"
+            className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded transition-colors disabled:opacity-50"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Clear
+          </button>
         </div>
       )}
 

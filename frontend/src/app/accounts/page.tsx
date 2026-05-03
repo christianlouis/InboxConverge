@@ -4,7 +4,7 @@ import { AuthGuard } from '@/components/AuthGuard';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mailAccountsApi, MailAccount } from '@/lib/api';
-import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Power, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Power, RefreshCw, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
 import { AddMailAccountModal } from '@/components/AddMailAccountModal';
@@ -110,6 +110,13 @@ export default function AccountsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: mailAccountsApi.toggle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
+    },
+  });
+
+  const clearErrorMutation = useMutation({
+    mutationFn: mailAccountsApi.clearError,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mail-accounts'] });
     },
@@ -253,9 +260,20 @@ export default function AccountsPage() {
 
                     {account.last_error_message && (
                       <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                        <div className="flex items-start">
-                          <AlertTriangle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
-                          <p className="text-xs text-red-700">{account.last_error_message}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start min-w-0">
+                            <AlertTriangle className="h-4 w-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-700">{account.last_error_message}</p>
+                          </div>
+                          <button
+                            onClick={() => clearErrorMutation.mutate(account.id)}
+                            disabled={clearErrorMutation.isPending}
+                            title="Clear error status"
+                            className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded transition-colors disabled:opacity-50"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Clear
+                          </button>
                         </div>
                       </div>
                     )}

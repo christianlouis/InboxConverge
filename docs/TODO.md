@@ -4,6 +4,25 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **IMAP/POP3 diagnostics — Step 1: Friendly error messages**: Added
+  `_format_connection_error()` helper that converts raw OS/socket/SSL/POP3/IMAP
+  exceptions into human-readable sentences with host:port context.  Applied at
+  every `raise MailFetchError`/`MailConnectionError` site.  Fixes blank "IMAP
+  fetch error:" messages and cryptic DNS errno strings.
+
+- [x] **IMAP/POP3 diagnostics — Step 2: Auto-clear stale error state**: Successful
+  fetches now always clear `last_error_message`/`last_error_at` and set
+  `status=ACTIVE`, even when some individual email forwards fail.  Added
+  `POST /mail-accounts/{id}/clear-error` endpoint and "Clear" buttons on the
+  Accounts and Mailbox Activity pages.
+
+- [x] **IMAP/POP3 diagnostics — Step 3: Per-account debug logging**: Added
+  `debug_logging` boolean column (migration `0002`), `MailDebugRecorder` class,
+  instrumented all connection phases (connect, auth, select, search, fetch UIDs,
+  per-message fetch, logout), persisted as `ProcessingLog[level=DEBUG]`.
+  Auto-disables after 5 runs in 24 h.  Toggle in account edit form.  Connection
+  trace viewer in Mailbox Activity logs page.
+
 - [x] **Google OAuth consent screen legal compliance**: Added English Privacy Policy (`/privacy`) with Google API Limited Use Disclosure, Terms of Service (`/terms`), legal footer links on the home page (resolves Google's "homepage has no privacy policy link" verification rejection), login page, and register page (consent text). Cross-link from `/datenschutz` to `/privacy` added.
 
 - [x] **Fix Pydantic V2 deprecation warnings**: Replaced `.dict()` with `.model_dump()` in `admin.py` and `notifications.py`. Fixed `RuntimeWarning: coroutine never awaited` for `db.add()` in test mocks (`test_tasks.py`, `test_config_service.py`).

@@ -66,6 +66,7 @@ export interface MailAccount {
   check_interval_minutes: number;
   max_emails_per_check: number;
   delete_after_forward: boolean;
+  debug_logging: boolean;
   status: string;
   provider_name?: string | null;
   auto_detected: boolean;
@@ -95,6 +96,7 @@ export interface MailAccountCreate {
   check_interval_minutes?: number;
   max_emails_per_check?: number;
   delete_after_forward?: boolean;
+  debug_logging?: boolean;
   provider_name?: string | null;
 }
 
@@ -114,6 +116,7 @@ export interface MailAccountUpdate {
   check_interval_minutes?: number;
   max_emails_per_check?: number;
   delete_after_forward?: boolean;
+  debug_logging?: boolean;
   provider_name?: string | null;
 }
 
@@ -359,6 +362,11 @@ export const mailAccountsApi = {
       success: boolean;
       suggestions: AutoDetectSuggestion[];
     }>("/mail-accounts/auto-detect", { email_address: emailAddress });
+    return response.data;
+  },
+
+  async clearError(id: number): Promise<MailAccount> {
+    const response = await api.post<MailAccount>(`/mail-accounts/${id}/clear-error`);
     return response.data;
   },
 };
