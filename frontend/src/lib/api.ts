@@ -224,6 +224,7 @@ export interface UserSmtpConfig {
   host: string;
   port: number;
   username: string;
+  sender_email: string;
   use_tls: boolean;
   has_password: boolean;
   created_at: string;
@@ -485,6 +486,7 @@ export const smtpApi = {
     host: string;
     port: number;
     username: string;
+    sender_email: string;
     password?: string;
     use_tls: boolean;
   }): Promise<UserSmtpConfig> {

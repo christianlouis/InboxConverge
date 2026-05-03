@@ -1256,7 +1256,9 @@ class MailProcessor:
 
                 # Create forwarding message
                 forward_msg = MIMEMultipart("mixed")
-                forward_msg["From"] = smtp_config["username"]
+                forward_msg["From"] = (
+                    smtp_config.get("sender_email") or smtp_config["username"]
+                )
                 forward_msg["To"] = destination
                 forward_msg["Date"] = formatdate(localtime=True)
                 forward_msg["Message-ID"] = make_msgid()
