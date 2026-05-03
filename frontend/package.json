@@ -28,11 +28,11 @@
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10",
+    "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "tailwindcss": "^4",
-    "typescript": "^6"
+    "typescript": "^5"
   }
 }
