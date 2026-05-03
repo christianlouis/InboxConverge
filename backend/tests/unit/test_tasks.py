@@ -1822,3 +1822,249 @@ class TestCleanupOldLogs:
 
             # Should not raise
             await cleanup_old_logs.run(days_to_keep=30)
+
+
+# ---------------------------------------------------------------------------
+# Debug-logging counter auto-disable tests
+# ---------------------------------------------------------------------------
+
+
+class TestDebugLoggingCounter:
+    """debug_logging is auto-disabled after exactly 5 runs since it was enabled."""
+
+    def _make_account_with_debug(self, run_count: int = 0) -> MagicMock:
+        account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
+        account.debug_logging = True
+        account.debug_logging_run_count = run_count
+        account.error_notification_sent = False
+        account.status = MagicMock(value="active")
+        return account
+
+    def _build_task_mocks(self, account):
+        maker, session = _mock_session_maker()
+        gmail_cred = _make_gmail_cred(user_id=account.user_id)
+
+        account_result = MagicMock()
+        account_result.scalar_one_or_none.return_value = account
+        seen_result = MagicMock()
+        seen_result.scalars.return_value.all.return_value = []
+        gmail_cred_result = MagicMock()
+        gmail_cred_result.scalar_one_or_none.return_value = gmail_cred
+        session.execute = AsyncMock(
+            side_effect=[account_result, seen_result, gmail_cred_result]
+        )
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        return maker, session, gmail_cred
+
+    @pytest.mark.asyncio
+    async def test_counter_increments_each_run(self):
+        """debug_logging_run_count increments from 0 to 1 after one successful run."""
+        account = self._make_account_with_debug(run_count=0)
+        maker, session, gmail_cred = self._build_task_mocks(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([], [])
+        mock_gmail_svc = _make_gmail_service()
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.GmailService", return_value=mock_gmail_svc),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        assert account.debug_logging_run_count == 1
+        assert account.debug_logging is True
+
+    @pytest.mark.asyncio
+    async def test_debug_disabled_at_run_5(self):
+        """debug_logging turns off and counter resets when it reaches 5."""
+        account = self._make_account_with_debug(run_count=4)
+        maker, session, gmail_cred = self._build_task_mocks(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([], [])
+        mock_gmail_svc = _make_gmail_service()
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.GmailService", return_value=mock_gmail_svc),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        assert account.debug_logging is False
+        assert account.debug_logging_run_count == 0
+
+    @pytest.mark.asyncio
+    async def test_debug_not_disabled_at_run_4(self):
+        """debug_logging stays on at run 4 (need one more)."""
+        account = self._make_account_with_debug(run_count=3)
+        maker, session, gmail_cred = self._build_task_mocks(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([], [])
+        mock_gmail_svc = _make_gmail_service()
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.GmailService", return_value=mock_gmail_svc),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        assert account.debug_logging is True
+        assert account.debug_logging_run_count == 4
+
+
+# ---------------------------------------------------------------------------
+# Notification backoff tests
+# ---------------------------------------------------------------------------
+
+
+class TestNotificationBackoff:
+    """Failure notifications should only fire once per error streak."""
+
+    def _make_smtp_account(self, **overrides):
+        account = _make_account(delivery_method=DeliveryMethod.SMTP, **overrides)
+        account.debug_logging = False
+        account.debug_logging_run_count = 0
+        account.error_notification_sent = overrides.get("error_notification_sent", False)
+        account.status = MagicMock(value="active")
+        return account
+
+    def _smtp_session(self, account):
+        maker, session = _mock_session_maker()
+        user_smtp = MagicMock()
+        user_smtp.host = "smtp.x.com"
+        user_smtp.port = 587
+        user_smtp.username = "u"
+        user_smtp.encrypted_password = "ep"
+        user_smtp.use_tls = True
+
+        account_result = MagicMock()
+        account_result.scalar_one_or_none.return_value = account
+        seen_result = MagicMock()
+        seen_result.scalars.return_value.all.return_value = []
+        smtp_result = MagicMock()
+        smtp_result.scalar_one_or_none.return_value = user_smtp
+        session.execute = AsyncMock(
+            side_effect=[account_result, seen_result, smtp_result]
+        )
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+        return maker, session
+
+    @pytest.mark.asyncio
+    async def test_first_failure_sends_notification(self):
+        """First email-forwarding failure in a streak sends a notification."""
+        raw_email = _build_raw_email()
+        account = self._make_smtp_account(error_notification_sent=False)
+        maker, session = self._smtp_session(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.post_process_messages = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([raw_email], ["uid-1"])
+
+        mock_notif_session = MagicMock()
+        mock_notif_ctx = MagicMock()
+        mock_notif_ctx.__aenter__ = AsyncMock(return_value=mock_notif_session)
+        mock_notif_ctx.__aexit__ = AsyncMock(return_value=False)
+        mock_notif_ctx.begin = MagicMock(return_value=mock_notif_ctx)
+        mock_notif_session.execute = AsyncMock()
+
+        def session_maker_side_effect():
+            return mock_notif_ctx
+
+        mock_send_notification = AsyncMock(return_value=1)
+
+        with (
+            patch(f"{MODULE}.async_session_maker", side_effect=[maker(), session_maker_side_effect()]),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(
+                f"{MODULE}.MailProcessor.forward_email",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        mock_send_notification.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_second_failure_suppressed(self):
+        """When error_notification_sent is already True, no new notification fires."""
+        raw_email = _build_raw_email()
+        account = self._make_smtp_account(error_notification_sent=True)
+        maker, session = self._smtp_session(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.post_process_messages = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([raw_email], ["uid-1"])
+
+        mock_send_notification = AsyncMock(return_value=0)
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(
+                f"{MODULE}.MailProcessor.forward_email",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        mock_send_notification.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_recovery_clears_flag(self):
+        """A successful run clears error_notification_sent."""
+        account = self._make_smtp_account(error_notification_sent=False)
+        # Put account in "active" status – recovery notice fires when was ERROR
+        account.status = MagicMock(value="active")
+        maker, session = self._smtp_session(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([], [])
+        mock_processor.post_process_messages = AsyncMock()
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        # Flag is reset to False after successful connection
+        assert account.error_notification_sent is False

@@ -173,6 +173,15 @@ class MailAccount(Base):
 
     # Debug logging
     debug_logging = Column(Boolean, default=False)
+    # Number of completed/partial_failure runs since debug_logging was last
+    # enabled.  Resets to 0 when debug_logging is toggled True via the API.
+    # debug_logging is auto-disabled once this reaches 5.
+    debug_logging_run_count = Column(Integer, default=0)
+
+    # Notification backoff: True once an error notification has been sent for
+    # the current consecutive failure streak.  Cleared (with a recovery notice)
+    # when a run succeeds so the next new failure streak triggers a fresh alert.
+    error_notification_sent = Column(Boolean, default=False)
 
     # Statistics
     total_emails_processed = Column(Integer, default=0)

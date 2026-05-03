@@ -37,7 +37,7 @@ from app.services.gmail_service import GmailService, GmailAuthError
 from app.services.config_service import ConfigService
 from app.services.notification_service import send_user_notification
 from app.core.config import settings
-from sqlalchemy import select, delete, or_, func
+from sqlalchemy import select, delete, or_, update as sa_update
 
 logger = logging.getLogger(__name__)
 
@@ -538,30 +538,26 @@ async def process_mail_account(account_id: int):
             # Per-email failures are already tracked in ProcessingLog and the
             # run's emails_failed counter so the user can drill into them without
             # having the account badge stuck in ERROR indefinitely.
+            _was_in_error = account.status == AccountStatus.ERROR  # type: ignore[comparison-overlap]
+            _had_notified = bool(account.error_notification_sent)  # type: ignore[attr-defined]
             account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
             account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
             account.last_error_message = None  # type: ignore[assignment]
             account.last_error_at = None  # type: ignore[assignment]
+            # Clear the notification-sent flag so a future error streak fires a fresh alert.
+            account.error_notification_sent = False  # type: ignore[assignment]
 
-            # Auto-disable debug logging after 5 completed runs in the past 24 h
-            # to prevent it being left on indefinitely.
+            # Auto-disable debug logging after 5 runs since it was last enabled.
+            # The counter resets to 0 each time the user turns the flag on via
+            # the API, so "5 runs" is always counted from the moment of enabling.
             if account.debug_logging:  # type: ignore[attr-defined]
-                _24h_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-                _debug_run_count = (
-                    await db.execute(
-                        select(func.count(ProcessingRun.id)).where(
-                            ProcessingRun.mail_account_id == account.id,
-                            ProcessingRun.started_at >= _24h_ago,
-                            ProcessingRun.status.in_(["completed", "partial_failure"]),
-                        )
-                    )
-                ).scalar_one()
-                if _debug_run_count >= 5:
+                account.debug_logging_run_count = (account.debug_logging_run_count or 0) + 1  # type: ignore[attr-defined,assignment]
+                if account.debug_logging_run_count >= 5:  # type: ignore[attr-defined]
                     account.debug_logging = False  # type: ignore[assignment]
+                    account.debug_logging_run_count = 0  # type: ignore[assignment]
                     logger.info(
-                        "Auto-disabled debug logging for account %s after %d runs in 24 h",
+                        "Auto-disabled debug logging for account %s after 5 runs",
                         account.id,
-                        _debug_run_count,
                     )
 
             await db.commit()
@@ -569,9 +565,38 @@ async def process_mail_account(account_id: int):
             # Send failure notification after the commit so the status is
             # persisted even if the notification fails.  Use a fresh session
             # to avoid interfering with the (now-committed) main transaction.
-            if emails_failed > 0:
+            #
+            # Backoff policy:
+            #  - Recovery: if the account was previously in ERROR and we had
+            #    already sent a failure notification, send one recovery notice now.
+            #  - New error streak: only notify on the FIRST run that has failures
+            #    (error_notification_sent was False before this run).  Subsequent
+            #    failing runs stay silent until recovery resets the flag.
+            if _was_in_error and _had_notified:
                 try:
                     async with async_session_maker() as notif_db:
+                        await send_user_notification(
+                            db=notif_db,
+                            user_id=int(account.user_id),
+                            title="InboxRescue: Mail Account Recovered",
+                            body=f"Mail account '{account.name}' is processing normally again.",
+                            notify_on_error=True,
+                        )
+                except Exception as notify_exc:
+                    logger.warning(
+                        f"Failed to send recovery notification: {notify_exc}"
+                    )
+
+            if emails_failed > 0 and not _had_notified:
+                try:
+                    async with async_session_maker() as notif_db:
+                        # Persist the flag so the next failing run stays silent.
+                        async with notif_db.begin():
+                            await notif_db.execute(
+                                sa_update(MailAccount)
+                                .where(MailAccount.id == account.id)
+                                .values(error_notification_sent=True)
+                            )
                         await send_user_notification(
                             db=notif_db,
                             user_id=int(account.user_id),
@@ -655,18 +680,38 @@ async def process_mail_account(account_id: int):
             # to avoid the post-rollback session's broken greenlet context causing
             # the notification query itself to fail with "greenlet_spawn has not
             # been called".
+            #
+            # Backoff: only notify on the first failure in a consecutive error
+            # streak.  error_notification_sent is set True here and cleared on
+            # the next successful run, so repeat failures stay silent until the
+            # account recovers.
             if "account" in locals() and account is not None:
-                try:
-                    async with async_session_maker() as notif_db:
-                        await send_user_notification(
-                            db=notif_db,
-                            user_id=int(account.user_id),
-                            title="InboxRescue: Mail Processing Error",
-                            body=f"Error processing mail account '{account.name}': {e}",
-                            notify_on_error=True,
+                _already_notified = bool(
+                    getattr(account, "error_notification_sent", False)
+                )
+                if not _already_notified:
+                    try:
+                        async with async_session_maker() as notif_db:
+                            # Persist the flag first so even if the notification
+                            # delivery fails the flag is set and the next run won't
+                            # try again.
+                            async with notif_db.begin():
+                                await notif_db.execute(
+                                    sa_update(MailAccount)
+                                    .where(MailAccount.id == account.id)
+                                    .values(error_notification_sent=True)
+                                )
+                            await send_user_notification(
+                                db=notif_db,
+                                user_id=int(account.user_id),
+                                title="InboxRescue: Mail Processing Error",
+                                body=f"Error processing mail account '{account.name}': {e}",
+                                notify_on_error=True,
+                            )
+                    except Exception as notify_exc:
+                        logger.warning(
+                            f"Failed to send error notification: {notify_exc}"
                         )
-                except Exception as notify_exc:
-                    logger.warning(f"Failed to send error notification: {notify_exc}")
 
 
 @celery_app.task(base=AsyncTask, name="app.workers.tasks.process_all_enabled_accounts")

@@ -180,6 +180,11 @@ async def update_mail_account(
         if password:  # Only update when a non-empty password is provided
             update_data["encrypted_password"] = encrypt_credential(password)
 
+    # When debug logging is (re-)enabled, reset the run counter so the user
+    # always gets exactly 5 debugged runs from the moment they check the box.
+    if update_data.get("debug_logging") is True:
+        update_data["debug_logging_run_count"] = 0
+
     for field, value in update_data.items():
         setattr(account, field, value)
 
