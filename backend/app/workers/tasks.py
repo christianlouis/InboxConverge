@@ -32,11 +32,11 @@ from app.models.database_models import (
     UserSmtpConfig,
 )
 from app.services.mail_processor import MailProcessor
-from app.services.gmail_service import GmailService
+from app.services.gmail_service import GmailService, GmailAuthError
 from app.services.config_service import ConfigService
 from app.services.notification_service import send_user_notification
 from app.core.config import settings
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, or_
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +156,27 @@ async def process_mail_account(account_id: int):
                         if gmail_cred.encrypted_refresh_token
                         else None
                     )
+                    # Log token expiry to help diagnose timeout issues.
+                    if gmail_cred.token_expiry:
+                        _now = datetime.now(timezone.utc)
+                        _expiry = gmail_cred.token_expiry
+                        if _expiry.tzinfo is None:
+                            _expiry = _expiry.replace(tzinfo=timezone.utc)
+                        _secs = (_expiry - _now).total_seconds()
+                        if _secs < 0:
+                            logger.info(
+                                "Gmail access token for user %s expired %.0f s ago; "
+                                "google-auth will refresh automatically using the refresh token.",
+                                account.user_id,
+                                -_secs,
+                            )
+                        elif _secs < 300:
+                            logger.info(
+                                "Gmail access token for user %s expires in %.0f s; "
+                                "will be refreshed on the first API call.",
+                                account.user_id,
+                                _secs,
+                            )
                     gmail_service = GmailService(
                         access_token=access_token,
                         refresh_token=refresh_token,
@@ -324,10 +345,46 @@ async def process_mail_account(account_id: int):
                             )
                             emails_failed += 1
 
+                except GmailAuthError as e:
+                    # Token refresh failed: refresh token is likely revoked.
+                    # Mark the credential invalid so the user is prompted to
+                    # re-authorise, and stop retrying for this run.
+                    if use_gmail_api and gmail_cred:
+                        gmail_cred.is_valid = False  # type: ignore[assignment]
+                        GMAIL_CREDENTIALS_INVALIDATED_TOTAL.inc()
+                        logger.warning(
+                            "Gmail credentials revoked for user %s "
+                            "(account %s, token_expiry=%s). "
+                            "User must re-authorise. Error: %s",
+                            account.user_id,
+                            account.id,
+                            getattr(gmail_cred, "token_expiry", "unknown"),
+                            e,
+                        )
+                        try:
+                            async with async_session_maker() as notif_db:
+                                await send_user_notification(
+                                    db=notif_db,
+                                    user_id=int(account.user_id),
+                                    title="InboxRescue: Gmail Authorization Expired",
+                                    body=(
+                                        f"Your Gmail credentials for account '{account.name}' "
+                                        f"have been revoked or have expired. "
+                                        f"Please re-authorize Gmail access in Settings."
+                                    ),
+                                    notify_on_error=True,
+                                )
+                        except Exception as notify_exc:
+                            logger.warning(
+                                "Failed to send revocation notification: %s", notify_exc
+                            )
+                    error_msg = str(e)
+                    emails_failed += 1
+
                 except Exception as e:
                     error_str = str(e).lower()
-                    # If Gmail returns 401/403 the refresh token was revoked –
-                    # mark credentials invalid so the user gets notified.
+                    # Catch any remaining auth-style errors that slipped through
+                    # (e.g. HttpError 401/403 returned after a successful refresh).
                     if (
                         use_gmail_api
                         and gmail_cred
@@ -340,8 +397,13 @@ async def process_mail_account(account_id: int):
                         gmail_cred.is_valid = False  # type: ignore[assignment]
                         GMAIL_CREDENTIALS_INVALIDATED_TOTAL.inc()
                         logger.warning(
-                            f"Gmail credentials revoked for user {account.user_id}. "
-                            "User must re-authorise."
+                            "Gmail credentials invalidated for user %s "
+                            "(account %s, token_expiry=%s) due to HTTP auth error. "
+                            "User must re-authorise. Error: %s",
+                            account.user_id,
+                            account.id,
+                            getattr(gmail_cred, "token_expiry", "unknown"),
+                            e,
                         )
                         try:
                             async with async_session_maker() as notif_db:
@@ -349,14 +411,23 @@ async def process_mail_account(account_id: int):
                                     db=notif_db,
                                     user_id=int(account.user_id),
                                     title="InboxRescue: Gmail Authorization Expired",
-                                    body=f"Your Gmail credentials for account '{account.name}' have been revoked. Please re-authorize Gmail access in Settings.",
+                                    body=(
+                                        f"Your Gmail credentials for account '{account.name}' "
+                                        f"have been revoked. Please re-authorize Gmail access "
+                                        f"in Settings."
+                                    ),
                                     notify_on_error=True,
                                 )
                         except Exception as notify_exc:
                             logger.warning(
                                 f"Failed to send revocation notification: {notify_exc}"
                             )
-                    logger.error(f"Error delivering email: {e}")
+                    logger.error(
+                        "Error delivering email (account %s, uid=%s): %s",
+                        account.id,
+                        uid,
+                        e,
+                    )
                     error_msg = str(e)
                     emails_failed += 1
 
@@ -728,3 +799,160 @@ async def cleanup_old_logs(days_to_keep: int = 30):
             CELERY_TASK_DURATION_SECONDS.labels(task_name="cleanup_old_logs").observe(
                 _task_duration
             )
+
+
+@celery_app.task(base=AsyncTask, name="app.workers.tasks.refresh_gmail_tokens")
+async def refresh_gmail_tokens():
+    """
+    Proactively refresh Gmail OAuth2 access tokens that are close to expiry.
+
+    Runs every 45 minutes via Celery Beat.  Any credential whose access token
+    expires within the next 30 minutes (or whose expiry is unknown) is
+    refreshed using its stored refresh token.
+
+    Benefits:
+    - Keeps the DB's ``encrypted_access_token`` and ``token_expiry`` columns
+      up to date so mail-processing tasks never start with an already-expired
+      token (which would cause a delayed in-band refresh).
+    - Detects revoked refresh tokens early, before they block email delivery,
+      and sends the user a re-authorisation notification.
+
+    Credentials without a refresh token are skipped — they cannot be refreshed
+    automatically and will simply fail on the next delivery attempt.
+    """
+    _task_start = time.monotonic()
+    async with async_session_maker() as db:
+        try:
+            # Find all valid credentials with a refresh token whose access
+            # token expires within the next 30 minutes (or expiry is unknown).
+            refresh_threshold = datetime.now(timezone.utc) + timedelta(minutes=30)
+            cred_result = await db.execute(
+                select(GmailCredential).where(
+                    GmailCredential.is_valid == True,  # noqa: E712
+                    GmailCredential.encrypted_refresh_token.is_not(None),
+                    or_(
+                        GmailCredential.token_expiry.is_(None),
+                        GmailCredential.token_expiry <= refresh_threshold,
+                    ),
+                )
+            )
+            credentials_to_refresh = cred_result.scalars().all()
+
+            if not credentials_to_refresh:
+                logger.debug("refresh_gmail_tokens: no credentials need refreshing")
+                _task_duration = time.monotonic() - _task_start
+                CELERY_TASKS_TOTAL.labels(
+                    task_name="refresh_gmail_tokens", status="success"
+                ).inc()
+                CELERY_TASK_DURATION_SECONDS.labels(
+                    task_name="refresh_gmail_tokens"
+                ).observe(_task_duration)
+                return
+
+            logger.info(
+                "refresh_gmail_tokens: refreshing %d credential(s)",
+                len(credentials_to_refresh),
+            )
+
+            refreshed_count = 0
+            failed_count = 0
+
+            for cred in credentials_to_refresh:
+                access_token = decrypt_credential(cred.encrypted_access_token)  # type: ignore[arg-type]
+                refresh_token = decrypt_credential(cred.encrypted_refresh_token)  # type: ignore[arg-type]
+
+                gmail_service = GmailService(
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    client_id=settings.GOOGLE_CLIENT_ID,
+                    client_secret=settings.GOOGLE_CLIENT_SECRET,
+                )
+
+                try:
+                    new_token_info = await gmail_service.proactive_refresh()
+                    cred.encrypted_access_token = encrypt_credential(  # type: ignore[assignment]
+                        new_token_info["access_token"]
+                    )
+                    if new_token_info.get("expiry"):
+                        cred.token_expiry = new_token_info["expiry"]  # type: ignore[assignment]
+                    cred.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
+                    logger.info(
+                        "refresh_gmail_tokens: refreshed token for user %s "
+                        "(gmail=%s, new_expiry=%s)",
+                        cred.user_id,
+                        cred.gmail_email,
+                        new_token_info.get("expiry"),
+                    )
+                    refreshed_count += 1
+
+                except GmailAuthError as e:
+                    # Refresh token is revoked — mark the credential invalid
+                    # and notify the user.
+                    cred.is_valid = False  # type: ignore[assignment]
+                    GMAIL_CREDENTIALS_INVALIDATED_TOTAL.inc()
+                    logger.warning(
+                        "refresh_gmail_tokens: refresh token revoked for user %s "
+                        "(gmail=%s). Marking invalid. Error: %s",
+                        cred.user_id,
+                        cred.gmail_email,
+                        e,
+                    )
+                    failed_count += 1
+                    try:
+                        async with async_session_maker() as notif_db:
+                            await send_user_notification(
+                                db=notif_db,
+                                user_id=int(cred.user_id),
+                                title="InboxConverge: Gmail Re-authorisation Required",
+                                body=(
+                                    "Your Gmail access has been revoked. "
+                                    "Please open Settings → Gmail API and click "
+                                    "'Connect Gmail' to restore email delivery."
+                                ),
+                                notify_on_error=True,
+                            )
+                    except Exception as notify_exc:
+                        logger.warning(
+                            "refresh_gmail_tokens: failed to send revocation "
+                            "notification for user %s: %s",
+                            cred.user_id,
+                            notify_exc,
+                        )
+
+                except Exception as e:
+                    # Non-auth error (e.g. network timeout) — log but do not
+                    # mark as invalid; it may succeed on the next run.
+                    logger.warning(
+                        "refresh_gmail_tokens: unexpected error refreshing token "
+                        "for user %s (gmail=%s): %s",
+                        cred.user_id,
+                        cred.gmail_email,
+                        e,
+                    )
+                    failed_count += 1
+
+            await db.commit()
+
+            logger.info(
+                "refresh_gmail_tokens: finished — %d refreshed, %d failed",
+                refreshed_count,
+                failed_count,
+            )
+
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="refresh_gmail_tokens", status="success"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="refresh_gmail_tokens"
+            ).observe(_task_duration)
+
+        except Exception as e:
+            logger.error("refresh_gmail_tokens: unexpected error: %s", e)
+            _task_duration = time.monotonic() - _task_start
+            CELERY_TASKS_TOTAL.labels(
+                task_name="refresh_gmail_tokens", status="failure"
+            ).inc()
+            CELERY_TASK_DURATION_SECONDS.labels(
+                task_name="refresh_gmail_tokens"
+            ).observe(_task_duration)

@@ -11,11 +11,13 @@ import base64
 import logging
 import textwrap
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.utils import format_datetime
 from typing import Optional, Dict, Any
 
+import google.auth.exceptions
+from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -39,6 +41,12 @@ GMAIL_SCOPES = [
 
 class GmailInjectionError(Exception):
     """Raised when Gmail API injection fails"""
+
+    pass
+
+
+class GmailAuthError(GmailInjectionError):
+    """Raised when Gmail OAuth2 authentication fails (token expired or revoked)."""
 
     pass
 
@@ -161,6 +169,16 @@ class GmailService:
             logger.error(error_msg)
             # Surface 401 so callers can mark credentials as invalid
             raise GmailInjectionError(error_msg)
+        except google.auth.exceptions.RefreshError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
+            error_msg = (
+                f"Gmail token refresh failed — the refresh token may have been revoked. "
+                f"The user must re-authorise. Detail: {e}"
+            )
+            logger.error(error_msg)
+            raise GmailAuthError(error_msg)
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
@@ -190,6 +208,15 @@ class GmailService:
             email = result.get("emailAddress", "unknown")
             logger.info(f"Gmail API access verified for: {email}")
             return True
+        except google.auth.exceptions.RefreshError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="verify", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="verify").observe(_dur)
+            logger.error(
+                f"Gmail token refresh failed during access verification — "
+                f"refresh token may be revoked. Detail: {e}"
+            )
+            return False
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="verify", status="error").inc()
@@ -286,6 +313,16 @@ class GmailService:
             error_msg = f"Gmail API error while managing label '{name}': {e.reason if hasattr(e, 'reason') else str(e)}"
             logger.error(error_msg)
             raise GmailInjectionError(error_msg)
+        except google.auth.exceptions.RefreshError as e:
+            _dur = time.perf_counter() - _start
+            GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
+            GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
+            error_msg = (
+                f"Gmail token refresh failed while managing label '{name}' — "
+                f"refresh token may be revoked. Detail: {e}"
+            )
+            logger.error(error_msg)
+            raise GmailAuthError(error_msg)
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
@@ -375,6 +412,81 @@ class GmailService:
                 label_ids.append(label_id)
 
         return label_ids
+
+    def is_token_expiring_soon(self, within_minutes: int = 30) -> bool:
+        """
+        Return True if the access token has already expired or will expire
+        within *within_minutes* minutes.
+
+        When ``credentials.expiry`` is None the expiry is unknown, which is
+        treated as expiring soon so a proactive refresh is performed.
+
+        Args:
+            within_minutes: Threshold in minutes before which a token is
+                considered "expiring soon".
+
+        Returns:
+            True if the token needs refreshing, False otherwise.
+        """
+        if self.credentials.expiry is None:
+            return True
+        threshold = datetime.now(timezone.utc) + timedelta(minutes=within_minutes)
+        expiry = self.credentials.expiry
+        # google-auth stores expiry as a naive UTC datetime; make it tz-aware.
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry <= threshold
+
+    async def proactive_refresh(self) -> Dict[str, Any]:
+        """
+        Explicitly refresh the access token using the stored refresh token.
+
+        Unlike the lazy refresh that happens automatically during API calls,
+        this method triggers a refresh regardless of whether the current
+        access token has expired.  Use this from a scheduled task to keep
+        tokens fresh and to detect revocation early.
+
+        Returns:
+            Dict with ``access_token`` and ``expiry`` (datetime | None)
+            representing the newly obtained access token.
+
+        Raises:
+            GmailAuthError: If the refresh token is missing, has been revoked,
+                or the refresh request fails for an auth-related reason.
+            GmailInjectionError: For unexpected non-auth errors.
+        """
+        if not self.credentials.refresh_token:
+            raise GmailAuthError(
+                "Cannot refresh: no refresh token stored. "
+                "Re-authorise Gmail to obtain a new refresh token."
+            )
+
+        loop = asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda: self.credentials.refresh(GoogleAuthRequest()),
+            )
+            GMAIL_TOKEN_REFRESHES_TOTAL.inc()
+            logger.info(
+                "Gmail access token refreshed proactively; " "new expiry: %s",
+                self.credentials.expiry,
+            )
+            return {
+                "access_token": self.credentials.token,
+                "expiry": self.credentials.expiry,
+            }
+        except google.auth.exceptions.RefreshError as e:
+            error_msg = (
+                f"Gmail refresh token has been revoked or is invalid — "
+                f"the user must re-authorise. Detail: {e}"
+            )
+            logger.error(error_msg)
+            raise GmailAuthError(error_msg)
+        except Exception as e:
+            raise GmailInjectionError(
+                f"Unexpected error during Gmail token refresh: {e}"
+            )
 
     def get_refreshed_token(self) -> Optional[Dict[str, Any]]:
         """
