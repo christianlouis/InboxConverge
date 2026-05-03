@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Fixed
+
+- **POP3/IMAP connectivity**: Added retry logic (up to 3 attempts, 5 s delay) for
+  transient errors (`-ERR EOF`, timeout, connection-reset) in both POP3 and IMAP
+  fetch paths.  Most `-ERR EOF` and "timed out" failures now self-heal without
+  surfacing as errors.
+
+- **DNS fallback to 8.8.8.8**: When both the system resolver and the in-process
+  DNS cache fail (e.g. transient resolver outage), mail-processor now sends a raw
+  UDP A-record query directly to Google's public resolver (8.8.8.8:53).  The
+  result is cached in the same way as system-resolver results.  No new runtime
+  dependencies.
+
+- **Debug-logging auto-disable**: Counter now counts 5 runs *from when the checkbox
+  was last ticked*, not in a rolling 24-hour window.  New `debug_logging_run_count`
+  column (migration `0003`) is reset to 0 each time `debug_logging` is enabled via
+  the API, so users always get exactly 5 debugged runs per enable.
+
+- **Notification backoff**: Error notifications (both connection-level failures and
+  per-email forwarding failures) are now sent only once per consecutive failure
+  streak.  A `error_notification_sent` flag (migration `0003`) tracks whether the
+  current streak has already been notified.  When the account recovers the flag is
+  cleared and a single recovery notification is sent; the next failure streak will
+  then fire a fresh alert.
 ## v0.10.2 (2026-05-03)
 
 ### Bug Fixes

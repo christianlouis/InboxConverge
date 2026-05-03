@@ -854,3 +854,90 @@ class TestForwardEmail:
         body_text = body_part.get_payload(decode=True).decode("utf-8")
         # Body should have header info but no HTML content extracted
         assert "Originally from: x@y.com" in body_text
+
+
+# ---------------------------------------------------------------------------
+# Retry logic tests
+# ---------------------------------------------------------------------------
+
+
+class TestFetchPop3Retry:
+    """_fetch_pop3_emails retries on transient errors."""
+
+    @patch("app.services.mail_processor._resolve_ipv4_sync", return_value=None)
+    @patch("app.services.mail_processor.poplib")
+    @pytest.mark.asyncio
+    async def test_retries_on_eof_error(self, mock_poplib, _mock_resolve):
+        """EOF error on first attempt triggers a retry; second attempt succeeds."""
+        import asyncio
+        import poplib as real_poplib
+
+        # First call raises EOF; second succeeds
+        good_conn = MagicMock()
+        good_conn.stat.return_value = (0, 0)
+        good_conn.uidl.return_value = (b"+OK", [], 0)
+        good_conn.quit.return_value = None
+
+        mock_poplib.error_proto = real_poplib.error_proto
+        mock_poplib.POP3_SSL.side_effect = [
+            real_poplib.error_proto("-ERR EOF"),
+            good_conn,
+        ]
+
+        account = _make_account(protocol="pop3_ssl")
+        proc = MailProcessor(account, "secret")
+
+        with patch(
+            "app.services.mail_processor.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            emails, uids = await proc._fetch_pop3_emails(10, set())
+
+        assert emails == []
+        assert uids == []
+        # sleep should have been called once between attempt 1 and attempt 2
+        mock_sleep.assert_awaited_once()
+
+    @patch("app.services.mail_processor._resolve_ipv4_sync", return_value=None)
+    @patch("app.services.mail_processor.poplib")
+    @pytest.mark.asyncio
+    async def test_raises_after_max_attempts(self, mock_poplib, _mock_resolve):
+        """All attempts fail with EOF → MailFetchError is raised."""
+        import poplib as real_poplib
+
+        mock_poplib.error_proto = real_poplib.error_proto
+        mock_poplib.POP3_SSL.side_effect = real_poplib.error_proto("-ERR EOF")
+
+        account = _make_account(protocol="pop3_ssl")
+        proc = MailProcessor(account, "secret")
+
+        with patch(
+            "app.services.mail_processor.asyncio.sleep", new_callable=AsyncMock
+        ):
+            with pytest.raises(MailFetchError):
+                await proc._fetch_pop3_emails(10, set())
+
+    @patch("app.services.mail_processor._resolve_ipv4_sync", return_value=None)
+    @patch("app.services.mail_processor.poplib")
+    @pytest.mark.asyncio
+    async def test_no_retry_on_auth_error(self, mock_poplib, _mock_resolve):
+        """Authentication errors are not retried (non-transient)."""
+        import poplib as real_poplib
+
+        conn = MagicMock()
+        mock_poplib.error_proto = real_poplib.error_proto
+        mock_poplib.POP3_SSL.return_value = conn
+        # user() succeeds; pass_() raises auth error
+        conn.user.return_value = b"+OK"
+        conn.pass_.side_effect = real_poplib.error_proto("-ERR Authentication failed")
+
+        account = _make_account(protocol="pop3_ssl")
+        proc = MailProcessor(account, "secret")
+
+        with patch(
+            "app.services.mail_processor.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
+            with pytest.raises(MailFetchError):
+                await proc._fetch_pop3_emails(10, set())
+
+        # No sleep = no retry
+        mock_sleep.assert_not_awaited()

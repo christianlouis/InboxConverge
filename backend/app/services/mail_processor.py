@@ -9,6 +9,7 @@ import re
 import smtplib
 import socket
 import ssl
+import struct
 import threading
 import time as _time
 from datetime import datetime, timezone
@@ -44,19 +45,112 @@ def _set_cached_ipv4(host: str, port: int, ipv4: str) -> None:
         _dns_cache[(host, port)] = ipv4
 
 
+# ---------------------------------------------------------------------------
+# DNS fallback via Google 8.8.8.8
+# ---------------------------------------------------------------------------
+# When both the system resolver and the local cache fail we send a raw DNS
+# A-record query directly to 8.8.8.8:53.  This requires no extra dependencies
+# and keeps mail flowing even when /etc/resolv.conf points at a temporarily
+# unreachable resolver.
+
+_GOOGLE_DNS = "8.8.8.8"
+_DNS_PORT = 53
+_DNS_TIMEOUT = 3.0  # seconds
+# DNS message compression: a label starting with the two high bits set (0xC0)
+# is a pointer to elsewhere in the packet rather than an inline label sequence.
+_DNS_COMPRESSION_MASK = 0xC0
+
+
+def _build_dns_query(hostname: str) -> bytes:
+    """Build a minimal DNS A-record query packet for *hostname*."""
+    txid = 0xAB12  # arbitrary fixed transaction ID – we parse by TID match
+    flags = 0x0100  # standard query, recursion desired
+    header = struct.pack(">HHHHHH", txid, flags, 1, 0, 0, 0)
+    # Encode hostname as DNS labels: each label is length + bytes, terminated by 0x00
+    qname = b""
+    for label in hostname.rstrip(".").split("."):
+        encoded = label.encode()
+        qname += struct.pack("B", len(encoded)) + encoded
+    qname += b"\x00"
+    question = qname + struct.pack(">HH", 1, 1)  # QTYPE=A, QCLASS=IN
+    return header + question
+
+
+def _parse_dns_a_response(data: bytes, hostname: str) -> Optional[str]:
+    """Extract the first A-record IPv4 address from a raw DNS response packet."""
+    if len(data) < 12:
+        return None
+    txid, flags, qdcount, ancount = struct.unpack(">HHHH", data[:8])
+    if txid != 0xAB12 or ancount == 0:
+        return None
+    # Skip the header (12 bytes) and question section.
+    pos = 12
+    # Skip QDCOUNT questions: each is QNAME + QTYPE(2) + QCLASS(2)
+    for _ in range(qdcount):
+        while pos < len(data) and data[pos] != 0:
+            if data[pos] & _DNS_COMPRESSION_MASK == _DNS_COMPRESSION_MASK:  # pointer
+                pos += 2
+                break
+            pos += 1 + data[pos]
+        else:
+            pos += 1  # null terminator
+        pos += 4  # skip QTYPE + QCLASS
+    # Parse answer records
+    for _ in range(ancount):
+        if pos >= len(data):
+            break
+        # Skip NAME field (may be a compression pointer or a label sequence)
+        if data[pos] & _DNS_COMPRESSION_MASK == _DNS_COMPRESSION_MASK:
+            pos += 2
+        else:
+            while pos < len(data) and data[pos] != 0:
+                pos += 1 + data[pos]
+            pos += 1
+        if pos + 10 > len(data):
+            break
+        rtype, rclass, ttl, rdlength = struct.unpack(">HHIH", data[pos : pos + 10])
+        pos += 10
+        if rtype == 1 and rdlength == 4:  # A record
+            return "%d.%d.%d.%d" % tuple(data[pos : pos + 4])
+        pos += rdlength
+    return None
+
+
+def _query_google_dns_sync(hostname: str) -> Optional[str]:
+    """Blocking: send a DNS A-record query to 8.8.8.8 and return the IPv4 address."""
+    try:
+        query = _build_dns_query(hostname)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(_DNS_TIMEOUT)
+        try:
+            sock.sendto(query, (_GOOGLE_DNS, _DNS_PORT))
+            data, _ = sock.recvfrom(512)
+        finally:
+            sock.close()
+        return _parse_dns_a_response(data, hostname)
+    except Exception:
+        return None
+
+
+async def _query_google_dns_async(hostname: str) -> Optional[str]:
+    """Async: run :func:`_query_google_dns_sync` in the default executor."""
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(None, _query_google_dns_sync, hostname)
+    except Exception:
+        return None
+
+
 async def _resolve_ipv4(host: str, port: int) -> Optional[str]:
     """Async: resolve *host* to an IPv4 address using AF_INET getaddrinfo.
 
-    On success the result is stored in the module-level DNS cache so that a
-    subsequent call can return the cached address even if DNS is temporarily
-    unavailable.
+    Resolution order:
+    1. System resolver (AF_INET getaddrinfo) — result is cached on success.
+    2. Local DNS cache (last successful system-resolver result for this host).
+    3. Google public DNS (8.8.8.8) — used when both system resolver and cache
+       are unavailable.  Result is cached so subsequent calls benefit too.
 
-    When ``settings.DNS_CACHE_FALLBACK_ENABLED`` is True and live DNS fails
-    (e.g. EAI_AGAIN), the cached address from the last successful lookup is
-    returned instead, keeping connections alive through transient resolver
-    outages.
-
-    Returns None when no IPv4 address is available and the cache is empty.
+    Returns None only when all three strategies fail.
     """
     try:
         loop = asyncio.get_running_loop()
@@ -79,14 +173,25 @@ async def _resolve_ipv4(host: str, port: int) -> Optional[str]:
                     cached,
                 )
                 return cached
+        # Last resort: query 8.8.8.8 directly
+        google_ip = await _query_google_dns_async(host)
+        if google_ip:
+            logger.info(
+                "System DNS failed for %s:%s; resolved via 8.8.8.8 → %s",
+                host,
+                port,
+                google_ip,
+            )
+            if settings.DNS_CACHE_FALLBACK_ENABLED:
+                _set_cached_ipv4(host, port, google_ip)
+            return google_ip
     return None
 
 
 def _resolve_ipv4_sync(host: str, port: int) -> Optional[str]:
     """Sync counterpart of :func:`_resolve_ipv4` for use inside thread-pool executors.
 
-    Identical semantics: AF_INET lookup → cache on success, serve cache on
-    failure when ``settings.DNS_CACHE_FALLBACK_ENABLED`` is True.
+    Identical resolution order: system resolver → local cache → 8.8.8.8.
     """
     try:
         infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
@@ -106,6 +211,18 @@ def _resolve_ipv4_sync(host: str, port: int) -> Optional[str]:
                     cached,
                 )
                 return cached
+        # Last resort: query 8.8.8.8 directly
+        google_ip = _query_google_dns_sync(host)
+        if google_ip:
+            logger.info(
+                "System DNS failed for %s:%s; resolved via 8.8.8.8 → %s",
+                host,
+                port,
+                google_ip,
+            )
+            if settings.DNS_CACHE_FALLBACK_ENABLED:
+                _set_cached_ipv4(host, port, google_ip)
+            return google_ip
     return None
 
 
@@ -296,6 +413,41 @@ class MailForwardError(Exception):
     """Raised when forwarding email fails"""
 
     pass
+
+
+# ---------------------------------------------------------------------------
+# Transient-error detection (used by retry logic)
+# ---------------------------------------------------------------------------
+
+#: Maximum number of attempts for a POP3/IMAP connection.
+_MAX_FETCH_ATTEMPTS = 3
+#: Seconds to wait between retry attempts (fixed back-off).
+_FETCH_RETRY_DELAY = 5.0
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Return True for errors that are safe to retry (network glitches, EOF).
+
+    Authentication errors and protocol-level rejections should NOT be retried
+    as they will fail on every attempt regardless.
+    """
+    # EOF from POP3 server (connection dropped during or just after SSL handshake)
+    if isinstance(exc, poplib.error_proto):
+        msg = str(exc).lower()
+        return "eof" in msg or "timed out" in msg
+    # Network timeout (sync or async)
+    if isinstance(exc, (socket.timeout, asyncio.TimeoutError, TimeoutError)):
+        return True
+    # Server dropped the connection
+    if isinstance(exc, (ConnectionResetError, ConnectionAbortedError)):
+        return True
+    # IMAP server aborted the session
+    try:
+        if isinstance(exc, aioimaplib.Abort):
+            return True
+    except TypeError:
+        pass
+    return False
 
 
 def _format_connection_error(
@@ -669,9 +821,31 @@ class MailProcessor:
         seen: Set[str] = already_seen_uids or set()
 
         if self.account.protocol in [MailProtocol.POP3, MailProtocol.POP3_SSL]:
+            # POP3 already carries its own retry loop inside _fetch_pop3_emails.
             return await self._fetch_pop3_emails(effective_max, seen)
-        else:
-            return await self._fetch_imap_emails(effective_max, seen)
+
+        # IMAP: retry transient errors up to _MAX_FETCH_ATTEMPTS times.
+        last_exc: BaseException = MailFetchError("IMAP fetch failed")
+        for _attempt in range(1, _MAX_FETCH_ATTEMPTS + 1):
+            try:
+                return await self._fetch_imap_emails(effective_max, seen)
+            except MailFetchError as e:
+                last_exc = e
+                # Peek at the original cause to decide whether to retry.
+                cause = e.__cause__ or e
+                if _attempt < _MAX_FETCH_ATTEMPTS and _is_transient_error(cause):
+                    logger.warning(
+                        "Transient IMAP error on attempt %d/%d for account %s: %s; retrying in %.0f s",
+                        _attempt,
+                        _MAX_FETCH_ATTEMPTS,
+                        self.account.id,
+                        e,
+                        _FETCH_RETRY_DELAY,
+                    )
+                    await asyncio.sleep(_FETCH_RETRY_DELAY)
+                else:
+                    break
+        raise last_exc
 
     async def _fetch_pop3_emails(
         self, max_count: int, already_seen_uids: Set[str]
@@ -680,135 +854,149 @@ class MailProcessor:
         emails: List[bytes] = []
         new_uids: List[str] = []
 
-        try:
-            loop = asyncio.get_running_loop()
-            _dbg = self._debug  # capture for thread-pool closure
-            _host = str(self.account.host)
-            _port = int(self.account.port)
-            _protocol = self.account.protocol
+        loop = asyncio.get_running_loop()
+        _dbg = self._debug  # capture for thread-pool closure
+        _host = str(self.account.host)
+        _port = int(self.account.port)
+        _protocol = self.account.protocol
 
-            def fetch_pop3() -> Tuple[List[bytes], List[str]]:
-                _t_conn = _time.monotonic()
-                # Connect – prefer IPv4 to avoid ENETUNREACH on IPv6-only paths
-                _ipv4 = _resolve_ipv4_sync(_host, _port)
-                _ctx = (
-                    ssl.create_default_context()
-                    if _protocol == MailProtocol.POP3_SSL
-                    else None
-                )
-                pop_conn = _make_pop3_conn(_protocol, _host, _port, _ctx, 30, _ipv4)
-                if _dbg:
-                    _dbg.record(
-                        "connect",
-                        f"Connected to {_host}:{_port} "
-                        f"({'SSL' if _protocol == MailProtocol.POP3_SSL else 'plain'})"
-                        + (f" via {_ipv4}" if _ipv4 and _ipv4 != _host else ""),
-                        {"elapsed_ms": round((_time.monotonic() - _t_conn) * 1000)},
-                    )
-
-                # Authenticate
-                _t_auth = _time.monotonic()
-                pop_conn.user(str(self.account.username))
-                pop_conn.pass_(self.password)
-                if _dbg:
-                    _dbg.record(
-                        "auth",
-                        f"Authenticated as {self.account.username}",
-                        {"elapsed_ms": round((_time.monotonic() - _t_auth) * 1000)},
-                    )
-
-                # Retrieve UIDL map: {msg_number: uid_string}
-                uidl_response = pop_conn.uidl()
-                uid_map: Dict[int, str] = {}
-                for entry in uidl_response[1]:
-                    parts = entry.decode().split(" ", 1)
-                    if len(parts) == 2:
-                        uid_map[int(parts[0])] = parts[1].strip()
-
-                num_messages = len(uid_map)
-                if _dbg:
-                    _dbg.record(
-                        "uidl",
-                        f"Mailbox contains {num_messages} messages; "
-                        f"{len(already_seen_uids)} already downloaded",
-                        {"total": num_messages, "already_seen": len(already_seen_uids)},
-                    )
-                logger.info(
-                    f"Found {num_messages} messages for account {self.account.id}"
-                )
-
-                fetched: List[bytes] = []
-                fetched_uids: List[str] = []
-                fetched_count = 0
-
-                for msg_num, uid in uid_map.items():
-                    if fetched_count >= max_count:
-                        break
-
-                    # Skip messages we already processed
-                    if uid in already_seen_uids:
-                        logger.debug(
-                            f"Skipping already-downloaded message {uid} "
-                            f"for account {self.account.id}"
-                        )
-                        continue
-
-                    try:
-                        _t_msg = _time.monotonic()
-                        response, lines, octets = pop_conn.retr(msg_num)
-                        email_data = b"\r\n".join(lines)
-                        fetched.append(email_data)
-                        fetched_uids.append(uid)
-                        fetched_count += 1
-                        elapsed = round((_time.monotonic() - _t_msg) * 1000)
-                        logger.info(
-                            f"Retrieved message {msg_num} (uid={uid}) "
-                            f"from account {self.account.id}"
-                        )
-                        if _dbg:
-                            _dbg.record(
-                                "fetch_msg",
-                                f"Fetched message {msg_num} (uid={uid}): "
-                                f"{len(email_data)} bytes",
-                                {
-                                    "msg_num": msg_num,
-                                    "uid": uid,
-                                    "size_bytes": len(email_data),
-                                    "elapsed_ms": elapsed,
-                                },
-                            )
-                    except Exception as e:
-                        logger.error(f"Error retrieving message {msg_num}: {e}")
-                        if _dbg:
-                            _dbg.record(
-                                "fetch_error",
-                                f"Failed to retrieve message {msg_num} (uid={uid}): {e}",
-                                {"msg_num": msg_num, "uid": uid},
-                            )
-
-                pop_conn.quit()
-                if _dbg:
-                    _dbg.record(
-                        "quit",
-                        f"Disconnected — fetched {fetched_count} new message(s)",
-                        {"fetched": fetched_count},
-                    )
-                return fetched, fetched_uids
-
-            emails, new_uids = await loop.run_in_executor(None, fetch_pop3)
-
-        except Exception as e:
-            logger.error(f"Error fetching POP3 emails: {e}")
-            raise MailFetchError(
-                _format_connection_error(
-                    e,
-                    str(self.account.host),
-                    int(self.account.port),
-                    "POP3",
-                )
+        def fetch_pop3() -> Tuple[List[bytes], List[str]]:
+            _t_conn = _time.monotonic()
+            # Connect – prefer IPv4 to avoid ENETUNREACH on IPv6-only paths
+            _ipv4 = _resolve_ipv4_sync(_host, _port)
+            _ctx = (
+                ssl.create_default_context()
+                if _protocol == MailProtocol.POP3_SSL
+                else None
             )
+            pop_conn = _make_pop3_conn(_protocol, _host, _port, _ctx, 30, _ipv4)
+            if _dbg:
+                _dbg.record(
+                    "connect",
+                    f"Connected to {_host}:{_port} "
+                    f"({'SSL' if _protocol == MailProtocol.POP3_SSL else 'plain'})"
+                    + (f" via {_ipv4}" if _ipv4 and _ipv4 != _host else ""),
+                    {"elapsed_ms": round((_time.monotonic() - _t_conn) * 1000)},
+                )
 
-        return emails, new_uids
+            # Authenticate
+            _t_auth = _time.monotonic()
+            pop_conn.user(str(self.account.username))
+            pop_conn.pass_(self.password)
+            if _dbg:
+                _dbg.record(
+                    "auth",
+                    f"Authenticated as {self.account.username}",
+                    {"elapsed_ms": round((_time.monotonic() - _t_auth) * 1000)},
+                )
+
+            # Retrieve UIDL map: {msg_number: uid_string}
+            uidl_response = pop_conn.uidl()
+            uid_map: Dict[int, str] = {}
+            for entry in uidl_response[1]:
+                parts = entry.decode().split(" ", 1)
+                if len(parts) == 2:
+                    uid_map[int(parts[0])] = parts[1].strip()
+
+            num_messages = len(uid_map)
+            if _dbg:
+                _dbg.record(
+                    "uidl",
+                    f"Mailbox contains {num_messages} messages; "
+                    f"{len(already_seen_uids)} already downloaded",
+                    {"total": num_messages, "already_seen": len(already_seen_uids)},
+                )
+            logger.info(f"Found {num_messages} messages for account {self.account.id}")
+
+            fetched: List[bytes] = []
+            fetched_uids: List[str] = []
+            fetched_count = 0
+
+            for msg_num, uid in uid_map.items():
+                if fetched_count >= max_count:
+                    break
+
+                # Skip messages we already processed
+                if uid in already_seen_uids:
+                    logger.debug(
+                        f"Skipping already-downloaded message {uid} "
+                        f"for account {self.account.id}"
+                    )
+                    continue
+
+                try:
+                    _t_msg = _time.monotonic()
+                    response, lines, octets = pop_conn.retr(msg_num)
+                    email_data = b"\r\n".join(lines)
+                    fetched.append(email_data)
+                    fetched_uids.append(uid)
+                    fetched_count += 1
+                    elapsed = round((_time.monotonic() - _t_msg) * 1000)
+                    logger.info(
+                        f"Retrieved message {msg_num} (uid={uid}) "
+                        f"from account {self.account.id}"
+                    )
+                    if _dbg:
+                        _dbg.record(
+                            "fetch_msg",
+                            f"Fetched message {msg_num} (uid={uid}): "
+                            f"{len(email_data)} bytes",
+                            {
+                                "msg_num": msg_num,
+                                "uid": uid,
+                                "size_bytes": len(email_data),
+                                "elapsed_ms": elapsed,
+                            },
+                        )
+                except Exception as e:
+                    logger.error(f"Error retrieving message {msg_num}: {e}")
+                    if _dbg:
+                        _dbg.record(
+                            "fetch_error",
+                            f"Failed to retrieve message {msg_num} (uid={uid}): {e}",
+                            {"msg_num": msg_num, "uid": uid},
+                        )
+
+            pop_conn.quit()
+            if _dbg:
+                _dbg.record(
+                    "quit",
+                    f"Disconnected — fetched {fetched_count} new message(s)",
+                    {"fetched": fetched_count},
+                )
+            return fetched, fetched_uids
+
+        # Retry loop: transient errors (EOF, timeout, connection reset) are
+        # retried up to _MAX_FETCH_ATTEMPTS times with a short fixed delay.
+        last_exc: BaseException = MailFetchError("POP3 fetch failed")
+        for _attempt in range(1, _MAX_FETCH_ATTEMPTS + 1):
+            try:
+                emails, new_uids = await loop.run_in_executor(None, fetch_pop3)
+                return emails, new_uids
+            except Exception as e:
+                last_exc = e
+                if _attempt < _MAX_FETCH_ATTEMPTS and _is_transient_error(e):
+                    logger.warning(
+                        "Transient POP3 error on attempt %d/%d for account %s: %s; retrying in %.0f s",
+                        _attempt,
+                        _MAX_FETCH_ATTEMPTS,
+                        self.account.id,
+                        e,
+                        _FETCH_RETRY_DELAY,
+                    )
+                    await asyncio.sleep(_FETCH_RETRY_DELAY)
+                else:
+                    break
+
+        logger.error(f"Error fetching POP3 emails: {last_exc}")
+        raise MailFetchError(
+            _format_connection_error(
+                last_exc,
+                str(self.account.host),
+                int(self.account.port),
+                "POP3",
+            )
+        )
 
     async def _fetch_imap_emails(
         self, max_count: int, already_seen_uids: Set[str]
@@ -1077,7 +1265,7 @@ class MailProcessor:
                     int(self.account.port),
                     "IMAP",
                 )
-            )
+            ) from e
         finally:
             # Always attempt a clean logout.  If the server already sent BYE
             # the logout call will fail silently rather than masking the real

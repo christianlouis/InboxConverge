@@ -34,8 +34,21 @@ Comprehensive task breakdown for repository improvements and production readines
   `debug_logging` boolean column (migration `0002`), `MailDebugRecorder` class,
   instrumented all connection phases (connect, auth, select, search, fetch UIDs,
   per-message fetch, logout), persisted as `ProcessingLog[level=DEBUG]`.
-  Auto-disables after 5 runs in 24 h.  Toggle in account edit form.  Connection
-  trace viewer in Mailbox Activity logs page.
+  Auto-disables after 5 runs **from when the flag was last enabled** (migration
+  `0003` adds `debug_logging_run_count` counter; the old 24-hour window is
+  replaced).  Toggle in account edit form.  Connection trace viewer in Mailbox
+  Activity logs page.
+
+- [x] **POP3/IMAP retry + DNS 8.8.8.8 fallback**: Transient errors (`-ERR EOF`,
+  timeout, connection-reset) are retried up to 3 times (5 s fixed delay) in both
+  POP3 and IMAP paths.  DNS resolution now falls back to a raw UDP query to
+  8.8.8.8:53 when both the system resolver and the in-process cache fail, keeping
+  connections alive even if the container's resolver is temporarily unavailable.
+
+- [x] **Notification backoff**: Error notifications fire only once per consecutive
+  failure streak (`error_notification_sent` flag, migration `0003`).  A recovery
+  notice is sent when the account processes successfully again, then the flag
+  resets so the next failure streak triggers a fresh alert.
 
 - [x] **Google OAuth consent screen legal compliance**: Added English Privacy Policy (`/privacy`) with Google API Limited Use Disclosure, Terms of Service (`/terms`), legal footer links on the home page (resolves Google's "homepage has no privacy policy link" verification rejection), login page, and register page (consent text). Cross-link from `/datenschutz` to `/privacy` added.
 
