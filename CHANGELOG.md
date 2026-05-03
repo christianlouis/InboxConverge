@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.8.0 (2026-05-03)
+
+### Bug Fixes
+
+- Bump react to 19.2.5 to match react-dom, resolve npm ci ERESOLVE
+  ([`be812dd`](https://github.com/christianlouis/InboxConverge/commit/be812dda791fe36cb1cba5e4dce5de759de9153b))
+
+- Combine f-strings, align product name in notification titles
+  ([`3470213`](https://github.com/christianlouis/InboxConverge/commit/3470213fb3374fec1101b04447ba6d2a26c1ec41))
+
+### Chores
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([`b20da89`](https://github.com/christianlouis/InboxConverge/commit/b20da8940f682a83c37b9b80626eb6772f7ad246))
+
+- **deps**: Bump @types/node from 25.5.2 to 25.6.0 in /frontend
+  ([`641007d`](https://github.com/christianlouis/InboxConverge/commit/641007d51cdef8b0f01b9326a93a16d1197eaf0e))
+
+- **deps**: Bump aiohttp from 3.13.4 to 3.13.5 in /backend
+  ([`4c03352`](https://github.com/christianlouis/InboxConverge/commit/4c03352650d174a1c7903f45d18ff49a6e592c0d))
+
+- **deps**: Bump axios from 1.14.0 to 1.15.0 in /frontend
+  ([`0ed6256`](https://github.com/christianlouis/InboxConverge/commit/0ed6256fb7ac1d06376a12ba2d58e3405904ba3a))
+
+- **deps**: Bump cryptography
+  ([`222fc96`](https://github.com/christianlouis/InboxConverge/commit/222fc96effced50974e1f8cc4ffa1903461bda39))
+
+- **deps**: Bump eslint-config-next from 16.2.2 to 16.2.3 in /frontend
+  ([`45a237b`](https://github.com/christianlouis/InboxConverge/commit/45a237bdcb070ecd527709fc466e27497b12bb9d))
+
+- **deps**: Bump fastapi from 0.135.2 to 0.135.3 in /backend
+  ([`56a85e9`](https://github.com/christianlouis/InboxConverge/commit/56a85e9c9eab8cc8005c9a45aecb88c08cea4f28))
+
+- **deps**: Bump google-auth from 2.49.1 to 2.49.2 in /backend
+  ([`197d7fe`](https://github.com/christianlouis/InboxConverge/commit/197d7fe060c0eed423fa060f7ad19c0a87da3eac))
+
+- **deps**: Bump lucide-react from 1.7.0 to 1.8.0 in /frontend
+  ([`095ee10`](https://github.com/christianlouis/InboxConverge/commit/095ee1059c23e8f25ed43d2ea7def3f85d3f05ef))
+
+- **deps**: Bump next
+  ([`54ecd7f`](https://github.com/christianlouis/InboxConverge/commit/54ecd7f95c7b41492b3e5777e38a66ffadab5d3a))
+
+- **deps**: Bump prometheus-client from 0.24.1 to 0.25.0 in /backend
+  ([`8df1465`](https://github.com/christianlouis/InboxConverge/commit/8df1465a64ee25618ebc930e20d040c9f287de8b))
+
+- **deps**: Bump pytest from 9.0.2 to 9.0.3 in /backend
+  ([`8441f73`](https://github.com/christianlouis/InboxConverge/commit/8441f734784bb5279f2521334a5284e24bbcb95d))
+
+- **deps**: Bump pytest-cov from 4.1.0 to 7.1.0 in /backend
+  ([`24a85d6`](https://github.com/christianlouis/InboxConverge/commit/24a85d6554e213b4316de5abaf7826efe6b7e2b4))
+
+- **deps**: Bump python-multipart from 0.0.24 to 0.0.26 in /backend
+  ([`42c5900`](https://github.com/christianlouis/InboxConverge/commit/42c5900c0677ece8e094616881f1add17d7e20b2))
+
+- **deps**: Bump react-dom from 19.2.4 to 19.2.5 in /frontend
+  ([`d6d4df2`](https://github.com/christianlouis/InboxConverge/commit/d6d4df2df1d00940e8f0800235d650deffa5b834))
+
+- **deps**: Bump schedule from 1.2.0 to 1.2.2 in /backend
+  ([`06ea195`](https://github.com/christianlouis/InboxConverge/commit/06ea1958aa7bda8c6d127c82fc751a0b3ea059e7))
+
+### Features
+
+- Add in-depth OAuth logging across auth_service, auth, providers, gmail_service
+  ([`075ba92`](https://github.com/christianlouis/InboxConverge/commit/075ba92f09f048c71d3f20ae70c8af0c69ac2339))
+
+- Proactive Gmail token refresh, GmailAuthError, improved logging
+  ([`992e157`](https://github.com/christianlouis/InboxConverge/commit/992e157f022ae334d938575e7cb63a5135fc12ec))
+
+
 ## v0.7.0 (2026-04-18)
 
 ### Features
