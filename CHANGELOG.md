@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.9.2 (2026-05-03)
+
+### Bug Fixes
+
+- Address code review comments (type hints, loop var name, em dashes)
+  ([`28a7592`](https://github.com/christianlouis/InboxConverge/commit/28a75927317a30aace2c8fda1db3c6afe4792440))
+
+- IPv4 preference + DNS cache fallback for stable POP3/IMAP connections
+  ([`45a2dd8`](https://github.com/christianlouis/InboxConverge/commit/45a2dd8be294dbf0b9c69a19c285ca56ec736fde))
+
+
 ## v0.9.1 (2026-05-03)
 
 ### Bug Fixes
