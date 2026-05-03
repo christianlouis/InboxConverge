@@ -95,6 +95,15 @@ class Settings(BaseSettings):
     # Apprise (notifications)
     APPRISE_ENABLED: bool = True
 
+    # Mail connectivity resilience
+    # When True the app caches the last successfully resolved IPv4 address for
+    # every mail host and uses that address as a fallback if DNS subsequently
+    # fails (e.g. EAI_AGAIN / Temporary failure in name resolution).  This also
+    # makes every outgoing POP3/IMAP connection prefer IPv4, avoiding
+    # ENETUNREACH errors on Docker hosts where IPv6 is not routed to the
+    # internet.
+    DNS_CACHE_FALLBACK_ENABLED: bool = True
+
     # Logging
     LOG_LEVEL: str = "INFO"
 

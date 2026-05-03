@@ -4,6 +4,20 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **IMAP/POP3 connection stability — IPv4 preference + DNS cache**: All
+  POP3 and IMAP connections now prefer IPv4 by pre-resolving hostnames with
+  `AF_INET` before connecting.  This eliminates `ENETUNREACH` / `Network is
+  unreachable` and sporadic TLS timeouts caused by Docker containers attempting
+  IPv6 connections to servers that block IPv6.  Successfully resolved IPv4
+  addresses are cached in-process; when `DNS_CACHE_FALLBACK_ENABLED=true`
+  (default) the cached address is used as a fallback if DNS subsequently fails
+  (`EAI_AGAIN`), keeping mail delivery alive through transient resolver outages.
+  Added `_resolve_ipv4` / `_resolve_ipv4_sync`, `_IMAP4SSLwithSNI`,
+  `_POP3SSLWithIPv4Pref`, `_POP3WithIPv4Pref`, `_make_pop3_conn`, and
+  `_make_imap_client` helpers.  Transient DNS errors now report "Temporary DNS
+  failure" rather than "check that the server address is correct".  Replaced
+  four deprecated `asyncio.get_event_loop()` calls with `get_running_loop()`.
+
 - [x] **IMAP/POP3 diagnostics — Step 1: Friendly error messages**: Added
   `_format_connection_error()` helper that converts raw OS/socket/SSL/POP3/IMAP
   exceptions into human-readable sentences with host:port context.  Applied at
