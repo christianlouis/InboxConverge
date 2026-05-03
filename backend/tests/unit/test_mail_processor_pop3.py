@@ -869,7 +869,6 @@ class TestFetchPop3Retry:
     @pytest.mark.asyncio
     async def test_retries_on_eof_error(self, mock_poplib, _mock_resolve):
         """EOF error on first attempt triggers a retry; second attempt succeeds."""
-        import asyncio
         import poplib as real_poplib
 
         # First call raises EOF; second succeeds
@@ -910,9 +909,7 @@ class TestFetchPop3Retry:
         account = _make_account(protocol="pop3_ssl")
         proc = MailProcessor(account, "secret")
 
-        with patch(
-            "app.services.mail_processor.asyncio.sleep", new_callable=AsyncMock
-        ):
+        with patch("app.services.mail_processor.asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(MailFetchError):
                 await proc._fetch_pop3_emails(10, set())
 

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Lint**: Removed unused imports (`pytest` in `test_dns_fallback.py`, `asyncio` in `test_mail_processor_pop3.py`); reformatted three test files with Black; resolved mypy type errors in `mail_processor.py` (IPv4 address tuple indexing, `_create_socket` override) and suppressed spurious `alembic.command` attr-defined error in `main.py`.
+
 - **POP3/IMAP connectivity**: Added retry logic (up to 3 attempts, 5 s delay) for
   transient errors (`-ERR EOF`, timeout, connection-reset) in both POP3 and IMAP
   fetch paths.  Most `-ERR EOF` and "timed out" failures now self-heal without
