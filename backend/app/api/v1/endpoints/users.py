@@ -72,6 +72,7 @@ async def get_smtp_config(
         host=config.host,  # type: ignore[arg-type]
         port=config.port,  # type: ignore[arg-type]
         username=config.username,  # type: ignore[arg-type]
+        sender_email=config.sender_email,  # type: ignore[arg-type]
         use_tls=config.use_tls,  # type: ignore[arg-type]
         has_password=bool(config.encrypted_password),
         created_at=config.created_at,  # type: ignore[arg-type]
@@ -95,6 +96,7 @@ async def upsert_smtp_config(
         config.host = config_in.host  # type: ignore[assignment]
         config.port = config_in.port  # type: ignore[assignment]
         config.username = config_in.username  # type: ignore[assignment]
+        config.sender_email = config_in.sender_email  # type: ignore[assignment]
         config.use_tls = config_in.use_tls  # type: ignore[assignment]
         if config_in.password is not None:
             config.encrypted_password = encrypt_credential(config_in.password)  # type: ignore[assignment]
@@ -104,6 +106,7 @@ async def upsert_smtp_config(
             host=config_in.host,
             port=config_in.port,
             username=config_in.username,
+            sender_email=config_in.sender_email,
             encrypted_password=(
                 encrypt_credential(config_in.password) if config_in.password else ""
             ),
@@ -120,6 +123,7 @@ async def upsert_smtp_config(
         host=config.host,  # type: ignore[arg-type]
         port=config.port,  # type: ignore[arg-type]
         username=config.username,  # type: ignore[arg-type]
+        sender_email=config.sender_email,  # type: ignore[arg-type]
         use_tls=config.use_tls,  # type: ignore[arg-type]
         has_password=bool(config.encrypted_password),
         created_at=config.created_at,  # type: ignore[arg-type]
@@ -174,7 +178,7 @@ async def test_smtp_config(
             "plain",
             "utf-8",
         )
-        msg["From"] = config.username  # type: ignore[index]
+        msg["From"] = config.sender_email or config.username  # type: ignore[index]
         msg["To"] = recipient
         msg["Date"] = formatdate(localtime=True)
         msg["Message-ID"] = make_msgid()

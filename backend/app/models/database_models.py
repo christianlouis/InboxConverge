@@ -475,6 +475,7 @@ class UserSmtpConfig(Base):
     username = Column(String(255), nullable=False, default="")
     encrypted_password = Column(Text, nullable=False, default="")
     use_tls = Column(Boolean, default=True)
+    sender_email = Column(String(255), nullable=False, default="")
 
     created_at = Column(
         DateTime(timezone=True),

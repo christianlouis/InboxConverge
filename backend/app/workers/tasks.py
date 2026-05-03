@@ -210,6 +210,7 @@ async def process_mail_account(account_id: int):
                         "host": user_smtp.host,
                         "port": user_smtp.port,
                         "username": user_smtp.username,
+                        "sender_email": user_smtp.sender_email or "",
                         "password": decrypt_credential(user_smtp.encrypted_password),  # type: ignore[arg-type]
                         "use_tls": user_smtp.use_tls,
                     }
