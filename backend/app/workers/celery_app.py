@@ -43,6 +43,10 @@ celery_app.conf.beat_schedule = {
             minute="*"
         ),  # Every minute (per-account interval gates actual work)
     },
+    "refresh-gmail-tokens": {
+        "task": "app.workers.tasks.refresh_gmail_tokens",
+        "schedule": crontab(minute="*/45"),  # Every 45 minutes
+    },
     "cleanup-old-logs": {
         "task": "app.workers.tasks.cleanup_old_logs",
         "schedule": crontab(hour=3, minute=0),  # Daily at 3 AM
