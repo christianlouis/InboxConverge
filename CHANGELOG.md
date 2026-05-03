@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Send Test Email button for SMTP Fallback**: a new "Send Test Email" button
+  appears on the Settings page next to the Save/Remove SMTP controls once a
+  configuration is saved.  It calls a new `POST /users/smtp-config/test`
+  endpoint that sends a test message to the user's registered email address
+  using the stored SMTP credentials, and displays an inline success or error
+  banner with the result.
 - **IPv4 preference for all POP3 and IMAP connections**: The app now resolves
   every mail-server hostname to an IPv4 address before connecting.  This
   prevents `ENETUNREACH` / `Network is unreachable` errors and IMAP/POP3

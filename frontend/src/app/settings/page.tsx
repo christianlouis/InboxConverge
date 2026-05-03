@@ -18,6 +18,7 @@ import {
   Bug,
   RotateCcw,
   Tags,
+  Send,
 } from 'lucide-react';
 
 const DEFAULT_GMAIL_IMPORT_LABEL_TEMPLATES = ['{{source_email}}', 'imported'];
@@ -246,6 +247,19 @@ function SettingsContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['smtp-config'] });
       setSmtpForm({ host: 'smtp.gmail.com', port: 587, username: '', password: '', use_tls: true });
+    },
+  });
+
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const testSmtpMutation = useMutation({
+    mutationFn: smtpApi.test,
+    onSuccess: (result) => {
+      setSmtpTestResult(result);
+      setTimeout(() => setSmtpTestResult(null), 6000);
+    },
+    onError: () => {
+      setSmtpTestResult({ success: false, message: 'Request failed. Check your network connection.' });
+      setTimeout(() => setSmtpTestResult(null), 6000);
     },
   });
 
@@ -628,6 +642,21 @@ function SettingsContent() {
                 {smtpConfig && (
                   <button
                     type="button"
+                    onClick={() => testSmtpMutation.mutate()}
+                    disabled={testSmtpMutation.isPending}
+                    title="Send a test email to your account address using these SMTP settings"
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                  >
+                    {testSmtpMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Sending…</>
+                    ) : (
+                      <><Send className="h-4 w-4" />Send Test Email</>
+                    )}
+                  </button>
+                )}
+                {smtpConfig && (
+                  <button
+                    type="button"
                     onClick={() => deleteSmtpMutation.mutate()}
                     disabled={deleteSmtpMutation.isPending}
                     className="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50 transition-colors"
@@ -642,6 +671,22 @@ function SettingsContent() {
                   </span>
                 )}
               </div>
+              {smtpTestResult !== null && (
+                <div
+                  className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 border ${
+                    smtpTestResult.success
+                      ? 'text-green-700 bg-green-50 border-green-200'
+                      : 'text-red-700 bg-red-50 border-red-200'
+                  }`}
+                >
+                  {smtpTestResult.success ? (
+                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  )}
+                  {smtpTestResult.message}
+                </div>
+              )}
             </form>
           )}
         </div>

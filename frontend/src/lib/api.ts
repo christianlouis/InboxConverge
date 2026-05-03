@@ -495,6 +495,13 @@ export const smtpApi = {
   async remove(): Promise<void> {
     await api.delete('/users/smtp-config');
   },
+
+  async test(): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/users/smtp-config/test'
+    );
+    return response.data;
+  },
 };
 
 // ── Admin Types ─────────────────────────────────────────────────────────
