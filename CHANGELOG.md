@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.9.2 (2026-05-03)
+
+### Bug Fixes
+
+- Address code review comments (type hints, loop var name, em dashes)
+  ([`28a7592`](https://github.com/christianlouis/InboxConverge/commit/28a75927317a30aace2c8fda1db3c6afe4792440))
+
+- IPv4 preference + DNS cache fallback for stable POP3/IMAP connections
+  ([`45a2dd8`](https://github.com/christianlouis/InboxConverge/commit/45a2dd8be294dbf0b9c69a19c285ca56ec736fde))
+
+
 ## v0.9.1 (2026-05-03)
 
 ### Bug Fixes
@@ -36,6 +47,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint that sends a test message to the user's registered email address
   using the stored SMTP credentials, and displays an inline success or error
   banner with the result.
+- **IPv4 preference for all POP3 and IMAP connections**: The app now resolves
+  every mail-server hostname to an IPv4 address before connecting.  This
+  prevents `ENETUNREACH` / `Network is unreachable` errors and IMAP/POP3
+  connection timeouts that occur on Docker hosts where IPv6 traffic is not
+  routed to the internet but dual-stack DNS returns AAAA records first.
+
+- **In-process DNS cache with automatic fallback** (`DNS_CACHE_FALLBACK_ENABLED`,
+  enabled by default): The last successfully resolved IPv4 address for each
+  mail-server hostname is stored in memory.  When a subsequent DNS lookup fails
+  with `EAI_AGAIN` (Temporary failure in name resolution) the cached address is
+  used instead, keeping mail delivery alive through transient resolver outages.
+  Set `DNS_CACHE_FALLBACK_ENABLED=false` in the environment to disable.
 
 - **Friendly error messages**: Introduced `_format_connection_error()` helper in
   `mail_processor.py` that translates raw OS/socket/SSL/POP3/IMAP exceptions into
@@ -64,6 +87,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boolean column to `mail_accounts` (idempotent via `ADD COLUMN IF NOT EXISTS`).
 
 ### Fixed
+
+- **Transient DNS errors now produce a clear, accurate message**: `EAI_AGAIN`
+  errors (errno -3 – resolver temporarily unavailable) are now reported as
+  "Temporary DNS failure while resolving '…'" instead of the misleading "check
+  that the server address is correct" message that was shown for all DNS errors.
+
+- **`asyncio.get_event_loop()` replaced with `asyncio.get_running_loop()`** in
+  `_test_pop3_connection`, `_fetch_pop3_emails`, `post_process_pop3`, and
+  `forward_email`, silencing deprecation warnings in Python ≥ 3.10 and avoiding
+  potential `DeprecationWarning → RuntimeError` in a future Python release.
 
 - **Empty IMAP error messages** — `IMAP fetch error:` with a blank suffix was
   caused by `asyncio.TimeoutError` and `aioimaplib.Abort` having an empty

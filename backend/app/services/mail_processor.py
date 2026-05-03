@@ -9,6 +9,7 @@ import re
 import smtplib
 import socket
 import ssl
+import threading
 import time as _time
 from datetime import datetime, timezone
 from email import parser
@@ -19,9 +20,258 @@ from typing import List, Dict, Any, Optional, Set, Tuple
 import logging
 from aioimaplib import aioimaplib
 
+from app.core.config import settings
 from app.models.database_models import MailAccount, MailProtocol
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# DNS resolution cache
+# ---------------------------------------------------------------------------
+# Maps (host, port) -> last-known IPv4 address.  Protected by a threading.Lock
+# so it is safe to read/write from both async code and thread-pool executors.
+_dns_cache: Dict[Tuple[str, int], str] = {}
+_dns_cache_lock = threading.Lock()
+
+
+def _get_cached_ipv4(host: str, port: int) -> Optional[str]:
+    with _dns_cache_lock:
+        return _dns_cache.get((host, port))
+
+
+def _set_cached_ipv4(host: str, port: int, ipv4: str) -> None:
+    with _dns_cache_lock:
+        _dns_cache[(host, port)] = ipv4
+
+
+async def _resolve_ipv4(host: str, port: int) -> Optional[str]:
+    """Async: resolve *host* to an IPv4 address using AF_INET getaddrinfo.
+
+    On success the result is stored in the module-level DNS cache so that a
+    subsequent call can return the cached address even if DNS is temporarily
+    unavailable.
+
+    When ``settings.DNS_CACHE_FALLBACK_ENABLED`` is True and live DNS fails
+    (e.g. EAI_AGAIN), the cached address from the last successful lookup is
+    returned instead, keeping connections alive through transient resolver
+    outages.
+
+    Returns None when no IPv4 address is available and the cache is empty.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        infos = await loop.getaddrinfo(
+            host, port, family=socket.AF_INET, type=socket.SOCK_STREAM
+        )
+        if infos:
+            ipv4 = infos[0][4][0]
+            if settings.DNS_CACHE_FALLBACK_ENABLED:
+                _set_cached_ipv4(host, port, ipv4)
+            return ipv4
+    except OSError:
+        if settings.DNS_CACHE_FALLBACK_ENABLED:
+            cached = _get_cached_ipv4(host, port)
+            if cached:
+                logger.info(
+                    "DNS resolution failed for %s:%s; using cached IPv4 %s",
+                    host,
+                    port,
+                    cached,
+                )
+                return cached
+    return None
+
+
+def _resolve_ipv4_sync(host: str, port: int) -> Optional[str]:
+    """Sync counterpart of :func:`_resolve_ipv4` for use inside thread-pool executors.
+
+    Identical semantics: AF_INET lookup → cache on success, serve cache on
+    failure when ``settings.DNS_CACHE_FALLBACK_ENABLED`` is True.
+    """
+    try:
+        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        if infos:
+            ipv4 = infos[0][4][0]
+            if settings.DNS_CACHE_FALLBACK_ENABLED:
+                _set_cached_ipv4(host, port, ipv4)
+            return ipv4
+    except OSError:
+        if settings.DNS_CACHE_FALLBACK_ENABLED:
+            cached = _get_cached_ipv4(host, port)
+            if cached:
+                logger.info(
+                    "DNS resolution failed for %s:%s; using cached IPv4 %s",
+                    host,
+                    port,
+                    cached,
+                )
+                return cached
+    return None
+
+
+# ---------------------------------------------------------------------------
+# IPv4-preferring POP3 helpers
+# ---------------------------------------------------------------------------
+
+
+class _POP3WithIPv4Pref(poplib.POP3):
+    """POP3 variant that connects to a pre-resolved IPv4 address.
+
+    The original *host* is preserved on ``self.host`` so that any code that
+    inspects the host name after construction still sees the human-readable
+    server name rather than a raw IP.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int = 110,
+        timeout: int = 30,
+        *,
+        _ipv4_addr: str = "",
+    ) -> None:
+        self._ipv4_addr = _ipv4_addr
+        super().__init__(host, port, timeout)
+
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
+        if self._ipv4_addr:
+            return socket.create_connection((self._ipv4_addr, self.port), timeout)
+        return super()._create_socket(timeout)
+
+
+class _POP3SSLWithIPv4Pref(poplib.POP3_SSL):
+    """POP3_SSL that connects to a pre-resolved IPv4 address while retaining
+    the original hostname for TLS SNI and certificate verification.
+
+    ``poplib.POP3_SSL.__init__`` calls ``POP3.__init__`` (which calls
+    ``_create_socket``) and afterwards wraps the socket with
+    ``context.wrap_socket(sock, server_hostname=self.host)``.  Because
+    ``self.host`` is still the original hostname, TLS verification is correct
+    even though ``_create_socket`` connects to the IPv4 address.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int = 995,
+        timeout: int = 30,
+        context: Optional[ssl.SSLContext] = None,
+        *,
+        _ipv4_addr: str = "",
+    ) -> None:
+        self._ipv4_addr = _ipv4_addr
+        super().__init__(host, port, timeout=timeout, context=context)
+
+    def _create_socket(self, timeout: Any) -> socket.socket:  # type: ignore[override]
+        if self._ipv4_addr:
+            return socket.create_connection((self._ipv4_addr, self.port), timeout)
+        return super()._create_socket(timeout)
+
+
+def _make_pop3_conn(
+    protocol: MailProtocol,
+    host: str,
+    port: int,
+    context: Optional[ssl.SSLContext],
+    timeout: int,
+    ipv4: Optional[str],
+) -> poplib.POP3:
+    """Factory: return a POP3 (or POP3_SSL) connection, preferring IPv4.
+
+    When *ipv4* is provided and differs from *host* (i.e. the caller pre-
+    resolved a hostname to an IPv4 address), the IPv4-preferring subclasses are
+    used so the TCP connection goes to the IPv4 address while TLS SNI still
+    uses the original hostname.  Otherwise the standard poplib classes are used
+    directly (which preserves all existing mock-based unit-test behaviour).
+    """
+    use_ipv4 = bool(ipv4 and ipv4 != host)
+    if protocol == MailProtocol.POP3_SSL:
+        if use_ipv4:
+            return _POP3SSLWithIPv4Pref(
+                host, port, timeout=timeout, context=context, _ipv4_addr=ipv4 or ""
+            )
+        return poplib.POP3_SSL(host, port, context=context, timeout=timeout)
+    else:
+        if use_ipv4:
+            return _POP3WithIPv4Pref(host, port, timeout=timeout, _ipv4_addr=ipv4 or "")
+        return poplib.POP3(host, port, timeout=timeout)
+
+
+# ---------------------------------------------------------------------------
+# IPv4-preferring IMAP helper
+# ---------------------------------------------------------------------------
+
+
+class _IMAP4SSLwithSNI(aioimaplib.IMAP4_SSL):
+    """IMAP4_SSL variant that connects to a pre-resolved IPv4 address but uses
+    the original hostname for TLS SNI and certificate verification.
+
+    ``asyncio.create_connection`` normally derives ``server_hostname`` from the
+    ``host`` argument when an SSL context is supplied.  By passing the IPv4
+    address as *host* and the original hostname as ``server_hostname`` we get
+    an IPv4-only TCP path without breaking TLS hostname checks.
+
+    ``_original_host`` **must** be set before ``super().__init__`` is called
+    because the parent constructor calls ``create_client`` synchronously.
+    """
+
+    def __init__(
+        self,
+        ipv4_addr: str,
+        original_host: str,
+        port: int,
+        timeout: float = 30.0,
+    ) -> None:
+        self._original_host = original_host
+        super().__init__(host=ipv4_addr, port=port, timeout=timeout)
+
+    def create_client(  # type: ignore[override]
+        self,
+        host: str,
+        port: int,
+        loop,
+        conn_lost_cb=None,
+        ssl_context: Optional[ssl.SSLContext] = None,
+    ) -> None:
+        if ssl_context is None:
+            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        active_loop = loop if loop is not None else asyncio.get_running_loop()
+        self.protocol = aioimaplib.IMAP4ClientProtocol(active_loop, conn_lost_cb)
+        self._client_task = active_loop.create_task(
+            active_loop.create_connection(
+                lambda: self.protocol,
+                host,
+                port,
+                ssl=ssl_context,
+                server_hostname=self._original_host,
+            )
+        )
+
+
+async def _make_imap_client(
+    protocol: MailProtocol,
+    host: str,
+    port: int,
+    timeout: float = 30.0,
+) -> aioimaplib.IMAP4:
+    """Async factory: return an IMAP4 (or IMAP4_SSL) client, preferring IPv4.
+
+    Resolves *host* to an IPv4 address via :func:`_resolve_ipv4` (which caches
+    successful lookups and can fall back to the cache on transient DNS errors).
+    When a different IPv4 address is found the appropriate IPv4-preferring
+    subclass is returned; otherwise the standard aioimaplib classes are used
+    directly, which preserves existing mock-based unit-test behaviour.
+    """
+    ipv4 = await _resolve_ipv4(host, port)
+    use_ipv4 = bool(ipv4 and ipv4 != host)
+    if protocol == MailProtocol.IMAP_SSL:
+        if use_ipv4:
+            return _IMAP4SSLwithSNI(ipv4 or host, host, port, timeout=timeout)
+        return aioimaplib.IMAP4_SSL(host=host, port=port, timeout=timeout)
+    else:
+        return aioimaplib.IMAP4(
+            host=ipv4 if use_ipv4 else host, port=port, timeout=timeout
+        )
 
 
 class MailConnectionError(Exception):
@@ -64,6 +314,15 @@ def _format_connection_error(
 
     # DNS resolution failure (socket.gaierror is a subclass of OSError)
     if isinstance(exc, socket.gaierror):
+        # errno -3 / EAI_AGAIN means the DNS server is temporarily unavailable --
+        # this is a transient infrastructure error, not a misconfigured address.
+        if exc.args[0] == socket.EAI_AGAIN:
+            if host:
+                return (
+                    f"Temporary DNS failure while resolving '{host}' --"
+                    f" the DNS server may be temporarily unavailable ({exc})"
+                )
+            return f"Temporary DNS failure: {exc}"
         if host:
             return (
                 f"Could not resolve hostname '{host}' — check that the server "
@@ -260,29 +519,28 @@ class MailProcessor:
     async def _test_pop3_connection(self) -> Tuple[bool, str]:
         """Test POP3 connection"""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             _dbg = self._debug
+            _host = str(self.account.host)
+            _port = int(self.account.port)
+            _protocol = self.account.protocol
 
             # Run blocking POP3 operations in thread pool
             def connect_pop3():
                 _t0 = _time.monotonic()
-                if self.account.protocol == MailProtocol.POP3_SSL:
-                    context = ssl.create_default_context()
-                    pop_conn = poplib.POP3_SSL(
-                        self.account.host,
-                        self.account.port,
-                        context=context,
-                        timeout=10,
-                    )
-                else:
-                    pop_conn = poplib.POP3(
-                        self.account.host, self.account.port, timeout=10
-                    )
+                _ipv4 = _resolve_ipv4_sync(_host, _port)
+                _ctx = (
+                    ssl.create_default_context()
+                    if _protocol == MailProtocol.POP3_SSL
+                    else None
+                )
+                pop_conn = _make_pop3_conn(_protocol, _host, _port, _ctx, 10, _ipv4)
                 if _dbg:
                     _dbg.record(
                         "connect",
-                        f"Connected to {self.account.host}:{self.account.port} "
-                        f"({'SSL' if self.account.protocol == MailProtocol.POP3_SSL else 'plain'})",
+                        f"Connected to {_host}:{_port} "
+                        f"({'SSL' if _protocol == MailProtocol.POP3_SSL else 'plain'})"
+                        + (f" via {_ipv4}" if _ipv4 and _ipv4 != _host else ""),
                         {"elapsed_ms": round((_time.monotonic() - _t0) * 1000)},
                     )
 
@@ -325,15 +583,11 @@ class MailProcessor:
     async def _test_imap_connection(self) -> Tuple[bool, str]:
         """Test IMAP connection"""
         try:
-            # Create IMAP client
-            if self.account.protocol == MailProtocol.IMAP_SSL:
-                imap_client = aioimaplib.IMAP4_SSL(
-                    host=self.account.host, port=self.account.port, timeout=10
-                )
-            else:
-                imap_client = aioimaplib.IMAP4(
-                    host=self.account.host, port=self.account.port, timeout=10
-                )
+            host = str(self.account.host)
+            port = int(self.account.port)
+            imap_client = await _make_imap_client(
+                self.account.protocol, host, port, timeout=10
+            )
 
             _t0 = _time.monotonic()
             await imap_client.wait_hello_from_server()
@@ -427,29 +681,28 @@ class MailProcessor:
         new_uids: List[str] = []
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             _dbg = self._debug  # capture for thread-pool closure
+            _host = str(self.account.host)
+            _port = int(self.account.port)
+            _protocol = self.account.protocol
 
             def fetch_pop3() -> Tuple[List[bytes], List[str]]:
                 _t_conn = _time.monotonic()
-                # Connect
-                if self.account.protocol == MailProtocol.POP3_SSL:
-                    context = ssl.create_default_context()
-                    pop_conn = poplib.POP3_SSL(
-                        str(self.account.host),
-                        int(self.account.port),
-                        context=context,
-                        timeout=30,
-                    )
-                else:
-                    pop_conn = poplib.POP3(  # type: ignore[assignment]
-                        str(self.account.host), int(self.account.port), timeout=30
-                    )
+                # Connect – prefer IPv4 to avoid ENETUNREACH on IPv6-only paths
+                _ipv4 = _resolve_ipv4_sync(_host, _port)
+                _ctx = (
+                    ssl.create_default_context()
+                    if _protocol == MailProtocol.POP3_SSL
+                    else None
+                )
+                pop_conn = _make_pop3_conn(_protocol, _host, _port, _ctx, 30, _ipv4)
                 if _dbg:
                     _dbg.record(
                         "connect",
-                        f"Connected to {self.account.host}:{self.account.port} "
-                        f"({'SSL' if self.account.protocol == MailProtocol.POP3_SSL else 'plain'})",
+                        f"Connected to {_host}:{_port} "
+                        f"({'SSL' if _protocol == MailProtocol.POP3_SSL else 'plain'})"
+                        + (f" via {_ipv4}" if _ipv4 and _ipv4 != _host else ""),
                         {"elapsed_ms": round((_time.monotonic() - _t_conn) * 1000)},
                     )
 
@@ -586,15 +839,13 @@ class MailProcessor:
 
         imap_client = None
         try:
-            # Create IMAP client
-            if self.account.protocol == MailProtocol.IMAP_SSL:
-                imap_client = aioimaplib.IMAP4_SSL(
-                    host=self.account.host, port=self.account.port, timeout=30
-                )
-            else:
-                imap_client = aioimaplib.IMAP4(
-                    host=self.account.host, port=self.account.port, timeout=30
-                )
+            # Create IMAP client, preferring IPv4 to avoid ENETUNREACH on IPv6-only paths
+            imap_client = await _make_imap_client(
+                self.account.protocol,
+                str(self.account.host),
+                int(self.account.port),
+                timeout=30,
+            )
 
             _t_conn = _time.monotonic()
             await imap_client.wait_hello_from_server()
@@ -857,14 +1108,12 @@ class MailProcessor:
 
         imap_client = None
         try:
-            if self.account.protocol == MailProtocol.IMAP_SSL:
-                imap_client = aioimaplib.IMAP4_SSL(
-                    host=self.account.host, port=self.account.port, timeout=30
-                )
-            else:
-                imap_client = aioimaplib.IMAP4(
-                    host=self.account.host, port=self.account.port, timeout=30
-                )
+            imap_client = await _make_imap_client(
+                self.account.protocol,
+                str(self.account.host),
+                int(self.account.port),
+                timeout=30,
+            )
 
             await imap_client.wait_hello_from_server()
             await imap_client.login(self.account.username, self.password)
@@ -905,22 +1154,22 @@ class MailProcessor:
         if not successfully_forwarded_uids or not self.account.delete_after_forward:
             return
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         uid_set = set(successfully_forwarded_uids)
+        _host = str(self.account.host)
+        _port = int(self.account.port)
+        _protocol = self.account.protocol
 
         def _delete_pop3() -> None:
-            if self.account.protocol == MailProtocol.POP3_SSL:
-                context = ssl.create_default_context()
-                pop_conn: poplib.POP3 = poplib.POP3_SSL(
-                    str(self.account.host),
-                    int(self.account.port),
-                    context=context,
-                    timeout=30,
-                )
-            else:
-                pop_conn = poplib.POP3(
-                    str(self.account.host), int(self.account.port), timeout=30
-                )
+            _ipv4 = _resolve_ipv4_sync(_host, _port)
+            _ctx = (
+                ssl.create_default_context()
+                if _protocol == MailProtocol.POP3_SSL
+                else None
+            )
+            pop_conn: poplib.POP3 = _make_pop3_conn(
+                _protocol, _host, _port, _ctx, 30, _ipv4
+            )
 
             pop_conn.user(str(self.account.username))
             pop_conn.pass_(self.password)
@@ -999,7 +1248,7 @@ class MailProcessor:
             True if successful, False otherwise
         """
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def send_email():
                 # Parse the email
