@@ -182,6 +182,10 @@ async def google_oauth(
     Authenticate with Google OAuth2.
     Exchange authorization code for access token and user info.
     """
+    logger.debug(
+        "OAuth [Google sign-in]: callback received (redirect_uri=%s)",
+        auth_request.redirect_uri,
+    )
 
     # Get user info from Google
     user_info = await oauth_service.get_google_user_info(
@@ -190,6 +194,10 @@ async def google_oauth(
 
     if not user_info.get("verified_email"):
         OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="error").inc()
+        logger.warning(
+            "OAuth [Google sign-in]: rejecting unverified email=%s",
+            user_info.get("email"),
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email not verified with Google",
@@ -209,6 +217,11 @@ async def google_oauth(
         if not user.google_id:
             user.google_id = google_id  # type: ignore[assignment]
             user.oauth_provider = "google"  # type: ignore[assignment]
+            logger.info(
+                "OAuth [Google sign-in]: linked Google ID to existing account "
+                "(email=%s)",
+                email,
+            )
 
         # Update last login
         user.last_login_at = datetime.now(timezone.utc)  # type: ignore[assignment]
@@ -249,6 +262,10 @@ async def google_oauth(
 
     # Create tokens
     tokens = oauth_service.create_tokens_for_user(user)
+    logger.debug(
+        "OAuth [Google sign-in]: sign-in complete, JWT tokens issued for user_id=%s",
+        user.id,
+    )
 
     OAUTH_CALLBACKS_TOTAL.labels(provider="google", status="success").inc()
     return tokens
@@ -257,6 +274,12 @@ async def google_oauth(
 @router.get("/google/authorize-url")
 async def get_google_authorize_url(redirect_uri: str):
     """Get Google OAuth2 authorization URL for sign-in (profile scopes only)."""
+    logger.debug(
+        "OAuth [Google sign-in]: authorization URL requested "
+        "(redirect_uri=%s, scopes=%s)",
+        redirect_uri,
+        GOOGLE_LOGIN_SCOPES,
+    )
     scope = urlquote(" ".join(GOOGLE_LOGIN_SCOPES))
     auth_url = (
         "https://accounts.google.com/o/oauth2/v2/auth"

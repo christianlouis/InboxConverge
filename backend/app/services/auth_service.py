@@ -49,6 +49,11 @@ class OAuthService:
         """
         try:
             # Exchange code for token
+            logger.debug(
+                "OAuth [Google sign-in]: exchanging authorization code for tokens "
+                "(redirect_uri=%s)",
+                redirect_uri,
+            )
             async with httpx.AsyncClient() as client:
                 token_response = await client.post(
                     "https://oauth2.googleapis.com/token",
@@ -62,7 +67,12 @@ class OAuthService:
                 )
 
                 if token_response.status_code != 200:
-                    logger.error(f"Google token exchange failed: {token_response.text}")
+                    logger.error(
+                        "OAuth [Google sign-in]: token exchange failed "
+                        "(status=%s, body=%s)",
+                        token_response.status_code,
+                        token_response.text,
+                    )
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Failed to exchange authorization code",
@@ -72,12 +82,26 @@ class OAuthService:
                 access_token = token_data.get("access_token")
 
                 if not access_token:
+                    logger.error(
+                        "OAuth [Google sign-in]: token exchange response contained "
+                        "no access_token (keys_present=%s)",
+                        list(token_data.keys()),
+                    )
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="No access token received",
                     )
 
+                logger.debug(
+                    "OAuth [Google sign-in]: token exchange succeeded — "
+                    "scopes=%s, has_refresh_token=%s, expires_in=%s",
+                    token_data.get("scope", ""),
+                    bool(token_data.get("refresh_token")),
+                    token_data.get("expires_in"),
+                )
+
                 # Get user info
+                logger.debug("OAuth [Google sign-in]: fetching Google user profile")
                 user_info_response = await client.get(
                     "https://www.googleapis.com/oauth2/v2/userinfo",
                     headers={"Authorization": f"Bearer {access_token}"},
@@ -85,7 +109,10 @@ class OAuthService:
 
                 if user_info_response.status_code != 200:
                     logger.error(
-                        f"Google user info fetch failed: {user_info_response.text}"
+                        "OAuth [Google sign-in]: user-info fetch failed "
+                        "(status=%s, body=%s)",
+                        user_info_response.status_code,
+                        user_info_response.text,
                     )
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -93,6 +120,12 @@ class OAuthService:
                     )
 
                 user_info = user_info_response.json()
+                logger.debug(
+                    "OAuth [Google sign-in]: user profile retrieved — "
+                    "email=%s, verified=%s",
+                    user_info.get("email"),
+                    user_info.get("verified_email"),
+                )
 
                 return {
                     "email": user_info.get("email"),
@@ -109,7 +142,7 @@ class OAuthService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"OAuth error: {e}")
+            logger.error("OAuth [Google sign-in]: unexpected error: %s", e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="OAuth authentication failed",
@@ -126,6 +159,7 @@ class OAuthService:
         Returns:
             Dict with access_token, refresh_token, and token_type
         """
+        logger.debug("OAuth: issuing application JWT tokens for user_id=%s", user.id)
         access_token = create_access_token(data={"sub": str(user.id)})
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
