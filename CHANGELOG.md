@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Login page footer**: now includes Privacy Policy and Terms of Service links alongside the existing Impressum / Datenschutz links.
 - **Register page consent text**: "By creating an account you agree to our Terms of Service and Privacy Policy" notice added below the sign-up form.
 - **Datenschutz cross-link**: German privacy page now links to the English `/privacy` page in section 2 and the bottom footer bar.
+- **Proactive Gmail token refresh task** (`refresh_gmail_tokens`): new Celery Beat task running every 45 minutes that refreshes any Gmail access token expiring within the next 30 minutes. Tokens with unknown expiry are also refreshed. Revoked tokens are immediately detected, marked invalid, and the user is notified. This prevents the first email delivery after a long idle period from triggering a synchronous in-band token exchange.
+- **In-depth OAuth logging**: added `DEBUG`/`INFO`/`WARNING`/`ERROR` log lines at every significant step of the OAuth flow across `auth_service.py`, `auth.py`, `providers.py`, and `gmail_service.py`. Logged events include: authorize-URL generation, code exchange (with scopes and `has_refresh_token` flag), user-profile fetch, API access verification, credential create/update/delete, label updates, debug-email injection, auto-refresh detection, and proactive refresh. Token values are never logged; only metadata (email, expiry, boolean presence, scopes) is recorded.
+
+### Changed
+
+- **`GmailAuthError` exception class** added to `gmail_service.py` (subclass of `GmailInjectionError`): raised specifically when `google.auth.exceptions.RefreshError` is caught (i.e. the refresh token was revoked or invalid). This gives callers a typed signal distinct from ordinary API errors.
+- **Improved error logging** for Gmail token failures: log messages now include the token expiry timestamp and distinguish between "refresh token revoked" and "API HTTP error" scenarios, making it much easier to diagnose authentication problems in the application logs.
+- **Structured exception handling** in `process_mail_account`: `GmailAuthError` is now caught separately from generic exceptions so that revocation is detected reliably even when the error does not contain "401", "403", or "invalid_grant" in its string representation.
 
 ## v0.6.5 (2026-04-07)
 
@@ -526,6 +534,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Duration display rounding bug**: `formatDuration` in the frontend Processing Logs page now
   uses `Math.floor` instead of `Math.round` for the seconds component, eliminating the "60s"
   artefact that appeared for durations very close to a whole minute boundary.
+- **Frontend dependency conflict**: Bumped `react` from `19.2.4` to `19.2.5` in `frontend/package.json` to match `react-dom@19.2.5`, resolving the `ERESOLVE` peer-dependency conflict that broke `npm ci`.
 
 ### Changed
 - **Decoupled Gmail permissions from Google Sign-In**: The "Sign in with Google" OAuth flow now only requests basic profile scopes (`openid`, `email`, `profile`) instead of also requesting Gmail API scopes (`gmail.insert`, `gmail.labels`, `gmail.readonly`). Users can grant Gmail access separately via the "Connect Gmail" button in Settings. This results in a simpler, permission-free login experience.
