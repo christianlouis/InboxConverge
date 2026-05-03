@@ -538,8 +538,11 @@ async def process_mail_account(account_id: int):
             # Per-email failures are already tracked in ProcessingLog and the
             # run's emails_failed counter so the user can drill into them without
             # having the account badge stuck in ERROR indefinitely.
+            # Capture pre-mutation state for the post-commit notification logic.
+            # These must be read before the account status and flag are cleared below.
             _was_in_error = account.status == AccountStatus.ERROR  # type: ignore[comparison-overlap]
             _had_notified = bool(account.error_notification_sent)  # type: ignore[attr-defined]
+
             account.last_successful_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
             account.status = AccountStatus.ACTIVE  # type: ignore[assignment]
             account.last_error_message = None  # type: ignore[assignment]

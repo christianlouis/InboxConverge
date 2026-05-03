@@ -56,6 +56,9 @@ def _set_cached_ipv4(host: str, port: int, ipv4: str) -> None:
 _GOOGLE_DNS = "8.8.8.8"
 _DNS_PORT = 53
 _DNS_TIMEOUT = 3.0  # seconds
+# DNS message compression: a label starting with the two high bits set (0xC0)
+# is a pointer to elsewhere in the packet rather than an inline label sequence.
+_DNS_COMPRESSION_MASK = 0xC0
 
 
 def _build_dns_query(hostname: str) -> bytes:
@@ -85,7 +88,7 @@ def _parse_dns_a_response(data: bytes, hostname: str) -> Optional[str]:
     # Skip QDCOUNT questions: each is QNAME + QTYPE(2) + QCLASS(2)
     for _ in range(qdcount):
         while pos < len(data) and data[pos] != 0:
-            if data[pos] & 0xC0 == 0xC0:  # compression pointer
+            if data[pos] & _DNS_COMPRESSION_MASK == _DNS_COMPRESSION_MASK:  # pointer
                 pos += 2
                 break
             pos += 1 + data[pos]
@@ -97,7 +100,7 @@ def _parse_dns_a_response(data: bytes, hostname: str) -> Optional[str]:
         if pos >= len(data):
             break
         # Skip NAME field (may be a compression pointer or a label sequence)
-        if data[pos] & 0xC0 == 0xC0:
+        if data[pos] & _DNS_COMPRESSION_MASK == _DNS_COMPRESSION_MASK:
             pos += 2
         else:
             while pos < len(data) and data[pos] != 0:
@@ -822,7 +825,7 @@ class MailProcessor:
             return await self._fetch_pop3_emails(effective_max, seen)
 
         # IMAP: retry transient errors up to _MAX_FETCH_ATTEMPTS times.
-        last_exc: BaseException = RuntimeError("no attempts made")
+        last_exc: BaseException = MailFetchError("IMAP fetch failed")
         for _attempt in range(1, _MAX_FETCH_ATTEMPTS + 1):
             try:
                 return await self._fetch_imap_emails(effective_max, seen)
@@ -965,7 +968,7 @@ class MailProcessor:
 
         # Retry loop: transient errors (EOF, timeout, connection reset) are
         # retried up to _MAX_FETCH_ATTEMPTS times with a short fixed delay.
-        last_exc: BaseException = RuntimeError("no attempts made")
+        last_exc: BaseException = MailFetchError("POP3 fetch failed")
         for _attempt in range(1, _MAX_FETCH_ATTEMPTS + 1):
             try:
                 emails, new_uids = await loop.run_in_executor(None, fetch_pop3)
