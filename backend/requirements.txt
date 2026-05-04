@@ -29,7 +29,7 @@ email-validator==2.3.0
 
 # Gmail API (for direct email injection)
 google-api-python-client==2.193.0
-google-auth==2.49.2
+google-auth==2.50.0
 google-auth-oauthlib==1.3.1
 google-auth-httplib2==0.3.1
 
