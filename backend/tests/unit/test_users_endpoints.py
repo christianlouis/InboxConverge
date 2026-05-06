@@ -52,6 +52,7 @@ def _make_smtp_config(**overrides) -> MagicMock:
         username="user@example.com",
         encrypted_password="encrypted",
         use_tls=True,
+        sender_email="",
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
