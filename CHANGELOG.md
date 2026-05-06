@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.5 (2026-05-06)
+
+### Bug Fixes
+
+- Add sender_email to _make_smtp_config test helper
+  ([`1420149`](https://github.com/christianlouis/InboxConverge/commit/1420149d8b7214ef34d90152b0ef0541e9cb9866))
+
+
 ## v0.10.4 (2026-05-03)
 
 ### Bug Fixes
