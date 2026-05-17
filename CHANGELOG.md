@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.6 (2026-05-17)
+
+### Bug Fixes
+
+- Linearize alembic migrations
+  ([`8295b7a`](https://github.com/christianlouis/InboxConverge/commit/8295b7aaf247bb8c6f5adee093368ac45df72d75))
+
+
 ## v0.10.5 (2026-05-06)
 
 ### Bug Fixes
