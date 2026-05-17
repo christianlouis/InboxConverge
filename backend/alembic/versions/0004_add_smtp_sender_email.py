@@ -1,7 +1,7 @@
 """Add sender_email column to user_smtp_configs
 
-Revision ID: 0003
-Revises: 0002
+Revision ID: 0004
+Revises: 0003
 Create Date: 2026-05-03
 
 Adds a ``sender_email`` column to ``user_smtp_configs``.
@@ -19,8 +19,8 @@ where create_all() already created the column.
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "0003"
-down_revision = "0002"
+revision = "0004"
+down_revision = "0003"
 branch_labels = None
 depends_on = None
 
