@@ -19,7 +19,8 @@ COPY . .
 # Set environment variable for build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+# Turbopack is not supported for this ARM64 Alpine/QEMU build path.
+RUN npm run build:docker
 
 # Production image, copy all the files and run next
 FROM base AS runner
