@@ -76,7 +76,7 @@ function ProviderLogoBanner({ providerName, email }: { providerName?: string | n
   if (!icon) return null;
   const label = providerName ?? email?.split('@')[1] ?? 'provider';
   return (
-    <div className="relative h-16 w-full bg-gray-50 border-b border-gray-100 overflow-hidden">
+    <div className="relative h-16 w-full overflow-hidden border-b border-[#edf2f8] bg-[#f7faff]">
       <Image
         src={`/providers/${icon}.svg`}
         alt={`${label} logo`}
@@ -177,11 +177,14 @@ export default function AccountsPage() {
     <AuthGuard>
       <DashboardLayout>
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Mail Accounts</h1>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-extrabold text-slate-950">Mail Accounts</h1>
+              <p className="mt-1 text-sm text-slate-500">Connect and monitor the external inboxes feeding Gmail.</p>
+            </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="ic-button-primary"
             >
               <Plus className="h-5 w-5 mr-2" />
               Add Account
@@ -190,15 +193,15 @@ export default function AccountsPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0b63f6]"></div>
             </div>
           ) : accounts && accounts.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {accounts.map((account) => (
                 <div
                   key={account.id}
-                  className={`bg-white rounded-lg shadow-md border overflow-hidden transition-opacity ${
-                    account.is_enabled ? 'border-gray-200' : 'border-gray-200 opacity-60'
+                  className={`ic-card overflow-hidden transition-opacity ${
+                    account.is_enabled ? '' : 'opacity-60'
                   }`}
                 >
                   {/* Provider logo banner – full-width strip that accommodates any aspect ratio */}
@@ -207,19 +210,19 @@ export default function AccountsPage() {
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+                        <h3 className="text-lg font-bold text-slate-950 mb-1 truncate">
                           {account.name}
                         </h3>
-                        <p className="text-sm text-gray-500 truncate">{account.email_address}</p>
+                        <p className="text-sm text-slate-500 truncate">{account.email_address}</p>
                       </div>
                       <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                         {account.is_enabled ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-[#e8f7ef] px-2 py-0.5 text-xs font-bold text-[#11834d]">
                             <CheckCircle className="h-3 w-3" />
                             Enabled
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">
                             <XCircle className="h-3 w-3" />
                             Disabled
                           </span>
@@ -229,31 +232,31 @@ export default function AccountsPage() {
 
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center text-sm">
-                        <span className="text-gray-500 w-20">Protocol:</span>
-                        <span className="text-gray-900 font-medium">
+                        <span className="w-20 text-slate-500">Protocol:</span>
+                        <span className="font-semibold text-slate-950">
                           {account.protocol.toUpperCase()}
                         </span>
                       </div>
                       <div className="flex items-center text-sm">
-                        <span className="text-gray-500 w-20">Host:</span>
-                        <span className="text-gray-900">{account.host}:{account.port}</span>
+                        <span className="w-20 text-slate-500">Host:</span>
+                        <span className="text-slate-950">{account.host}:{account.port}</span>
                       </div>
                       <div className="flex items-center text-sm">
-                        <span className="text-gray-500 w-20">SSL:</span>
-                        <span className="text-gray-900">
+                        <span className="w-20 text-slate-500">SSL:</span>
+                        <span className="text-slate-950">
                           {account.use_ssl ? 'Yes' : 'No'}
                         </span>
                       </div>
                       <div className="flex items-center text-sm">
-                        <span className="text-gray-500 w-20">Interval:</span>
-                        <span className="text-gray-900">
+                        <span className="w-20 text-slate-500">Interval:</span>
+                        <span className="text-slate-950">
                           Every {account.check_interval_minutes} min
                         </span>
                       </div>
                     </div>
 
                     {account.last_check_at && (
-                      <div className="mb-4 text-xs text-gray-500">
+                      <div className="mb-4 text-xs text-slate-500">
                         Last checked: {new Date(account.last_check_at).toLocaleString()}
                       </div>
                     )}
@@ -278,15 +281,15 @@ export default function AccountsPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-2 border-t border-[#edf2f8] pt-4">
                       <button
                         onClick={() => handleToggle(account.id)}
                         disabled={toggleMutation.isPending}
                         title={account.is_enabled ? 'Disable account' : 'Enable account'}
                         className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 ${
                           account.is_enabled
-                            ? 'text-yellow-600 bg-yellow-50 hover:bg-yellow-100'
-                            : 'text-green-600 bg-green-50 hover:bg-green-100'
+                            ? 'text-yellow-700 bg-yellow-50 hover:bg-yellow-100'
+                            : 'text-[#11834d] bg-[#e8f7ef] hover:bg-green-100'
                         }`}
                       >
                         <Power className="h-4 w-4" />
@@ -299,7 +302,7 @@ export default function AccountsPage() {
                         className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 ${
                           successIds.has(account.id)
                             ? 'text-green-600 bg-green-50 hover:bg-green-100'
-                            : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                            : 'text-[#0b63f6] bg-[#e7f0ff] hover:bg-blue-100'
                         }`}
                       >
                         <RefreshCw className={`h-4 w-4 ${pullingIds.has(account.id) ? 'animate-spin' : ''}`} />
@@ -313,7 +316,7 @@ export default function AccountsPage() {
                       </button>
                       <button
                         onClick={() => handleEdit(account)}
-                        className="flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+                        className="flex-1 flex items-center justify-center px-3 py-2 text-sm font-bold text-[#0b63f6] bg-[#e7f0ff] rounded-md hover:bg-blue-100 transition-colors"
                       >
                         <Edit2 className="h-4 w-4 mr-1" />
                         Edit
@@ -332,11 +335,11 @@ export default function AccountsPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <p className="text-gray-500 mb-4">No mail accounts configured yet</p>
+            <div className="ic-card py-12 text-center">
+              <p className="text-slate-500 mb-4">No mail accounts configured yet</p>
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="ic-button-primary"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Your First Account

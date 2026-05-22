@@ -27,13 +27,13 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon: Icon, iconColor }: StatCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="ic-card p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+          <p className="text-sm font-semibold text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-slate-950">{value}</p>
         </div>
-        <div className={`p-3 rounded-full ${iconColor}`}>
+        <div className={`rounded-lg p-3 ${iconColor}`}>
           <Icon className="h-8 w-8 text-white" />
         </div>
       </div>
@@ -54,36 +54,36 @@ function AccountStatusRow({ account }: { account: MailAccount }) {
   });
 
   return (
-    <div className="px-5 py-4 border-b border-gray-100 last:border-b-0">
+    <div className="px-5 py-4 border-b border-[#edf2f8] last:border-b-0">
       <div className="flex items-start justify-between gap-4">
         {/* Left: name + email */}
         <div className="flex items-center gap-3 min-w-0">
-          <Inbox className="h-4 w-4 text-blue-400 shrink-0" />
+          <Inbox className="h-4 w-4 text-blue-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{account.name}</p>
-            <p className="text-xs text-gray-400 truncate">{account.email_address}</p>
+            <p className="text-sm font-semibold text-slate-950 truncate">{account.name}</p>
+            <p className="text-xs text-slate-400 truncate">{account.email_address}</p>
           </div>
         </div>
 
         {/* Right: status badge + last check */}
         <div className="text-right shrink-0">
           {hasError ? (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600">
               <XCircle className="h-3.5 w-3.5" />
               Error
             </span>
           ) : lastChecked ? (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#11834d]">
               <CheckCircle className="h-3.5 w-3.5" />
               OK
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400">
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-400">
               <Clock className="h-3.5 w-3.5" />
               Pending
             </span>
           )}
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5">
             {formatRelative(lastChecked)}
           </p>
         </div>
@@ -91,7 +91,7 @@ function AccountStatusRow({ account }: { account: MailAccount }) {
 
       {/* Error message */}
       {hasError && (
-        <div className="mt-2 flex items-start gap-1.5 p-2 bg-red-50 border border-red-200 rounded">
+        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-red-200 bg-red-50 p-2">
           <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
           <p className="text-xs text-red-700 line-clamp-2 flex-1">{account.last_error_message}</p>
           <button
@@ -108,7 +108,7 @@ function AccountStatusRow({ account }: { account: MailAccount }) {
 
       {/* Lifetime counters (only when there's activity) */}
       {(account.total_emails_processed > 0 || account.total_emails_failed > 0) && (
-        <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+        <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
           <span>{account.total_emails_processed.toLocaleString()} processed</span>
           {account.total_emails_failed > 0 && (
             <span className="text-red-500">{account.total_emails_failed.toLocaleString()} failed</span>
@@ -142,40 +142,40 @@ export default function DashboardPage() {
               title="Total Accounts"
               value={stats.totalAccounts}
               icon={Mail}
-              iconColor="bg-blue-500"
+              iconColor="bg-[#0b63f6]"
             />
             <StatCard
               title="Emails Processed"
               value={stats.totalProcessed.toLocaleString()}
               icon={Send}
-              iconColor="bg-green-500"
+              iconColor="bg-[#11834d]"
             />
             <StatCard
               title="Active Accounts"
               value={stats.activeAccounts}
               icon={CheckCircle}
-              iconColor="bg-purple-500"
+              iconColor="bg-[#10213f]"
             />
             <StatCard
               title="Accounts with Errors"
               value={stats.accountsWithErrors}
               icon={AlertCircle}
-              iconColor={stats.accountsWithErrors > 0 ? 'bg-red-500' : 'bg-gray-400'}
+              iconColor={stats.accountsWithErrors > 0 ? 'bg-red-500' : 'bg-slate-400'}
             />
           </div>
 
           {/* Mailbox Status Overview */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Mailbox Status</h3>
-              <Link href="/logs" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+          <div className="ic-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-[#d9e3f2] bg-[#fbfdff] px-6 py-4">
+              <h3 className="text-lg font-bold text-slate-950">Mailbox Status</h3>
+              <Link href="/logs" className="text-sm font-bold text-[#0b63f6] hover:text-[#0649bf]">
                 View activity & history →
               </Link>
             </div>
 
             {accountsLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#0b63f6]" />
               </div>
             ) : accounts && accounts.length > 0 ? (
               <div>
@@ -185,11 +185,11 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <Clock className="mx-auto h-10 w-10 text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">No mail accounts configured yet.</p>
+                <Clock className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm text-slate-500">No mail accounts configured yet.</p>
                 <Link
                   href="/accounts"
-                  className="mt-3 inline-block text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="mt-3 inline-block text-sm font-bold text-[#0b63f6] hover:text-[#0649bf]"
                 >
                   Add your first account →
                 </Link>

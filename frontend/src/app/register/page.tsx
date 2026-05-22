@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -56,25 +57,31 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#f7faff] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex justify-center">
+          <Link href="/">
+            <BrandMark />
+          </Link>
+        </div>
+        <div className="ic-panel p-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="text-center text-3xl font-extrabold text-slate-950">
             Create your account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Start forwarding your emails
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Start consolidating external mailboxes into Gmail.
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4">
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
-          <div className="rounded-md shadow-sm space-y-4">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="full_name" className="block text-sm font-bold text-slate-700">
                 Full Name
               </label>
               <input
@@ -84,12 +91,12 @@ export default function RegisterPage() {
                 required
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="John Doe"
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-bold text-slate-700">
                 Email address
               </label>
               <input
@@ -100,12 +107,12 @@ export default function RegisterPage() {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="you@example.com"
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-bold text-slate-700">
                 Password
               </label>
               <input
@@ -116,12 +123,12 @@ export default function RegisterPage() {
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="••••••••"
               />
             </div>
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-700">
                 Confirm Password
               </label>
               <input
@@ -132,7 +139,7 @@ export default function RegisterPage() {
                 required
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="••••••••"
               />
             </div>
@@ -142,45 +149,46 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="ic-button-primary w-full disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Sign up'}
             </button>
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-600">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/login" className="font-bold text-[#0b63f6] hover:text-[#0649bf]">
                 Sign in
               </Link>
             </p>
           </div>
 
-          <p className="text-xs text-center text-gray-400">
+          <p className="text-xs text-center text-slate-400">
             By creating an account you agree to our{' '}
-            <Link href="/terms" className="underline hover:text-gray-600">
+            <Link href="/terms" className="underline hover:text-slate-600">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" className="underline hover:text-gray-600">
+            <Link href="/privacy" className="underline hover:text-slate-600">
               Privacy Policy
             </Link>
             .
           </p>
         </form>
+        </div>
 
-        <div className="mt-4 flex justify-center gap-4 text-xs text-gray-400">
-          <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+        <div className="mt-4 flex justify-center gap-4 text-xs text-slate-400">
+          <Link href="/privacy" className="hover:text-slate-600 transition-colors">
             Privacy Policy
           </Link>
-          <Link href="/terms" className="hover:text-gray-600 transition-colors">
+          <Link href="/terms" className="hover:text-slate-600 transition-colors">
             Terms
           </Link>
-          <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+          <Link href="/impressum" className="hover:text-slate-600 transition-colors">
             Impressum
           </Link>
-          <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+          <Link href="/datenschutz" className="hover:text-slate-600 transition-colors">
             Datenschutz
           </Link>
         </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
+import { BrandMark } from '@/components/BrandMark';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,25 +43,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#f7faff] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex justify-center">
+          <Link href="/">
+            <BrandMark />
+          </Link>
+        </div>
+        <div className="ic-panel p-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            InboxConverge
+          <h2 className="text-center text-3xl font-extrabold text-slate-950">
+            Sign in
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your account
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Continue to your mailbox delivery dashboard.
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md border border-red-200 bg-red-50 p-4">
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
-          <div className="rounded-md shadow-sm -space-y-px">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label htmlFor="email" className="block text-sm font-bold text-slate-700">
                 Email address
               </label>
               <input
@@ -71,12 +78,12 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="Email address"
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-sm font-bold text-slate-700">
                 Password
               </label>
               <input
@@ -87,7 +94,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="ic-focus mt-1 relative block w-full rounded-md border border-[#b8c8df] px-3 py-2.5 text-slate-950 placeholder-slate-400 focus:border-[#0b63f6] sm:text-sm"
                 placeholder="Password"
               />
             </div>
@@ -97,7 +104,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="ic-button-primary w-full disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
@@ -105,10 +112,10 @@ export default function LoginPage() {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+              <div className="w-full border-t border-[#d9e3f2]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
+              <span className="bg-white px-2 text-slate-500">Or continue with</span>
             </div>
           </div>
 
@@ -116,7 +123,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="ic-button-secondary w-full"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -141,26 +148,27 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-600">
               Don&apos;t have an account?{' '}
-              <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link href="/register" className="font-bold text-[#0b63f6] hover:text-[#0649bf]">
                 Sign up
               </Link>
             </p>
           </div>
         </form>
+        </div>
 
-        <div className="mt-6 flex justify-center gap-4 text-xs text-gray-400">
-          <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+        <div className="mt-6 flex justify-center gap-4 text-xs text-slate-400">
+          <Link href="/privacy" className="hover:text-slate-600 transition-colors">
             Privacy Policy
           </Link>
-          <Link href="/terms" className="hover:text-gray-600 transition-colors">
+          <Link href="/terms" className="hover:text-slate-600 transition-colors">
             Terms
           </Link>
-          <Link href="/impressum" className="hover:text-gray-600 transition-colors">
+          <Link href="/impressum" className="hover:text-slate-600 transition-colors">
             Impressum
           </Link>
-          <Link href="/datenschutz" className="hover:text-gray-600 transition-colors">
+          <Link href="/datenschutz" className="hover:text-slate-600 transition-colors">
             Datenschutz
           </Link>
         </div>
