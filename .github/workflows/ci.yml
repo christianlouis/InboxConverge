@@ -218,21 +218,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Requires PRIVATE_REGISTRY_USERNAME and PRIVATE_REGISTRY_PASSWORD secrets
-      - name: Log in to private registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.PRIVATE_REGISTRY }}
-          username: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
-          password: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
-
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: |
             ${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_name }}
-            ${{ env.PRIVATE_REGISTRY }}/${{ matrix.image_name }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -268,8 +259,8 @@ jobs:
         id: tag
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "backend_image=${{ env.PRIVATE_REGISTRY }}/inboxconverge/backend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=${{ env.PRIVATE_REGISTRY }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/inboxconverge/backend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/inboxconverge/frontend:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Check if GH_PAT is configured and has repo access
@@ -308,7 +299,7 @@ jobs:
           IMAGE: ${{ steps.tag.outputs.backend_image }}
         with:
           cmd: |
-            yq -i '(.. | select(tag == "!!str") | select(test("^registry\\.cklnet\\.com/inboxconverge/backend:"))) = strenv(IMAGE)' \
+            yq -i '(.. | select(tag == "!!str") | select(test("^(registry\\.cklnet\\.com|ghcr\\.io/christianlouis)/inboxconverge/backend:"))) = strenv(IMAGE)' \
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Update frontend image tag in preprod manifest
@@ -318,7 +309,7 @@ jobs:
           IMAGE: ${{ steps.tag.outputs.frontend_image }}
         with:
           cmd: |
-            yq -i '(.. | select(tag == "!!str") | select(test("^registry\\.cklnet\\.com/inboxconverge/frontend:"))) = strenv(IMAGE)' \
+            yq -i '(.. | select(tag == "!!str") | select(test("^(registry\\.cklnet\\.com|ghcr\\.io/christianlouis)/inboxconverge/frontend:"))) = strenv(IMAGE)' \
               k8s-cluster-state/apps/gmail-puller/preprod/gmail-puller-stack.yaml
 
       - name: Commit and push manifest update
