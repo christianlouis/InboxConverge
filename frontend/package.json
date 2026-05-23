@@ -20,6 +20,10 @@
     "react-dom": "19.2.5",
     "zustand": "^5.0.13"
   },
+  "overrides": {
+    "brace-expansion": "5.0.6",
+    "postcss": "8.5.15"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
