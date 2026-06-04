@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.8 (2026-06-04)
+
+### Bug Fixes
+
+- **ci**: Use inboxconverge preprod manifest path
+  ([#280](https://github.com/christianlouis/InboxConverge/pull/280),
+  [`1f2099d`](https://github.com/christianlouis/InboxConverge/commit/1f2099dad9aae2f5d1b57d79925892229a851bdf))
+
+### Chores
+
+- **deps**: Bump aiohttp in the pip group across 1 directory
+  ([#279](https://github.com/christianlouis/InboxConverge/pull/279),
+  [`6f25054`](https://github.com/christianlouis/InboxConverge/commit/6f25054d8e5248658f8415857a052f845737f20e))
+
+- **deps**: Bump aiosmtplib from 5.1.0 to 5.1.1 in /backend
+  ([#270](https://github.com/christianlouis/InboxConverge/pull/270),
+  [`4988486`](https://github.com/christianlouis/InboxConverge/commit/4988486b7002a91f2d8cdfbf5fdf33cffc1630b1))
+
+- **deps**: Bump apprise from 1.10.0 to 1.11.0 in /backend
+  ([#277](https://github.com/christianlouis/InboxConverge/pull/277),
+  [`4d63d27`](https://github.com/christianlouis/InboxConverge/commit/4d63d2770219f0702a31c4e16418d90ab3da98b0))
+
+- **deps**: Bump faker from 40.18.0 to 40.19.1 in /backend
+  ([#266](https://github.com/christianlouis/InboxConverge/pull/266),
+  [`bab787a`](https://github.com/christianlouis/InboxConverge/commit/bab787a8cba8bd353ef268c1b36f549f5db177cc))
+
+- **deps**: Bump faker from 40.19.1 to 40.20.0 in /backend
+  ([#271](https://github.com/christianlouis/InboxConverge/pull/271),
+  [`beec26b`](https://github.com/christianlouis/InboxConverge/commit/beec26b4831551bb3e00b8b260a95f9b6dff66d7))
+
+- **deps**: Bump fastapi from 0.135.3 to 0.136.3 in /backend
+  ([#265](https://github.com/christianlouis/InboxConverge/pull/265),
+  [`9113313`](https://github.com/christianlouis/InboxConverge/commit/91133136d642549a609442bcf5365fbe1785c72f))
+
+- **deps**: Bump google-api-python-client in /backend
+  ([#273](https://github.com/christianlouis/InboxConverge/pull/273),
+  [`c1254e5`](https://github.com/christianlouis/InboxConverge/commit/c1254e5e4caa786bc0ba50d01b16b327b6e60601))
+
+- **deps**: Bump pytest-asyncio from 1.3.0 to 1.4.0 in /backend
+  ([#275](https://github.com/christianlouis/InboxConverge/pull/275),
+  [`642e2f0`](https://github.com/christianlouis/InboxConverge/commit/642e2f0043456b16ca778d06877bb6a51b07b8f2))
+
+- **deps**: Bump python-multipart from 0.0.29 to 0.0.30 in /backend
+  ([#272](https://github.com/christianlouis/InboxConverge/pull/272),
+  [`008eef3`](https://github.com/christianlouis/InboxConverge/commit/008eef32698d01664e93d56cbfa5f0d577ee07dc))
+
+- **deps**: Bump redis from 7.4.0 to 8.0.0 in /backend
+  ([#274](https://github.com/christianlouis/InboxConverge/pull/274),
+  [`ee24889`](https://github.com/christianlouis/InboxConverge/commit/ee24889308e9272ec3836b64932d1a4986ce7b92))
+
+- **deps**: Bump sqlalchemy from 2.0.49 to 2.0.50 in /backend
+  ([#267](https://github.com/christianlouis/InboxConverge/pull/267),
+  [`c8926ce`](https://github.com/christianlouis/InboxConverge/commit/c8926ce88b51f22558bf9f605c85680fe5104507))
+
+- **deps**: Bump stripe from 15.1.0 to 15.2.0 in /backend
+  ([#278](https://github.com/christianlouis/InboxConverge/pull/278),
+  [`d4258ce`](https://github.com/christianlouis/InboxConverge/commit/d4258cef97c0f1cb7bc2a9c929180fb543a07412))
+
+- **deps**: Bump uvicorn from 0.47.0 to 0.48.0 in /backend
+  ([`85ef54d`](https://github.com/christianlouis/InboxConverge/commit/85ef54d980792b1014a210a88afa17634a983d68))
+
+
 ## v0.10.7 (2026-05-23)
 
 ### Bug Fixes
