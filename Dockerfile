@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY inboxconverge.py .
 
 # Create non-root user for security
-RUN useradd -m -u 1000 inboxconverge && \
+RUN addgroup -g 1000 inboxconverge && \
+    adduser -D -u 1000 -G inboxconverge inboxconverge && \
     chown -R inboxconverge:inboxconverge /app
 
 USER inboxconverge

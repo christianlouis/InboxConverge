@@ -4,6 +4,10 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **CI Docker build fix for Alpine Python images**: Replaced Debian-only
+  `useradd` calls in the root and backend Dockerfiles with Alpine-compatible
+  `addgroup` and `adduser -D` commands while preserving UID/GID 1000.
+
 - [x] **IMAP/POP3 connection stability — IPv4 preference + DNS cache**: All
   POP3 and IMAP connections now prefer IPv4 by pre-resolving hostnames with
   `AF_INET` before connecting.  This eliminates `ENETUNREACH` / `Network is

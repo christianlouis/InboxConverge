@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Bug Fixes
+
+- Create Docker users with Alpine-compatible tools
+
 ## v0.10.9 (2026-06-22)
 
 ### Bug Fixes
