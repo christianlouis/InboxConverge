@@ -3,8 +3,11 @@ FROM python:3.14-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Pull in current distro security fixes before installing runtime packages.
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+    --no-install-recommends \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
