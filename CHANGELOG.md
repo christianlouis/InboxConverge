@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.9 (2026-06-22)
+
+### Bug Fixes
+
+- Move Python Docker images to Alpine
+  ([#296](https://github.com/christianlouis/InboxConverge/pull/296),
+  [`ab62c30`](https://github.com/christianlouis/InboxConverge/commit/ab62c303292655ff7748492626493f5f49e54cf9))
+
+- Move Python images to Alpine ([#296](https://github.com/christianlouis/InboxConverge/pull/296),
+  [`ab62c30`](https://github.com/christianlouis/InboxConverge/commit/ab62c303292655ff7748492626493f5f49e54cf9))
+
+- Refresh Docker package security updates
+  ([#296](https://github.com/christianlouis/InboxConverge/pull/296),
+  [`ab62c30`](https://github.com/christianlouis/InboxConverge/commit/ab62c303292655ff7748492626493f5f49e54cf9))
+
+### Chores
+
+- **ci**: Bump actions/checkout from 6 to 7
+  ([#295](https://github.com/christianlouis/InboxConverge/pull/295),
+  [`f5da9cc`](https://github.com/christianlouis/InboxConverge/commit/f5da9cc19378c1bea4ebcb2f93db7aaebadcaa90))
+
+
 ## v0.10.8 (2026-06-04)
 
 ### Bug Fixes
