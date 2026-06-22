@@ -24,7 +24,8 @@ ARG BUILD_DATE=""
 ENV BUILD_DATE=${BUILD_DATE}
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser && \
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser && \
     chown -R appuser:appuser /app
 
 USER appuser
