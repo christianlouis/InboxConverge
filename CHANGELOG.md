@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.10 (2026-06-22)
+
+### Bug Fixes
+
+- Create Docker users with Alpine tools
+  ([`097c61b`](https://github.com/christianlouis/InboxConverge/commit/097c61b03c9844bd2a04db57b80912e0f117e124))
+
+
 ## [Unreleased]
 
 ### Bug Fixes
