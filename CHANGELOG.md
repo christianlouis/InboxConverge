@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
-## v0.10.9 (2026-06-22)
+## [Unreleased]
 
 ### Bug Fixes
 
 - Create Docker users with Alpine-compatible tools
-  ([#297](https://github.com/christianlouis/InboxConverge/pull/297),
-  [`e04b54d`](https://github.com/christianlouis/InboxConverge/commit/e04b54d500fa61944374cb819e4b570ab7c086ea))
+
+## v0.10.9 (2026-06-22)
+
+### Bug Fixes
 
 - Move Python Docker images to Alpine
   ([#296](https://github.com/christianlouis/InboxConverge/pull/296),
