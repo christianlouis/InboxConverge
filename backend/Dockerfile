@@ -1,16 +1,14 @@
-FROM python:3.14-slim
+FROM python:3.14-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Pull in current distro security fixes before installing runtime packages.
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y \
-    --no-install-recommends \
+# Install system dependencies without Debian's vulnerable util-linux/mount base package.
+RUN apk add --no-cache \
     gcc \
+    musl-dev \
     postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+    postgresql-dev
 
 # Copy requirements
 COPY requirements.txt .
