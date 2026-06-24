@@ -51,7 +51,7 @@ python-json-logger==2.0.7
 pytest==9.0.3
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
-faker==40.20.0
+faker==40.23.0
 
 # Utilities
 python-dotenv==1.2.2
