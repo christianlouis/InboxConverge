@@ -294,7 +294,7 @@ jobs:
 
       - name: Update backend image tag in preprod manifest
         if: steps.pat-check.outputs.available == 'true'
-        uses: mikefarah/yq@v4.52.5
+        uses: mikefarah/yq@v4.53.3
         env:
           IMAGE: ${{ steps.tag.outputs.backend_image }}
         with:
@@ -304,7 +304,7 @@ jobs:
 
       - name: Update frontend image tag in preprod manifest
         if: steps.pat-check.outputs.available == 'true'
-        uses: mikefarah/yq@v4.52.5
+        uses: mikefarah/yq@v4.53.3
         env:
           IMAGE: ${{ steps.tag.outputs.frontend_image }}
         with:
