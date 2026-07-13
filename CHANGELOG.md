@@ -7,6 +7,171 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.11 (2026-07-13)
+
+### Bug Fixes
+
+- Unblock dependency updates ([#327](https://github.com/christianlouis/InboxConverge/pull/327),
+  [`91095e2`](https://github.com/christianlouis/InboxConverge/commit/91095e2234666918801c50618f9dd91d71597722))
+
+### Chores
+
+- **ci**: Bump codecov/codecov-action from 6 to 7
+  ([#281](https://github.com/christianlouis/InboxConverge/pull/281),
+  [`41dabdf`](https://github.com/christianlouis/InboxConverge/commit/41dabdf7c04b5eba51bea9511d98f917e1ebe054))
+
+- **ci**: Bump mikefarah/yq from 4.52.5 to 4.53.3
+  ([#283](https://github.com/christianlouis/InboxConverge/pull/283),
+  [`5524861`](https://github.com/christianlouis/InboxConverge/commit/552486137530ec059b4ecd6b40fb768928ca1e26))
+
+- **deps**: Bump @tailwindcss/postcss from 4.3.0 to 4.3.2 in /frontend
+  ([#317](https://github.com/christianlouis/InboxConverge/pull/317),
+  [`47338cc`](https://github.com/christianlouis/InboxConverge/commit/47338cc1887f8a510f793327b406bd45efd080e6))
+
+- **deps**: Bump @tanstack/react-query in /frontend
+  ([#320](https://github.com/christianlouis/InboxConverge/pull/320),
+  [`4df3321`](https://github.com/christianlouis/InboxConverge/commit/4df33218685204e7acf7150b75e21dfd0571af73))
+
+- **deps**: Bump aiohttp from 3.14.0 to 3.14.1 in /backend
+  ([#299](https://github.com/christianlouis/InboxConverge/pull/299),
+  [`5994d71`](https://github.com/christianlouis/InboxConverge/commit/5994d71d503516837ddb2e9d438fb253e380f1c3))
+
+- **deps**: Bump aiosmtplib from 5.1.1 to 5.1.2 in /backend
+  ([#306](https://github.com/christianlouis/InboxConverge/pull/306),
+  [`2f5527b`](https://github.com/christianlouis/InboxConverge/commit/2f5527b88304012165e69a45282e6359614e45d2))
+
+- **deps**: Bump alembic from 1.18.4 to 1.18.5 in /backend
+  ([#303](https://github.com/christianlouis/InboxConverge/pull/303),
+  [`11c7d07`](https://github.com/christianlouis/InboxConverge/commit/11c7d07090de22bfca1fd6e609b51107163a05b3))
+
+- **deps**: Bump apprise from 1.11.0 to 1.12.0 in /backend
+  ([#313](https://github.com/christianlouis/InboxConverge/pull/313),
+  [`b26e30e`](https://github.com/christianlouis/InboxConverge/commit/b26e30e24d02b75e3ced2bc81d0f0f9d23b7d99d))
+
+- **deps**: Bump apprise from 1.11.0 to 1.12.0 in /backend
+  ([#311](https://github.com/christianlouis/InboxConverge/pull/311),
+  [`4576b35`](https://github.com/christianlouis/InboxConverge/commit/4576b3535ff04ce01d52c09f02ab5516f3c3b16c))
+
+- **deps**: Bump axios from 1.16.1 to 1.18.1 in /frontend
+  ([#322](https://github.com/christianlouis/InboxConverge/pull/322),
+  [`98b9fc4`](https://github.com/christianlouis/InboxConverge/commit/98b9fc43e61c75a8baa70723a56343898c833860))
+
+- **deps**: Bump cryptography from 48.0.0 to 49.0.0 in /backend
+  ([#291](https://github.com/christianlouis/InboxConverge/pull/291),
+  [`0784158`](https://github.com/christianlouis/InboxConverge/commit/07841589fe94665ae2610315abb35b120bffdfe9))
+
+- **deps**: Bump eslint-config-next from 16.2.5 to 16.2.10 in /frontend
+  ([#319](https://github.com/christianlouis/InboxConverge/pull/319),
+  [`4461ad7`](https://github.com/christianlouis/InboxConverge/commit/4461ad74204459bc51cb366c4716c53d1a46520c))
+
+- **deps**: Bump faker from 40.20.0 to 40.23.0 in /backend
+  ([#287](https://github.com/christianlouis/InboxConverge/pull/287),
+  [`1153d23`](https://github.com/christianlouis/InboxConverge/commit/1153d237a65ac966dfc3370824e83bb8568e86d5))
+
+- **deps**: Bump faker from 40.23.0 to 40.28.1 in /backend
+  ([#313](https://github.com/christianlouis/InboxConverge/pull/313),
+  [`b26e30e`](https://github.com/christianlouis/InboxConverge/commit/b26e30e24d02b75e3ced2bc81d0f0f9d23b7d99d))
+
+- **deps**: Bump faker from 40.23.0 to 40.28.1 in /backend
+  ([#310](https://github.com/christianlouis/InboxConverge/pull/310),
+  [`3c5cbcb`](https://github.com/christianlouis/InboxConverge/commit/3c5cbcb9170ad7f9eaa984419d71266817f8e18f))
+
+- **deps**: Bump fastapi from 0.136.3 to 0.137.0 in /backend
+  ([#289](https://github.com/christianlouis/InboxConverge/pull/289),
+  [`3aff6cb`](https://github.com/christianlouis/InboxConverge/commit/3aff6cb6fa95fc5a692f2da5c4939cf31db24e5f))
+
+- **deps**: Bump fastapi from 0.137.0 to 0.138.1 in /backend
+  ([#304](https://github.com/christianlouis/InboxConverge/pull/304),
+  [`f997804`](https://github.com/christianlouis/InboxConverge/commit/f99780418cede09b4f5ec3838e8bb8c85ae5c769))
+
+- **deps**: Bump fastapi from 0.138.1 to 0.139.0 in /backend
+  ([#313](https://github.com/christianlouis/InboxConverge/pull/313),
+  [`b26e30e`](https://github.com/christianlouis/InboxConverge/commit/b26e30e24d02b75e3ced2bc81d0f0f9d23b7d99d))
+
+- **deps**: Bump form-data ([#314](https://github.com/christianlouis/InboxConverge/pull/314),
+  [`30dd684`](https://github.com/christianlouis/InboxConverge/commit/30dd684c95fe2bfc5a79833ee349ca73e0d8272d))
+
+- **deps**: Bump google-api-python-client in /backend
+  ([#301](https://github.com/christianlouis/InboxConverge/pull/301),
+  [`8ab3f07`](https://github.com/christianlouis/InboxConverge/commit/8ab3f07f425c43f99e601b0d9702483a9475e487))
+
+- **deps**: Bump google-auth from 2.53.0 to 2.54.0 in /backend
+  ([#292](https://github.com/christianlouis/InboxConverge/pull/292),
+  [`6b01b1b`](https://github.com/christianlouis/InboxConverge/commit/6b01b1bb7b5b759754149191a3d2cdb7d37166f7))
+
+- **deps**: Bump google-auth from 2.54.0 to 2.55.1 in /backend
+  ([#307](https://github.com/christianlouis/InboxConverge/pull/307),
+  [`8f83c6d`](https://github.com/christianlouis/InboxConverge/commit/8f83c6d864401950effcfad7a4a7d9bf6d10ae22))
+
+- **deps**: Bump google-auth from 2.55.1 to 2.55.2 in /backend
+  ([#318](https://github.com/christianlouis/InboxConverge/pull/318),
+  [`bc9ffda`](https://github.com/christianlouis/InboxConverge/commit/bc9ffda01a1682258c949f1e2d40f457fb3a0402))
+
+- **deps**: Bump lucide-react from 1.16.0 to 1.24.0 in /frontend
+  ([#324](https://github.com/christianlouis/InboxConverge/pull/324),
+  [`83b53a1`](https://github.com/christianlouis/InboxConverge/commit/83b53a1d2b44360ef283f35b1630e1b24c4b2420))
+
+- **deps**: Bump pydantic-settings from 2.14.1 to 2.14.2 in /backend
+  ([#302](https://github.com/christianlouis/InboxConverge/pull/302),
+  [`3132010`](https://github.com/christianlouis/InboxConverge/commit/3132010d3ef08fe0c710bc95bd94878618a3ea30))
+
+- **deps**: Bump pytest from 9.0.3 to 9.1.0 in /backend
+  ([#290](https://github.com/christianlouis/InboxConverge/pull/290),
+  [`5d85ad6`](https://github.com/christianlouis/InboxConverge/commit/5d85ad65b5598ba0e88088b64f954ecbf7dd4510))
+
+- **deps**: Bump pytest from 9.1.0 to 9.1.1 in /backend
+  ([#308](https://github.com/christianlouis/InboxConverge/pull/308),
+  [`7df2bea`](https://github.com/christianlouis/InboxConverge/commit/7df2bea0c96dfacb4e8c7827a36a598d39594505))
+
+- **deps**: Bump python-multipart from 0.0.30 to 0.0.31 in /backend
+  ([#293](https://github.com/christianlouis/InboxConverge/pull/293),
+  [`d4ac84d`](https://github.com/christianlouis/InboxConverge/commit/d4ac84d8d6db53c636233e9f477009c8ba14b4b9))
+
+- **deps**: Bump python-multipart from 0.0.31 to 0.0.32 in /backend
+  ([#285](https://github.com/christianlouis/InboxConverge/pull/285),
+  [`55c61bf`](https://github.com/christianlouis/InboxConverge/commit/55c61bfbdb4a81e852dbdefd58ed29bae7136ce7))
+
+- **deps**: Bump redis from 8.0.0 to 8.0.1 in /backend
+  ([#309](https://github.com/christianlouis/InboxConverge/pull/309),
+  [`7b081f5`](https://github.com/christianlouis/InboxConverge/commit/7b081f592311a202962a867ec69651e771298ce3))
+
+- **deps**: Bump sqlalchemy from 2.0.50 to 2.0.51 in /backend
+  ([#300](https://github.com/christianlouis/InboxConverge/pull/300),
+  [`ad3f234`](https://github.com/christianlouis/InboxConverge/commit/ad3f23475a12eaa4c0c7b1ab9b76b3253152bed8))
+
+- **deps**: Bump stripe from 15.2.0 to 15.2.1 in /backend
+  ([#288](https://github.com/christianlouis/InboxConverge/pull/288),
+  [`cab8385`](https://github.com/christianlouis/InboxConverge/commit/cab83855d66dde672d33771b6dde3c9b8809056e))
+
+- **deps**: Bump stripe from 15.2.1 to 15.3.0 in /backend
+  ([#305](https://github.com/christianlouis/InboxConverge/pull/305),
+  [`5edab00`](https://github.com/christianlouis/InboxConverge/commit/5edab00401b530541c56586ce1c1861b596a50ad))
+
+- **deps**: Bump tailwindcss from 4.3.0 to 4.3.2 in /frontend
+  ([#323](https://github.com/christianlouis/InboxConverge/pull/323),
+  [`ebcc9bb`](https://github.com/christianlouis/InboxConverge/commit/ebcc9bb8cbcd7cc558a42a12e08db6249b1fdf09))
+
+- **deps**: Bump uvicorn from 0.48.0 to 0.49.0 in /backend
+  ([#282](https://github.com/christianlouis/InboxConverge/pull/282),
+  [`5c913cf`](https://github.com/christianlouis/InboxConverge/commit/5c913cfdc8c053295113a45acf24d60e3ab0f95b))
+
+- **deps**: Bump uvicorn from 0.49.0 to 0.50.0 in /backend
+  ([#313](https://github.com/christianlouis/InboxConverge/pull/313),
+  [`b26e30e`](https://github.com/christianlouis/InboxConverge/commit/b26e30e24d02b75e3ced2bc81d0f0f9d23b7d99d))
+
+- **deps**: Bump uvicorn from 0.49.0 to 0.50.0 in /backend
+  ([#312](https://github.com/christianlouis/InboxConverge/pull/312),
+  [`2cc1fbd`](https://github.com/christianlouis/InboxConverge/commit/2cc1fbda6971425bb74647042c9f7344c095c515))
+
+- **deps**: Bump uvicorn from 0.50.0 to 0.51.0 in /backend
+  ([#315](https://github.com/christianlouis/InboxConverge/pull/315),
+  [`941f741`](https://github.com/christianlouis/InboxConverge/commit/941f74138a25f6c9e9aa42c5abcf97b17dd1b1c5))
+
+- **deps**: Bump zustand from 5.0.13 to 5.0.14 in /frontend
+  ([#325](https://github.com/christianlouis/InboxConverge/pull/325),
+  [`0ee8699`](https://github.com/christianlouis/InboxConverge/commit/0ee8699390d9983298af71269cc3a84e0e6d537f))
+
+
 ## v0.10.10 (2026-06-22)
 
 ### Bug Fixes
