@@ -170,7 +170,7 @@ async def test_smtp_config(
         )
 
     password = decrypt_credential(config.encrypted_password)  # type: ignore[arg-type]
-    recipient = current_user.email  # type: ignore[arg-type]
+    recipient = str(current_user.email)
 
     def _send_test() -> None:
         msg = MIMEText(

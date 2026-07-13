@@ -17,7 +17,7 @@ from email import parser
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple, cast
 import logging
 from aioimaplib import aioimaplib
 
@@ -158,7 +158,7 @@ async def _resolve_ipv4(host: str, port: int) -> Optional[str]:
             host, port, family=socket.AF_INET, type=socket.SOCK_STREAM
         )
         if infos:
-            ipv4 = infos[0][4][0]
+            ipv4 = str(infos[0][4][0])
             if settings.DNS_CACHE_FALLBACK_ENABLED:
                 _set_cached_ipv4(host, port, ipv4)
             return ipv4
@@ -675,7 +675,7 @@ class MailProcessor:
             _dbg = self._debug
             _host = str(self.account.host)
             _port = int(self.account.port)
-            _protocol = self.account.protocol
+            _protocol = cast(MailProtocol, self.account.protocol)
 
             # Run blocking POP3 operations in thread pool
             def connect_pop3():
@@ -738,7 +738,7 @@ class MailProcessor:
             host = str(self.account.host)
             port = int(self.account.port)
             imap_client = await _make_imap_client(
-                self.account.protocol, host, port, timeout=10
+                cast(MailProtocol, self.account.protocol), host, port, timeout=10
             )
 
             _t0 = _time.monotonic()
@@ -858,7 +858,7 @@ class MailProcessor:
         _dbg = self._debug  # capture for thread-pool closure
         _host = str(self.account.host)
         _port = int(self.account.port)
-        _protocol = self.account.protocol
+        _protocol = cast(MailProtocol, self.account.protocol)
 
         def fetch_pop3() -> Tuple[List[bytes], List[str]]:
             _t_conn = _time.monotonic()
@@ -1029,7 +1029,7 @@ class MailProcessor:
         try:
             # Create IMAP client, preferring IPv4 to avoid ENETUNREACH on IPv6-only paths
             imap_client = await _make_imap_client(
-                self.account.protocol,
+                cast(MailProtocol, self.account.protocol),
                 str(self.account.host),
                 int(self.account.port),
                 timeout=30,
@@ -1297,7 +1297,7 @@ class MailProcessor:
         imap_client = None
         try:
             imap_client = await _make_imap_client(
-                self.account.protocol,
+                cast(MailProtocol, self.account.protocol),
                 str(self.account.host),
                 int(self.account.port),
                 timeout=30,
@@ -1346,7 +1346,7 @@ class MailProcessor:
         uid_set = set(successfully_forwarded_uids)
         _host = str(self.account.host)
         _port = int(self.account.port)
-        _protocol = self.account.protocol
+        _protocol = cast(MailProtocol, self.account.protocol)
 
         def _delete_pop3() -> None:
             _ipv4 = _resolve_ipv4_sync(_host, _port)
