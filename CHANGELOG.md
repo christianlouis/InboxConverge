@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.10.12 (2026-07-13)
+
+### Bug Fixes
+
+- Remediate frontend dependency alerts
+  ([#330](https://github.com/christianlouis/InboxConverge/pull/330),
+  [`d1d0b9f`](https://github.com/christianlouis/InboxConverge/commit/d1d0b9f04b6827a77ef63cd5dcd49810b4f68da9))
+
+### Chores
+
+- **deps**: Bump ws ([#329](https://github.com/christianlouis/InboxConverge/pull/329),
+  [`f97bc5c`](https://github.com/christianlouis/InboxConverge/commit/f97bc5c502b3ac90bb81b457b6217e318708b559))
+
+
 ## v0.10.11 (2026-07-13)
 
 ### Bug Fixes
