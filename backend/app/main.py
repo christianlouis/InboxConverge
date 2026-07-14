@@ -43,39 +43,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info("API documentation: /api/docs")
 
-    # Ensure all database tables exist (idempotent; safe to run on every startup)
-    try:
-        from app.core.database import engine, Base
-        import app.models.database_models  # noqa: F401 - register all ORM models
 
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables verified/created")
-    except Exception as exc:
-        logger.error(
-            "Could not create database tables: %s — API requests requiring DB will fail",
-            exc,
-            exc_info=True,
-        )
-
-    # Apply schema migrations for columns added to existing tables.
-    # Alembic's ADD COLUMN IF NOT EXISTS migrations are idempotent – safe for
-    # both fresh installs (create_all already added the columns) and existing
-    # deployments (where the columns may be absent).
-    try:
-
-        def _run_alembic_upgrade() -> None:
-            alembic_cfg = AlembicConfig(_ALEMBIC_INI)
-            alembic_command.upgrade(alembic_cfg, "head")
-
-        await asyncio.to_thread(_run_alembic_upgrade)
-        logger.info("Database schema migrations applied")
-    except Exception as exc:
-        logger.error(
-            "Could not apply schema migrations: %s — some columns may be missing",
-            exc,
-            exc_info=True,
-        )
 
     # Seed default database-backed settings (no-op if they already exist)
     try:
@@ -182,10 +150,36 @@ def create_application() -> FastAPI:
             "docs": "/api/docs",
         }
 
-    @app.get("/health")
-    async def health_check():
-        """Health check endpoint for container orchestration"""
-        return {"status": "healthy"}
+    @app.get("/health/live")
+    async def health_live():
+        """Liveness probe: process-level only. Returns 200 if app loop is alive."""
+        return {"status": "alive"}
+
+    @app.get("/health/ready")
+    async def health_ready():
+        """Readiness probe: fail-closed. Actively checks DB and Redis."""
+        from fastapi import HTTPException
+        import redis.asyncio as redis
+        from sqlalchemy import text
+        from app.core.database import async_session_maker
+
+        # Check DB reachability
+        try:
+            async with async_session_maker() as db:
+                await db.execute(text("SELECT 1"))
+        except Exception as e:
+            logger.error(f"Readiness probe failed on DB: {e}")
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        # Check Redis reachability
+        try:
+            async with redis.from_url(settings.REDIS_URL, socket_timeout=2.0) as r:
+                await r.ping()
+        except Exception as e:
+            logger.error(f"Readiness probe failed on Redis: {e}")
+            raise HTTPException(status_code=503, detail="Redis unavailable")
+
+        return {"status": "ready"}
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics():

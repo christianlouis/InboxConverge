@@ -387,6 +387,36 @@ stringData:
   # GOOGLE_CLIENT_SECRET: ""
 ```
 
+### Database Migration Job
+
+To ensure database migrations run exactly once per release and don't race during scale-out, use a Helm hook (or a unique Job in Kustomize) rather than an init container:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: inbox-converge-migration
+  namespace: inbox-converge
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migration
+          image: ghcr.io/christianlouis/inboxconverge-backend:latest
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - secretRef:
+                name: inbox-converge-secrets
+          env:
+            - name: DEBUG
+              value: "false"
+```
+
 ### PostgreSQL
 
 For production, consider a managed database (RDS, Cloud SQL, etc.) or an operator such as [CloudNativePG](https://cloudnative-pg.io/). The manifest below is a simple single-instance deployment for getting started:
@@ -520,16 +550,22 @@ spec:
       labels:
         app: backend
     spec:
-      initContainers:
-        - name: run-migrations
-          image: ghcr.io/christianlouis/inboxconverge-backend:latest
-          command: ["alembic", "upgrade", "head"]
-          envFrom:
-            - secretRef:
-                name: inbox-converge-secrets
-          env:
-            - name: DEBUG
-              value: "false"
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: node.cklnet.com/host
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: backend
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: backend
+                topologyKey: node.cklnet.com/host
       containers:
         - name: backend
           image: ghcr.io/christianlouis/inboxconverge-backend:latest
@@ -549,9 +585,15 @@ spec:
               value: "INFO"
             - name: CORS_ORIGINS
               value: "https://your-domain.com"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
@@ -576,7 +618,39 @@ spec:
       targetPort: 8000
 ```
 
+### Pod Disruption Budgets (PDB)
+
+To prevent voluntary disruptions (e.g., node drains, upgrades) from taking down the application, add PodDisruptionBudgets for the frontend and backend.
+
+> **Note:** PDBs only protect against *voluntary* disruptions. They do not protect against hard host failures (e.g., power loss). To survive hard failures, you must rely on running multiple replicas with `topologySpreadConstraints` (as configured above).
+
+```yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: inbox-converge
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: backend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: inbox-converge
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontend
+```
+
 ### Celery Worker
+
+> **Warning:** Do not scale `celery-worker` beyond 1 replica at this time. The mail processing tasks currently lack a concurrency guard (such as a Redis lock or immediate UID reservation). Running multiple workers can result in fetching and forwarding duplicate emails if two workers process the same account simultaneously.
 
 ```yaml
 apiVersion: apps/v1
@@ -585,7 +659,7 @@ metadata:
   name: celery-worker
   namespace: inbox-converge
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: celery-worker
@@ -618,7 +692,7 @@ spec:
 
 ### Celery Beat (scheduler)
 
-Only one replica should run Celery Beat at a time:
+> **Note:** Only one replica should run Celery Beat at a time. Scaling beat requires a coordinated scheduler; since Redis/Sentinel already exists, RedBeat (Redis-lock-based) is the natural upgrade path if beat HA is later wanted.
 
 ```yaml
 apiVersion: apps/v1
@@ -677,6 +751,22 @@ spec:
       labels:
         app: frontend
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: node.cklnet.com/host
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: frontend
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: frontend
+                topologyKey: node.cklnet.com/host
       containers:
         - name: frontend
           image: ghcr.io/christianlouis/inboxconverge-frontend:latest
