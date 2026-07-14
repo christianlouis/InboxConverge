@@ -46,7 +46,7 @@ class TestHealthEndpoint:
         """Test that health endpoint returns 200"""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/health")
+            response = await client.get("/health/live")
 
         assert response.status_code == 200
 
@@ -54,10 +54,10 @@ class TestHealthEndpoint:
         """Test that health endpoint returns healthy status"""
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/health")
+            response = await client.get("/health/live")
 
         data = response.json()
-        assert data["status"] == "healthy"
+        assert data["status"] == "alive"
 
 
 @pytest.mark.asyncio

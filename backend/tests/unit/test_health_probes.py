@@ -10,8 +10,8 @@ async def test_health_live(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_health_ready_ok(client: AsyncClient):
-    with patch("app.main.async_session_maker") as mock_db, \
-         patch("app.main.redis.from_url") as mock_redis:
+    with patch("app.core.database.async_session_maker") as mock_db, \
+         patch("redis.asyncio.from_url") as mock_redis:
         
         # Mock DB
         mock_db_session = AsyncMock()
@@ -29,8 +29,8 @@ async def test_health_ready_ok(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_health_ready_db_down(client: AsyncClient):
-    with patch("app.main.async_session_maker") as mock_db, \
-         patch("app.main.redis.from_url") as mock_redis:
+    with patch("app.core.database.async_session_maker") as mock_db, \
+         patch("redis.asyncio.from_url") as mock_redis:
         
         # Mock DB throwing error
         mock_db_session = AsyncMock()
@@ -44,8 +44,8 @@ async def test_health_ready_db_down(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_health_ready_redis_down(client: AsyncClient):
-    with patch("app.main.async_session_maker") as mock_db, \
-         patch("app.main.redis.from_url") as mock_redis:
+    with patch("app.core.database.async_session_maker") as mock_db, \
+         patch("redis.asyncio.from_url") as mock_redis:
         
         # Mock DB
         mock_db_session = AsyncMock()
