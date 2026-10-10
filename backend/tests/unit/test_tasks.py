@@ -9,9 +9,16 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.dialects import postgresql
 
-from app.models.database_models import DeliveryMethod, DownloadedMessageId
-from app.workers.tasks import _as_utc
+from app.models.database_models import (
+    AccountStatus,
+    DeliveryMethod,
+    DownloadedMessageId,
+    ProcessingLog,
+)
+from app.services.gmail_service import GmailAuthError
+from app.workers.tasks import _as_utc, _notify_gmail_auth_failure
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -159,6 +166,210 @@ class TestAsUtc:
         result = _as_utc(dt)
         assert result is dt
         assert result.tzinfo is offset
+
+
+class TestGmailFailureNotification:
+    @pytest.mark.asyncio
+    async def test_retries_after_failed_channels_and_deduplicates_after_success(self):
+        maker, session = _mock_session_maker()
+        credential = MagicMock(
+            id=7,
+            is_valid=False,
+            gmail_user_error_notification_sent=False,
+            gmail_admin_error_notification_sent=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = credential
+        session.execute.return_value = result
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock) as user,
+            patch(f"{MODULE}.send_admin_notification", new_callable=AsyncMock) as admin,
+        ):
+            user.return_value = 1
+            admin.side_effect = [0, 1]
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is True
+            assert credential.gmail_user_error_notification_sent is True
+            assert credential.gmail_admin_error_notification_sent is False
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is True
+            assert credential.gmail_admin_error_notification_sent is True
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is False
+
+        assert user.await_count == 1
+        assert admin.await_count == 2
+        query = session.execute.await_args_list[0].args[0]
+        compiled_query = str(query.compile(dialect=postgresql.dialect())).lower()
+        assert "for update skip locked" in compiled_query
+
+    @pytest.mark.asyncio
+    async def test_zero_channel_delivery_keeps_both_flags_unset(self):
+        maker, session = _mock_session_maker()
+        credential = MagicMock(
+            id=7,
+            is_valid=False,
+            gmail_user_error_notification_sent=False,
+            gmail_admin_error_notification_sent=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = credential
+        session.execute.return_value = result
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(
+                f"{MODULE}.send_user_notification",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+            patch(
+                f"{MODULE}.send_admin_notification",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+        ):
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is False
+
+        assert credential.gmail_user_error_notification_sent is False
+        assert credential.gmail_admin_error_notification_sent is False
+        session.commit.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_partial_retry_preserves_already_delivered_channel(self):
+        maker, session = _mock_session_maker()
+        credential = MagicMock(
+            id=7,
+            is_valid=False,
+            gmail_user_error_notification_sent=True,
+            gmail_admin_error_notification_sent=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = credential
+        session.execute.return_value = result
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock) as user,
+            patch(
+                f"{MODULE}.send_admin_notification",
+                new_callable=AsyncMock,
+                return_value=0,
+            ),
+        ):
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is False
+
+        user.assert_not_awaited()
+        assert credential.gmail_user_error_notification_sent is True
+        assert credential.gmail_admin_error_notification_sent is False
+
+    @pytest.mark.asyncio
+    async def test_user_channel_retries_after_exception_while_admin_is_deduplicated(
+        self,
+    ):
+        maker, session = _mock_session_maker()
+        credential = MagicMock(
+            id=7,
+            is_valid=False,
+            gmail_user_error_notification_sent=False,
+            gmail_admin_error_notification_sent=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = credential
+        session.execute.return_value = result
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock) as user,
+            patch(
+                f"{MODULE}.send_admin_notification",
+                new_callable=AsyncMock,
+                return_value=1,
+            ) as admin,
+        ):
+            user.side_effect = [RuntimeError("user channel down"), 1]
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is True
+            assert credential.gmail_user_error_notification_sent is False
+            assert credential.gmail_admin_error_notification_sent is True
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is True
+            assert credential.gmail_user_error_notification_sent is True
+            assert credential.gmail_admin_error_notification_sent is True
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is False
+
+        assert user.await_count == 2
+        assert admin.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_valid_credential_skips_stale_pending_alert(self):
+        maker, session = _mock_session_maker()
+        credential = MagicMock(
+            id=7,
+            is_valid=True,
+            gmail_user_error_notification_sent=False,
+            gmail_admin_error_notification_sent=False,
+        )
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = credential
+        session.execute.return_value = result
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock) as user,
+            patch(f"{MODULE}.send_admin_notification", new_callable=AsyncMock) as admin,
+        ):
+            assert await _notify_gmail_auth_failure(7, 10, "Source") is False
+
+        user.assert_not_awaited()
+        admin.assert_not_awaited()
+
+
+class TestRefreshGmailTokens:
+    @pytest.mark.asyncio
+    async def test_pending_invalid_credential_is_alerted_after_commit(self):
+        from app.workers.tasks import refresh_gmail_tokens
+
+        maker, session = _mock_session_maker()
+        credential = _make_gmail_cred(
+            is_valid=False,
+            gmail_user_error_notification_sent=False,
+            gmail_admin_error_notification_sent=True,
+        )
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = [credential]
+        session.execute.return_value = result
+        committed = False
+
+        async def commit():
+            nonlocal committed
+            committed = True
+
+        session.commit.side_effect = commit
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(
+                f"{MODULE}._notify_gmail_auth_failure", new_callable=AsyncMock
+            ) as notify,
+        ):
+
+            async def assert_committed_before_notify(**kwargs):
+                assert committed
+
+            notify.side_effect = assert_committed_before_notify
+            await refresh_gmail_tokens.run()
+
+        notify.assert_awaited_once_with(
+            credential_id=credential.id,
+            user_id=credential.user_id,
+            account_name=credential.gmail_email,
+        )
+        session.commit.assert_awaited_once()
+        query = session.execute.await_args_list[0].args[0]
+        compiled_query = str(query.compile(dialect=postgresql.dialect())).lower()
+        assert "gmail_credentials.is_valid = false" in compiled_query
+        assert (
+            "gmail_credentials.gmail_user_error_notification_sent is false"
+            in compiled_query
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -650,7 +861,7 @@ class TestProcessMailAccount:
         mock_gmail_svc = _make_gmail_service()
         mock_gmail_svc.build_import_label_ids = AsyncMock(return_value=["INBOX"])
         mock_gmail_svc.inject_email = AsyncMock(
-            side_effect=Exception("HTTP 401 Unauthorized")
+            side_effect=GmailAuthError("HTTP 401 Unauthorized")
         )
         mock_gmail_svc.get_refreshed_token = MagicMock(return_value=None)
 
@@ -703,7 +914,7 @@ class TestProcessMailAccount:
         mock_gmail_svc = _make_gmail_service()
         mock_gmail_svc.build_import_label_ids = AsyncMock(return_value=["INBOX"])
         mock_gmail_svc.inject_email = AsyncMock(
-            side_effect=Exception("HTTP 403 Forbidden")
+            side_effect=GmailAuthError("HTTP 403 Forbidden")
         )
         mock_gmail_svc.get_refreshed_token = MagicMock(return_value=None)
 
@@ -720,6 +931,108 @@ class TestProcessMailAccount:
             await process_mail_account.run(1)
 
         assert gmail_cred.is_valid is False
+
+    @pytest.mark.asyncio
+    async def test_generic_numeric_auth_text_does_not_invalidate_credentials(self):
+        """A generic delivery exception mentioning 401 is not an auth signal."""
+        account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
+        maker, session = _mock_session_maker()
+        gmail_cred = _make_gmail_cred(user_id=account.user_id)
+
+        account_result = MagicMock()
+        account_result.scalar_one_or_none.return_value = account
+        seen_result = MagicMock()
+        seen_result.scalars.return_value.all.return_value = []
+        gmail_cred_result = MagicMock()
+        gmail_cred_result.scalar_one_or_none.return_value = gmail_cred
+        session.execute = AsyncMock(
+            side_effect=[account_result, seen_result, gmail_cred_result]
+        )
+        session.commit = AsyncMock()
+        session.refresh = AsyncMock()
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([_build_raw_email()], ["uid-1"])
+        mock_gmail_svc = _make_gmail_service()
+        mock_gmail_svc.inject_email = AsyncMock(
+            side_effect=Exception("HTTP 401 text from a generic delivery failure")
+        )
+        notify = AsyncMock()
+
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="password123"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.GmailService", return_value=mock_gmail_svc),
+            patch(f"{MODULE}._notify_gmail_auth_failure", notify),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        assert gmail_cred.is_valid is True
+        notify.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_gmail_auth_failure_stops_remaining_messages_after_commit(self):
+        """An auth failure leaves later UIDs untouched and alerts after commit."""
+        account = _make_account(delivery_method=DeliveryMethod.GMAIL_API)
+        account.debug_logging = False
+        maker, session = _mock_session_maker()
+        gmail_cred = _make_gmail_cred(user_id=account.user_id)
+
+        account_result = MagicMock()
+        account_result.scalar_one_or_none.return_value = account
+        seen_result = MagicMock()
+        seen_result.scalars.return_value.all.return_value = []
+        gmail_cred_result = MagicMock()
+        gmail_cred_result.scalar_one_or_none.return_value = gmail_cred
+        session.execute = AsyncMock(
+            side_effect=[account_result, seen_result, gmail_cred_result]
+        )
+        committed = False
+
+        async def commit():
+            nonlocal committed
+            committed = True
+
+        session.commit.side_effect = commit
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = (
+            [_build_raw_email(subject="first"), _build_raw_email(subject="second")],
+            ["uid-1", "uid-2"],
+        )
+        mock_gmail_svc = _make_gmail_service()
+        mock_gmail_svc.inject_email = AsyncMock(
+            side_effect=GmailAuthError("refresh token revoked")
+        )
+        notify = AsyncMock()
+
+        async def assert_alert_after_commit(**kwargs):
+            assert committed
+
+        notify.side_effect = assert_alert_after_commit
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="password123"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.GmailService", return_value=mock_gmail_svc),
+            patch(f"{MODULE}._notify_gmail_auth_failure", notify),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        assert mock_gmail_svc.inject_email.await_count == 1
+        assert mock_processor.post_process_messages.await_count == 0
+        assert gmail_cred.is_valid is False
+        assert notify.await_count == 1
+        logs = [call.args[0] for call in session.add.call_args_list]
+        processing_logs = [entry for entry in logs if isinstance(entry, ProcessingLog)]
+        assert len(processing_logs) == 1
+        assert not any(isinstance(entry, DownloadedMessageId) for entry in logs)
 
     @pytest.mark.asyncio
     async def test_gmail_credential_revocation_on_invalid_grant(self):
@@ -752,7 +1065,9 @@ class TestProcessMailAccount:
 
         mock_gmail_svc = _make_gmail_service()
         mock_gmail_svc.build_import_label_ids = AsyncMock(return_value=["INBOX"])
-        mock_gmail_svc.inject_email = AsyncMock(side_effect=Exception("invalid_grant"))
+        mock_gmail_svc.inject_email = AsyncMock(
+            side_effect=GmailAuthError("invalid_grant")
+        )
         mock_gmail_svc.get_refreshed_token = MagicMock(return_value=None)
 
         with (
@@ -1329,7 +1644,7 @@ class TestProcessMailAccount:
         mock_gmail_svc = _make_gmail_service()
         mock_gmail_svc.build_import_label_ids = AsyncMock(return_value=["INBOX"])
         mock_gmail_svc.inject_email = AsyncMock(
-            side_effect=Exception("401 Unauthorized")
+            side_effect=GmailAuthError("401 Unauthorized")
         )
 
         # The notification service raises inside the credential-revocation block
@@ -2018,6 +2333,37 @@ class TestNotificationBackoff:
         mock_send_notification.assert_awaited()
 
     @pytest.mark.asyncio
+    async def test_zero_delivery_does_not_persist_error_notification_flag(self):
+        """A notification channel reporting zero delivery leaves the flag unset."""
+        raw_email = _build_raw_email()
+        account = self._make_smtp_account(error_notification_sent=False)
+        maker, session = self._smtp_session(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.post_process_messages = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([raw_email], ["uid-1"])
+
+        mock_send_notification = AsyncMock(return_value=0)
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(
+                f"{MODULE}.MailProcessor.forward_email",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        mock_send_notification.assert_awaited_once()
+        assert account.error_notification_sent is False
+
+    @pytest.mark.asyncio
     async def test_second_failure_suppressed(self):
         """When error_notification_sent is already True, no new notification fires."""
         raw_email = _build_raw_email()
@@ -2049,23 +2395,55 @@ class TestNotificationBackoff:
         mock_send_notification.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_recovery_clears_flag(self):
-        """A successful run clears error_notification_sent."""
-        account = self._make_smtp_account(error_notification_sent=False)
-        # Put account in "active" status – recovery notice fires when was ERROR
-        account.status = MagicMock(value="active")
+    async def test_partial_failure_does_not_send_recovery_notification(self):
+        """Recovery is only announced after a fully successful run."""
+        raw_email = _build_raw_email()
+        account = self._make_smtp_account(error_notification_sent=True)
+        account.status = AccountStatus.ERROR
         maker, session = self._smtp_session(account)
 
         mock_processor = AsyncMock()
-        mock_processor.fetch_emails.return_value = ([], [])
+        mock_processor.fetch_emails.return_value = ([raw_email], ["uid-1"])
         mock_processor.post_process_messages = AsyncMock()
+        mock_send_notification = AsyncMock(return_value=1)
 
         with (
             patch(f"{MODULE}.async_session_maker", maker),
             patch(f"{MODULE}.engine", AsyncMock()),
             patch(f"{MODULE}.decrypt_credential", return_value="pw"),
             patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
-            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+            patch(
+                f"{MODULE}.MailProcessor.forward_email",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
+        ):
+            from app.workers.tasks import process_mail_account
+
+            await process_mail_account.run(1)
+
+        mock_send_notification.assert_not_awaited()
+        assert account.error_notification_sent is True
+
+    @pytest.mark.asyncio
+    async def test_recovery_clears_flag(self):
+        """A successful run clears the prior error notification state."""
+        account = self._make_smtp_account(error_notification_sent=True)
+        account.status = AccountStatus.ERROR
+        maker, session = self._smtp_session(account)
+
+        mock_processor = AsyncMock()
+        mock_processor.fetch_emails.return_value = ([], [])
+        mock_processor.post_process_messages = AsyncMock()
+
+        mock_send_notification = AsyncMock(return_value=1)
+        with (
+            patch(f"{MODULE}.async_session_maker", maker),
+            patch(f"{MODULE}.engine", AsyncMock()),
+            patch(f"{MODULE}.decrypt_credential", return_value="pw"),
+            patch(f"{MODULE}.MailProcessor", return_value=mock_processor),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
         ):
             from app.workers.tasks import process_mail_account
 
@@ -2073,3 +2451,4 @@ class TestNotificationBackoff:
 
         # Flag is reset to False after successful connection
         assert account.error_notification_sent is False
+        mock_send_notification.assert_awaited_once()

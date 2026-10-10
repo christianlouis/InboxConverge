@@ -89,6 +89,7 @@ All settings except the three bootstrap secrets can be changed at runtime in the
 |---|---|
 | [Quick Start](docs/QUICKSTART.md) | Step-by-step setup, Gmail API & SMTP |
 | [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) | Production hardening guide |
+| [Gmail Failure Alerts](docs/GMAIL_ALERTING.md) | Alert behavior, channel verification, and rollout checks |
 | [Architecture](docs/ARCHITECTURE.md) | How the pieces fit together |
 | [Migration Guide](docs/MIGRATION_GUIDE.md) | Upgrading from an older version |
 | [Roadmap](docs/ROADMAP.md) | What's coming next |

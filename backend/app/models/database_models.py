@@ -563,6 +563,9 @@ class GmailCredential(Base):
 
     # Status
     is_valid = Column(Boolean, default=True)
+    # Track user and admin delivery independently so a failed route is retried.
+    gmail_user_error_notification_sent = Column(Boolean, default=False, nullable=False)
+    gmail_admin_error_notification_sent = Column(Boolean, default=False, nullable=False)
     last_verified_at = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
