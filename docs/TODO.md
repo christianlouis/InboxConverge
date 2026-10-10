@@ -4,6 +4,9 @@ Comprehensive task breakdown for repository improvements and production readines
 
 ## ✅ Recently Completed
 
+- [x] **Frontend dependency security remediation**: Added npm overrides for
+  `@babel/core` and `js-yaml` to resolve the alerts addressed by PR #330.
+
 - [x] **CI Docker build fix for Alpine Python images**: Replaced Debian-only
   `useradd` calls in the root and backend Dockerfiles with Alpine-compatible
   `addgroup` and `adduser -D` commands while preserving UID/GID 1000.

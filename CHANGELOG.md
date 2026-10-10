@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## [Unreleased]
+
+### Security
+
+- Remediated frontend dependency alerts by adding npm overrides for `@babel/core` and `js-yaml` (PR #330).
+
 ## v0.10.13 (2026-07-29)
 
 ### Bug Fixes
