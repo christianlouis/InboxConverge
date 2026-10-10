@@ -2,7 +2,7 @@
 fastapi==0.140.0  # Updated: Fixed starlette DoS vulnerabilities (was 0.109.1); pulls in starlette>=1.0.0
 uvicorn[standard]==0.52.4
 pydantic==2.13.4
-pydantic-settings==2.14.2
+pydantic-settings==2.15.0
 
 # Database
 sqlalchemy==2.0.51  # Updated: Fixed Python 3.14 incompatibility with TypingOnly assertion (was 2.0.25)
