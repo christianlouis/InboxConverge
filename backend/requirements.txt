@@ -1,12 +1,12 @@
 # Core Framework
-fastapi==0.141.1  # Updated: Fixed starlette DoS vulnerabilities (was 0.109.1); pulls in starlette>=1.0.0
-uvicorn[standard]==0.51.0
+fastapi==0.140.0  # Updated: Fixed starlette DoS vulnerabilities (was 0.109.1); pulls in starlette>=1.0.0
+uvicorn[standard]==0.52.4
 pydantic==2.13.4
-pydantic-settings==2.14.2
+pydantic-settings==2.15.0
 
 # Database
 sqlalchemy==2.0.51  # Updated: Fixed Python 3.14 incompatibility with TypingOnly assertion (was 2.0.25)
-alembic==1.18.5
+alembic==1.19.1
 psycopg2-binary==2.9.12
 asyncpg==0.31.0
 
@@ -19,7 +19,7 @@ authlib==1.7.2  # Updated: Fixed OIDC hash binding, JWE RSA1_5 padding oracle, a
 httpx==0.28.1
 
 # Payment Processing
-stripe==15.3.1
+stripe==15.5.1
 
 # Email & Mail Processing
 aiosmtplib==5.1.2
@@ -29,23 +29,23 @@ email-validator==2.3.0
 
 # Gmail API (for direct email injection)
 google-api-python-client==2.198.0
-google-auth==2.56.2
+google-auth==2.56.3
 google-auth-oauthlib==1.4.0
-google-auth-httplib2==0.4.0
+google-auth-httplib2==0.4.1
 
 # Job Queue & Cache
 celery==5.6.3
-redis==8.0.1
+redis==8.1.0
 
 # Security & Encryption
-cryptography==49.0.0  # Updated: Fixed NULL pointer dereference (was 42.0.0)
+cryptography==50.0.0  # Updated: Fixed NULL pointer dereference (was 42.0.0)
 
 # Notifications
 apprise==1.12.0
 
 # Monitoring & Logging
 prometheus-client==0.26.0
-python-json-logger==2.0.7
+python-json-logger==4.2.0
 
 # Development & Testing
 pytest==9.1.1
