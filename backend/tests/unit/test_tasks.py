@@ -620,7 +620,7 @@ class TestProcessMailAccount:
         smtp_result.scalar_one_or_none.return_value = user_smtp
 
         session.execute = AsyncMock(
-            side_effect=[account_result, seen_result, smtp_result]
+            side_effect=[account_result, seen_result, smtp_result, MagicMock()]
         )
         session.commit = AsyncMock()
         session.refresh = AsyncMock()
@@ -637,6 +637,8 @@ class TestProcessMailAccount:
             "use_tls": True,
         }
 
+        mock_send_notification = AsyncMock(return_value=1)
+
         with (
             patch(f"{MODULE}.async_session_maker", maker),
             patch(f"{MODULE}.engine", AsyncMock()),
@@ -647,14 +649,22 @@ class TestProcessMailAccount:
                 new_callable=AsyncMock,
                 return_value=global_smtp,
             ),
-            patch(f"{MODULE}.send_user_notification", new_callable=AsyncMock),
+            patch(f"{MODULE}.send_user_notification", mock_send_notification),
         ):
             from app.workers.tasks import process_mail_account
 
             await process_mail_account.run(1)
 
-        # The run should have been committed with status "failed"
+        # The outer error path must persist the failed run and account error,
+        # then notify once using the still-loaded identity snapshot.
         assert session.commit.await_count >= 1
+        run = session.add.call_args_list[0].args[0]
+        assert run.status == "failed"
+        assert "No delivery method configured" in run.error_message
+        assert account.status == AccountStatus.ERROR
+        assert "No delivery method configured" in account.last_error_message
+        mock_send_notification.assert_awaited_once()
+        assert mock_send_notification.await_args.kwargs["user_id"] == account.user_id
 
     @pytest.mark.asyncio
     async def test_gmail_cred_missing_falls_back_to_smtp(self):

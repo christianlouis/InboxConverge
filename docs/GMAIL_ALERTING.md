@@ -24,6 +24,12 @@ the existing account error notification route. Their suppression flag is only
 saved after a successful notification and is cleared after a fully successful
 processing run.
 
+If Gmail is unavailable and no SMTP fallback is configured, the run is recorded
+as failed, the source account is marked as having an error, and the normal user
+error alert is attempted. This applies even when the source mailbox is empty.
+The alert uses notification-channel credentials, so an independent notification
+provider can report a failure of the mail-delivery configuration.
+
 ## Enable and verify delivery
 
 1. Configure an enabled user error channel in notification settings and an
@@ -70,3 +76,8 @@ With isolated test settings configured, run from `backend/`:
 pytest tests/unit/test_tasks.py tests/unit/test_gmail_service.py \
   tests/unit/test_notification_service.py tests/unit/test_alembic_migrations.py
 ```
+
+The database-backed regression in
+`tests/integration/test_delivery_failure_alerts.py` needs a disposable PostgreSQL
+test database. Its shared test fixtures recreate the schema; never point those
+tests at production.

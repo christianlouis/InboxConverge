@@ -147,6 +147,16 @@ async def process_mail_account(account_id: int):
                 logger.warning(f"Account {account_id} not found or disabled")
                 return
 
+            # Keep notification inputs available after the error handler rolls
+            # back the session.  SQLAlchemy expires ORM attributes on rollback,
+            # so reading them there can fail before an alert is sent.
+            _error_account_id = int(account.id)
+            _error_user_id = int(account.user_id)
+            _error_account_name = str(account.name)
+            _error_notification_sent = (
+                getattr(account, "error_notification_sent", False) is True
+            )
+
             # Capture start time in a local variable so the error handler can
             # compute duration_seconds without touching the (expired) ORM
             # attribute after a session rollback.
@@ -277,15 +287,10 @@ async def process_mail_account(account_id: int):
                     logger.error(
                         f"SMTP credentials not configured for account {account.id}"
                     )
-                    run.status = "failed"  # type: ignore[assignment]
-                    run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"  # type: ignore[assignment]
-                    run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                    run.duration_seconds = (  # type: ignore[assignment]
-                        run.completed_at - _run_started_at
-                    ).total_seconds()
-                    account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                    await db.commit()
-                    return
+                    raise ValueError(
+                        "No delivery method configured "
+                        "(SMTP credentials missing and Gmail API not set up)"
+                    )
 
             successfully_forwarded_uids: list[str] = []
             skipped_empty_uids: list[str] = []
@@ -708,26 +713,23 @@ async def process_mail_account(account_id: int):
             # the next successful run, so repeat failures stay silent until the
             # account recovers.
             if "account" in locals() and account is not None:
-                _already_notified = bool(
-                    getattr(account, "error_notification_sent", False)
-                )
-                if not _already_notified:
+                if not _error_notification_sent:
                     try:
                         async with async_session_maker() as notif_db:
                             sent = await send_user_notification(
                                 db=notif_db,
-                                user_id=int(account.user_id),
+                                user_id=_error_user_id,
                                 title="InboxRescue: Mail Processing Error",
                                 body=(
                                     f"InboxRescue could not process mail account "
-                                    f"'{account.name}'. Check the account status and logs."
+                                    f"'{_error_account_name}'. Check the account status and logs."
                                 ),
                                 notify_on_error=True,
                             )
                             if sent > 0:
                                 await notif_db.execute(
                                     sa_update(MailAccount)
-                                    .where(MailAccount.id == account.id)
+                                    .where(MailAccount.id == _error_account_id)
                                     .values(error_notification_sent=True)
                                 )
                                 await notif_db.commit()
