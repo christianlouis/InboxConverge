@@ -8,6 +8,7 @@ This is preferred over SMTP forwarding as it doesn't modify the email.
 
 import asyncio
 import base64
+import json
 import logging
 import textwrap
 import time
@@ -49,6 +50,76 @@ class GmailAuthError(GmailInjectionError):
     """Raised when Gmail OAuth2 authentication fails (token expired or revoked)."""
 
     pass
+
+
+_AUTH_ERROR_REASONS = {
+    "autherror",
+    "invalidcredentials",
+    "invalid_grant",
+    "insufficientpermissions",
+    "insufficient_scope",
+    "unauthorized",
+}
+
+
+def _http_error_details(error: HttpError) -> tuple[Optional[int], set[str]]:
+    """Extract the HTTP status and structured reasons from a Google API error."""
+    status = getattr(getattr(error, "resp", None), "status", None)
+    reasons: set[str] = set()
+    try:
+        payload = json.loads(error.content.decode("utf-8"))
+    except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+        payload = {}
+    error_obj = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error_obj, dict):
+        error_obj = {}
+    for item in error_obj.get("errors", []):
+        if isinstance(item, dict) and item.get("reason"):
+            reasons.add(str(item["reason"]).lower())
+    if error_obj.get("status"):
+        reasons.add(str(error_obj["status"]).lower())
+    message = str(error_obj.get("message", "")).lower()
+    if "insufficient" in message and "scope" in message:
+        reasons.add("insufficient_scope")
+    return status, reasons
+
+
+def _is_definitive_auth_http_error(error: HttpError) -> bool:
+    status, reasons = _http_error_details(error)
+    if status == 401 or (status == 403 and bool(reasons & _AUTH_ERROR_REASONS)):
+        return True
+    if status == 403:
+        detail = str(getattr(error, "reason", "")).lower()
+        return "insufficient" in detail and (
+            "scope" in detail or "permission" in detail
+        )
+    return False
+
+
+def _is_definitive_refresh_error(error: google.auth.exceptions.RefreshError) -> bool:
+    """Only an explicit invalid_grant means that re-authorization is required."""
+    if getattr(error, "retryable", False) is True:
+        return False
+    structured = []
+    for attribute in ("response", "details", "error_details"):
+        value = getattr(error, attribute, None)
+        if value is not None:
+            structured.append(value)
+    text = " ".join(
+        [str(error), *(json.dumps(value, default=str) for value in structured)]
+    ).lower()
+    return "invalid_grant" in text or "invalid grant" in text
+
+
+def _raise_api_error(context: str, error: HttpError) -> None:
+    status, reasons = _http_error_details(error)
+    detail = getattr(error, "reason", None) or str(error)
+    error_msg = f"{context}: {detail}"
+    logger.error(error_msg)
+    if _is_definitive_auth_http_error(error):
+        raise GmailAuthError(error_msg) from error
+    logger.debug("Gmail API status=%s reasons=%s", status, sorted(reasons))
+    raise GmailInjectionError(error_msg) from error
 
 
 class GmailService:
@@ -170,22 +241,16 @@ class GmailService:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
             GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
-            error_msg = (
-                f"Gmail API error: {e.reason if hasattr(e, 'reason') else str(e)}"
-            )
-            logger.error(error_msg)
-            # Surface 401 so callers can mark credentials as invalid
-            raise GmailInjectionError(error_msg)
+            _raise_api_error("Gmail API error", e)
         except google.auth.exceptions.RefreshError as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
             GMAIL_API_DURATION_SECONDS.labels(operation="inject").observe(_dur)
-            error_msg = (
-                f"Gmail token refresh failed — the refresh token may have been revoked. "
-                f"The user must re-authorise. Detail: {e}"
-            )
+            error_msg = f"Gmail token refresh failed: {e}"
             logger.error(error_msg)
-            raise GmailAuthError(error_msg)
+            if _is_definitive_refresh_error(e):
+                raise GmailAuthError(error_msg) from e
+            raise GmailInjectionError(error_msg) from e
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="inject", status="error").inc()
@@ -331,19 +396,16 @@ class GmailService:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
             GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
-            error_msg = f"Gmail API error while managing label '{name}': {e.reason if hasattr(e, 'reason') else str(e)}"
-            logger.error(error_msg)
-            raise GmailInjectionError(error_msg)
+            _raise_api_error(f"Gmail API error while managing label '{name}'", e)
         except google.auth.exceptions.RefreshError as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
             GMAIL_API_DURATION_SECONDS.labels(operation="get_label").observe(_dur)
-            error_msg = (
-                f"Gmail token refresh failed while managing label '{name}' — "
-                f"refresh token may be revoked. Detail: {e}"
-            )
+            error_msg = f"Gmail token refresh failed while managing label '{name}': {e}"
             logger.error(error_msg)
-            raise GmailAuthError(error_msg)
+            if _is_definitive_refresh_error(e):
+                raise GmailAuthError(error_msg) from e
+            raise GmailInjectionError(error_msg) from e
         except Exception as e:
             _dur = time.perf_counter() - _start
             GMAIL_API_REQUESTS_TOTAL.labels(operation="get_label", status="error").inc()
@@ -512,9 +574,13 @@ class GmailService:
                 "expiry": self._tz_aware_expiry(self.credentials.expiry),
             }
         except google.auth.exceptions.RefreshError as e:
-            error_msg = f"Gmail refresh token has been revoked or is invalid — the user must re-authorise. Detail: {e}"
+            error_msg = f"Gmail token refresh failed: {e}"
             logger.error(error_msg)
-            raise GmailAuthError(error_msg)
+            if _is_definitive_refresh_error(e):
+                raise GmailAuthError(error_msg) from e
+            raise GmailInjectionError(
+                f"Transient Gmail token refresh failure: {e}"
+            ) from e
         except Exception as e:
             raise GmailInjectionError(
                 f"Unexpected error during Gmail token refresh: {e}"

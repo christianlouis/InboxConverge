@@ -9,7 +9,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from googleapiclient.errors import HttpError
 
-from app.services.gmail_service import GmailService, GmailInjectionError, GMAIL_SCOPES
+from app.services.gmail_service import (
+    GmailAuthError,
+    GmailInjectionError,
+    GmailService,
+    GMAIL_SCOPES,
+)
+from google.auth.exceptions import RefreshError
 from app.utils.gmail_labels import (
     DEFAULT_IMPORT_LABEL_TEMPLATES,
     SOURCE_EMAIL_LABEL_TEMPLATE,
@@ -221,6 +227,22 @@ class TestGmailService:
         content = json.dumps({"error": {"message": reason}}).encode()
         return HttpError(resp, content, uri="https://gmail.googleapis.com/test")
 
+    @staticmethod
+    def _make_structured_http_error(
+        status_code: int, reason: str, message: str = "request failed"
+    ) -> HttpError:
+        resp = MagicMock(status=status_code, reason=message)
+        content = json.dumps(
+            {
+                "error": {
+                    "code": status_code,
+                    "message": message,
+                    "errors": [{"reason": reason}],
+                }
+            }
+        ).encode()
+        return HttpError(resp, content, uri="https://gmail.googleapis.com/test")
+
     # ------------------------------------------------------------------
     # inject_email – HttpError branch
     # ------------------------------------------------------------------
@@ -239,6 +261,87 @@ class TestGmailService:
             await service.inject_email(
                 raw_email=b"From: a@b.com\r\nSubject: X\r\n\r\nBody",
             )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _make_structured_http_error.__func__(401, "authError"),
+            _make_structured_http_error.__func__(403, "insufficientPermissions"),
+            _make_structured_http_error.__func__(403, "insufficient_scope"),
+        ],
+    )
+    async def test_inject_email_definitive_auth_errors_raise_auth_error(self, error):
+        service = GmailService(access_token="test-access-token")
+        mock_api = MagicMock()
+        mock_api.users().messages().insert().execute.side_effect = error
+        service._service = mock_api
+
+        with pytest.raises(GmailAuthError):
+            await service.inject_email(raw_email=b"From: a@b.com\r\n\r\nBody")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _make_structured_http_error.__func__(403, "rateLimitExceeded"),
+            _make_structured_http_error.__func__(403, "userRateLimitExceeded"),
+            _make_structured_http_error.__func__(403, "quotaExceeded"),
+            _make_structured_http_error.__func__(429, "tooManyRequests"),
+            _make_structured_http_error.__func__(500, "backendError"),
+            _make_structured_http_error.__func__(503, "backendError"),
+        ],
+    )
+    async def test_inject_email_transient_api_errors_raise_injection_error(self, error):
+        service = GmailService(access_token="test-access-token")
+        mock_api = MagicMock()
+        mock_api.users().messages().insert().execute.side_effect = error
+        service._service = mock_api
+
+        with pytest.raises(GmailInjectionError) as raised:
+            await service.inject_email(raw_email=b"From: a@b.com\r\n\r\nBody")
+        assert not isinstance(raised.value, GmailAuthError)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload", ['"backend failure"', "[]"])
+    async def test_inject_email_malformed_http_error_payload_is_injection_error(
+        self, payload
+    ):
+        service = GmailService(access_token="test-access-token")
+        response = MagicMock(status=500, reason="Internal Server Error")
+        error = HttpError(
+            response, payload.encode(), uri="https://gmail.googleapis.com/test"
+        )
+        mock_api = MagicMock()
+        mock_api.users().messages().insert().execute.side_effect = error
+        service._service = mock_api
+
+        with pytest.raises(GmailInjectionError):
+            await service.inject_email(raw_email=b"From: a@b.com\r\n\r\nBody")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "refresh_error, expected",
+        [
+            (
+                RefreshError("invalid_grant: Token has been expired or revoked."),
+                GmailAuthError,
+            ),
+            (RefreshError("temporarily unavailable"), GmailInjectionError),
+        ],
+    )
+    async def test_inject_email_refresh_errors_are_typed(self, refresh_error, expected):
+        service = GmailService(
+            access_token="test-access-token", refresh_token="refresh"
+        )
+        mock_api = MagicMock()
+        mock_api.users().messages().insert().execute.side_effect = refresh_error
+        service._service = mock_api
+
+        with pytest.raises(expected) as raised:
+            await service.inject_email(raw_email=b"From: a@b.com\r\n\r\nBody")
+        if expected is GmailInjectionError:
+            assert not isinstance(raised.value, GmailAuthError)
 
     # ------------------------------------------------------------------
     # get_or_create_label – existing label found
@@ -298,6 +401,18 @@ class TestGmailService:
         with pytest.raises(GmailInjectionError, match="Gmail API error"):
             await service.get_or_create_label("test")
 
+    @pytest.mark.asyncio
+    async def test_get_or_create_label_auth_error_preserves_auth_type(self):
+        service = GmailService(access_token="test-access-token")
+        mock_api = MagicMock()
+        mock_api.users().labels().list().execute.side_effect = (
+            self._make_structured_http_error(403, "insufficientPermissions")
+        )
+        service._service = mock_api
+
+        with pytest.raises(GmailAuthError):
+            await service.get_or_create_label("test")
+
     # ------------------------------------------------------------------
     # get_or_create_label – generic Exception handling
     # ------------------------------------------------------------------
@@ -312,6 +427,29 @@ class TestGmailService:
 
         with pytest.raises(GmailInjectionError, match="Failed to get/create"):
             await service.get_or_create_label("oops")
+
+    @pytest.mark.asyncio
+    async def test_proactive_refresh_retryable_refresh_error_is_injection_error(self):
+        service = GmailService(access_token="token", refresh_token="refresh")
+        with patch.object(
+            service.credentials,
+            "refresh",
+            side_effect=RefreshError("temporarily unavailable"),
+        ):
+            with pytest.raises(GmailInjectionError) as raised:
+                await service.proactive_refresh()
+        assert not isinstance(raised.value, GmailAuthError)
+
+    @pytest.mark.asyncio
+    async def test_retryable_refresh_error_with_invalid_grant_text_is_not_auth(self):
+        service = GmailService(access_token="token", refresh_token="refresh")
+        error = RefreshError(
+            "invalid_grant from a retryable upstream response", retryable=True
+        )
+        with patch.object(service.credentials, "refresh", side_effect=error):
+            with pytest.raises(GmailInjectionError) as raised:
+                await service.proactive_refresh()
+        assert not isinstance(raised.value, GmailAuthError)
 
     # ------------------------------------------------------------------
     # inject_debug_email – full flow

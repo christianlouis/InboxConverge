@@ -35,9 +35,12 @@ from app.models.database_models import (
 from app.services.mail_processor import MailProcessor, MailDebugRecorder
 from app.services.gmail_service import GmailService, GmailAuthError
 from app.services.config_service import ConfigService
-from app.services.notification_service import send_user_notification
+from app.services.notification_service import (
+    send_user_notification,
+    send_admin_notification,
+)
 from app.core.config import settings
-from sqlalchemy import select, delete, or_, update as sa_update
+from sqlalchemy import select, delete, or_, and_, update as sa_update
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,58 @@ def _as_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+async def _notify_gmail_auth_failure(
+    credential_id: int, user_id: int, account_name: str
+) -> bool:
+    """Alert both user and admins once, marking delivered only on success."""
+    async with async_session_maker() as notif_db:
+        result = await notif_db.execute(
+            select(GmailCredential)
+            .where(GmailCredential.id == credential_id)
+            .with_for_update(skip_locked=True)
+        )
+        credential = result.scalar_one_or_none()
+        if credential is None or credential.is_valid is not False:
+            return False
+
+        title = "InboxRescue: Gmail Re-authorisation Required"
+        body = (
+            f"Gmail access for account '{account_name}' is no longer valid. "
+            "Please reconnect Gmail in Settings."
+        )
+        sent = 0
+        changed = False
+        if credential.gmail_user_error_notification_sent is not True:
+            try:
+                delivered = await send_user_notification(
+                    db=notif_db,
+                    user_id=user_id,
+                    title=title,
+                    body=body,
+                    notify_on_error=True,
+                )
+                if delivered > 0:
+                    credential.gmail_user_error_notification_sent = True
+                    sent += delivered
+                    changed = True
+            except Exception as exc:
+                logger.warning("Gmail user alert failed: %s", exc)
+        if credential.gmail_admin_error_notification_sent is not True:
+            try:
+                delivered = await send_admin_notification(
+                    db=notif_db, title=title, body=body
+                )
+                if delivered > 0:
+                    credential.gmail_admin_error_notification_sent = True
+                    sent += delivered
+                    changed = True
+            except Exception as exc:
+                logger.warning("Gmail admin alert failed: %s", exc)
+        if changed:
+            await notif_db.commit()
+        return sent > 0
 
 
 class AsyncTask(Task):
@@ -81,6 +136,7 @@ async def process_mail_account(account_id: int):
     _task_start = time.monotonic()
     async with async_session_maker() as db:
         try:
+            _gmail_auth_failure = False
             # Get account
             result = await db.execute(
                 select(MailAccount).where(MailAccount.id == account_id)
@@ -90,6 +146,16 @@ async def process_mail_account(account_id: int):
             if not account or not account.is_enabled:
                 logger.warning(f"Account {account_id} not found or disabled")
                 return
+
+            # Keep notification inputs available after the error handler rolls
+            # back the session.  SQLAlchemy expires ORM attributes on rollback,
+            # so reading them there can fail before an alert is sent.
+            _error_account_id = int(account.id)
+            _error_user_id = int(account.user_id)
+            _error_account_name = str(account.name)
+            _error_notification_sent = (
+                getattr(account, "error_notification_sent", False) is True
+            )
 
             # Capture start time in a local variable so the error handler can
             # compute duration_seconds without touching the (expired) ORM
@@ -221,15 +287,10 @@ async def process_mail_account(account_id: int):
                     logger.error(
                         f"SMTP credentials not configured for account {account.id}"
                     )
-                    run.status = "failed"  # type: ignore[assignment]
-                    run.error_message = "No delivery method configured (SMTP credentials missing and Gmail API not set up)"  # type: ignore[assignment]
-                    run.completed_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                    run.duration_seconds = (  # type: ignore[assignment]
-                        run.completed_at - _run_started_at
-                    ).total_seconds()
-                    account.last_check_at = datetime.now(timezone.utc)  # type: ignore[assignment]
-                    await db.commit()
-                    return
+                    raise ValueError(
+                        "No delivery method configured "
+                        "(SMTP credentials missing and Gmail API not set up)"
+                    )
 
             successfully_forwarded_uids: list[str] = []
             skipped_empty_uids: list[str] = []
@@ -368,67 +429,11 @@ async def process_mail_account(account_id: int):
                             getattr(gmail_cred, "token_expiry", "unknown"),
                             e,
                         )
-                        try:
-                            async with async_session_maker() as notif_db:
-                                await send_user_notification(
-                                    db=notif_db,
-                                    user_id=int(account.user_id),
-                                    title="InboxRescue: Gmail Authorization Expired",
-                                    body=(
-                                        f"Your Gmail credentials for account '{account.name}' "
-                                        f"have been revoked or have expired. "
-                                        f"Please re-authorize Gmail access in Settings."
-                                    ),
-                                    notify_on_error=True,
-                                )
-                        except Exception as notify_exc:
-                            logger.warning(
-                                "Failed to send revocation notification: %s", notify_exc
-                            )
+                        _gmail_auth_failure = True
                     error_msg = str(e)
                     emails_failed += 1
 
                 except Exception as e:
-                    error_str = str(e).lower()
-                    # Catch any remaining auth-style errors that slipped through
-                    # (e.g. HttpError 401/403 returned after a successful refresh).
-                    if (
-                        use_gmail_api
-                        and gmail_cred
-                        and (
-                            "401" in error_str
-                            or "403" in error_str
-                            or "invalid_grant" in error_str
-                        )
-                    ):
-                        gmail_cred.is_valid = False  # type: ignore[assignment]
-                        GMAIL_CREDENTIALS_INVALIDATED_TOTAL.inc()
-                        logger.warning(
-                            "Gmail credentials invalidated for user %s "
-                            "(account %s, token_expiry=%s) due to HTTP auth error. "
-                            "User must re-authorise. Error: %s",
-                            account.user_id,
-                            account.id,
-                            getattr(gmail_cred, "token_expiry", "unknown"),
-                            e,
-                        )
-                        try:
-                            async with async_session_maker() as notif_db:
-                                await send_user_notification(
-                                    db=notif_db,
-                                    user_id=int(account.user_id),
-                                    title="InboxRescue: Gmail Authorization Expired",
-                                    body=(
-                                        f"Your Gmail credentials for account '{account.name}' "
-                                        f"have been revoked. Please re-authorize Gmail access "
-                                        f"in Settings."
-                                    ),
-                                    notify_on_error=True,
-                                )
-                        except Exception as notify_exc:
-                            logger.warning(
-                                f"Failed to send revocation notification: {notify_exc}"
-                            )
                     logger.error(
                         "Error delivering email (account %s, uid=%s): %s",
                         account.id,
@@ -457,6 +462,11 @@ async def process_mail_account(account_id: int):
                         error_details={"error": error_msg} if error_msg else None,
                     )
                 )
+
+                # Further Gmail calls cannot succeed until reauthorization.
+                # Leave the remaining UIDs untouched for a later processing run.
+                if _gmail_auth_failure:
+                    break
 
             # Post-process: mark successfully forwarded messages as \Seen (IMAP)
             # and/or delete them from the source mailbox.  This is done AFTER
@@ -549,7 +559,8 @@ async def process_mail_account(account_id: int):
             account.last_error_message = None  # type: ignore[assignment]
             account.last_error_at = None  # type: ignore[assignment]
             # Clear the notification-sent flag so a future error streak fires a fresh alert.
-            account.error_notification_sent = False  # type: ignore[assignment]
+            if emails_failed == 0:
+                account.error_notification_sent = False  # type: ignore[assignment]
 
             # Auto-disable debug logging after 5 runs since it was last enabled.
             # The counter resets to 0 each time the user turns the flag on via
@@ -566,6 +577,18 @@ async def process_mail_account(account_id: int):
 
             await db.commit()
 
+            if _gmail_auth_failure and gmail_cred:
+                try:
+                    await _notify_gmail_auth_failure(
+                        credential_id=int(gmail_cred.id),
+                        user_id=int(account.user_id),
+                        account_name=str(account.name),
+                    )
+                except Exception as notify_exc:
+                    logger.warning(
+                        "Failed to send Gmail auth notification: %s", notify_exc
+                    )
+
             # Send failure notification after the commit so the status is
             # persisted even if the notification fails.  Use a fresh session
             # to avoid interfering with the (now-committed) main transaction.
@@ -576,7 +599,7 @@ async def process_mail_account(account_id: int):
             #  - New error streak: only notify on the FIRST run that has failures
             #    (error_notification_sent was False before this run).  Subsequent
             #    failing runs stay silent until recovery resets the flag.
-            if _was_in_error and _had_notified:
+            if _was_in_error and _had_notified and emails_failed == 0:
                 try:
                     async with async_session_maker() as notif_db:
                         await send_user_notification(
@@ -591,23 +614,23 @@ async def process_mail_account(account_id: int):
                         f"Failed to send recovery notification: {notify_exc}"
                     )
 
-            if emails_failed > 0 and not _had_notified:
+            if emails_failed > 0 and not _had_notified and not _gmail_auth_failure:
                 try:
                     async with async_session_maker() as notif_db:
-                        # Persist the flag so the next failing run stays silent.
-                        async with notif_db.begin():
-                            await notif_db.execute(
-                                sa_update(MailAccount)
-                                .where(MailAccount.id == account.id)
-                                .values(error_notification_sent=True)
-                            )
-                        await send_user_notification(
+                        sent = await send_user_notification(
                             db=notif_db,
                             user_id=int(account.user_id),
                             title="InboxRescue: Mail Forwarding Failures",
                             body=f"Mail account '{account.name}': {emails_failed} email(s) failed to forward.",
                             notify_on_error=True,
                         )
+                        if sent > 0:
+                            await notif_db.execute(
+                                sa_update(MailAccount)
+                                .where(MailAccount.id == account.id)
+                                .values(error_notification_sent=True)
+                            )
+                            await notif_db.commit()
                 except Exception as notify_exc:
                     logger.warning(f"Failed to send notification: {notify_exc}")
 
@@ -690,28 +713,26 @@ async def process_mail_account(account_id: int):
             # the next successful run, so repeat failures stay silent until the
             # account recovers.
             if "account" in locals() and account is not None:
-                _already_notified = bool(
-                    getattr(account, "error_notification_sent", False)
-                )
-                if not _already_notified:
+                if not _error_notification_sent:
                     try:
                         async with async_session_maker() as notif_db:
-                            # Persist the flag first so even if the notification
-                            # delivery fails the flag is set and the next run won't
-                            # try again.
-                            async with notif_db.begin():
-                                await notif_db.execute(
-                                    sa_update(MailAccount)
-                                    .where(MailAccount.id == account.id)
-                                    .values(error_notification_sent=True)
-                                )
-                            await send_user_notification(
+                            sent = await send_user_notification(
                                 db=notif_db,
-                                user_id=int(account.user_id),
+                                user_id=_error_user_id,
                                 title="InboxRescue: Mail Processing Error",
-                                body=f"Error processing mail account '{account.name}': {e}",
+                                body=(
+                                    f"InboxRescue could not process mail account "
+                                    f"'{_error_account_name}'. Check the account status and logs."
+                                ),
                                 notify_on_error=True,
                             )
+                            if sent > 0:
+                                await notif_db.execute(
+                                    sa_update(MailAccount)
+                                    .where(MailAccount.id == _error_account_id)
+                                    .values(error_notification_sent=True)
+                                )
+                                await notif_db.commit()
                     except Exception as notify_exc:
                         logger.warning(
                             f"Failed to send error notification: {notify_exc}"
@@ -918,11 +939,26 @@ async def refresh_gmail_tokens():
             refresh_threshold = datetime.now(timezone.utc) + timedelta(minutes=30)
             cred_result = await db.execute(
                 select(GmailCredential).where(
-                    GmailCredential.is_valid == True,  # noqa: E712
-                    GmailCredential.encrypted_refresh_token.is_not(None),
                     or_(
-                        GmailCredential.token_expiry.is_(None),
-                        GmailCredential.token_expiry <= refresh_threshold,
+                        and_(
+                            GmailCredential.is_valid == True,  # noqa: E712
+                            GmailCredential.encrypted_refresh_token.is_not(None),
+                            or_(
+                                GmailCredential.token_expiry.is_(None),
+                                GmailCredential.token_expiry <= refresh_threshold,
+                            ),
+                        ),
+                        and_(
+                            GmailCredential.is_valid == False,  # noqa: E712
+                            or_(
+                                GmailCredential.gmail_user_error_notification_sent.is_(
+                                    False
+                                ),
+                                GmailCredential.gmail_admin_error_notification_sent.is_(
+                                    False
+                                ),
+                            ),
+                        ),
                     ),
                 )
             )
@@ -946,8 +982,14 @@ async def refresh_gmail_tokens():
 
             refreshed_count = 0
             failed_count = 0
+            invalidated_credentials: list[tuple[int, int, str]] = []
 
             for cred in credentials_to_refresh:
+                if cred.is_valid is False:
+                    invalidated_credentials.append(
+                        (int(cred.id), int(cred.user_id), str(cred.gmail_email))
+                    )
+                    continue
                 access_token = decrypt_credential(cred.encrypted_access_token)  # type: ignore[arg-type]
                 refresh_token = decrypt_credential(cred.encrypted_refresh_token)  # type: ignore[arg-type]
 
@@ -988,26 +1030,9 @@ async def refresh_gmail_tokens():
                         e,
                     )
                     failed_count += 1
-                    try:
-                        async with async_session_maker() as notif_db:
-                            await send_user_notification(
-                                db=notif_db,
-                                user_id=int(cred.user_id),
-                                title="InboxRescue: Gmail Re-authorisation Required",
-                                body=(
-                                    "Your Gmail access has been revoked. "
-                                    "Please open Settings → Gmail API and click "
-                                    "'Connect Gmail' to restore email delivery."
-                                ),
-                                notify_on_error=True,
-                            )
-                    except Exception as notify_exc:
-                        logger.warning(
-                            "refresh_gmail_tokens: failed to send revocation "
-                            "notification for user %s: %s",
-                            cred.user_id,
-                            notify_exc,
-                        )
+                    invalidated_credentials.append(
+                        (int(cred.id), int(cred.user_id), str(cred.gmail_email))
+                    )
 
                 except Exception as e:
                     # Non-auth error (e.g. network timeout) — log but do not
@@ -1022,6 +1047,21 @@ async def refresh_gmail_tokens():
                     failed_count += 1
 
             await db.commit()
+
+            for credential_id, user_id, account_name in invalidated_credentials:
+                try:
+                    await _notify_gmail_auth_failure(
+                        credential_id=credential_id,
+                        user_id=user_id,
+                        account_name=account_name,
+                    )
+                except Exception as notify_exc:
+                    logger.warning(
+                        "refresh_gmail_tokens: failed to send revocation notification "
+                        "for user %s: %s",
+                        user_id,
+                        notify_exc,
+                    )
 
             logger.info(
                 "refresh_gmail_tokens: finished — %d refreshed, %d failed",

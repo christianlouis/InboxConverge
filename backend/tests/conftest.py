@@ -6,6 +6,7 @@ import pytest
 from typing import AsyncGenerator
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.engine import make_url
 from sqlalchemy.pool import NullPool
 
 from app.main import app
@@ -14,10 +15,22 @@ from app.core.config import settings
 from app.models.database_models import User
 from app.core.security import get_password_hash, create_access_token
 
-# Test database URL (use different database for tests)
-TEST_DATABASE_URL = settings.DATABASE_URL.replace(
-    "/inbox_converge", "/inbox_converge_test"
-)
+
+def _test_database_url(database_url: str) -> str:
+    """Return the isolated test URL, refusing to guess at other databases."""
+    url = make_url(database_url)
+    if url.database is None:
+        raise ValueError("Tests require a named database")
+    if url.database.endswith("_test"):
+        return database_url
+    if url.database != "inbox_converge":
+        raise ValueError("Tests require the inbox_converge or *_test database")
+    return url.set(database="inbox_converge_test").render_as_string(hide_password=False)
+
+
+# Test database URL (use different database for tests).  CI already supplies
+# the isolated *_test database; avoid appending the suffix twice there.
+TEST_DATABASE_URL = _test_database_url(settings.DATABASE_URL)
 
 
 # Note: event_loop fixture removed - pytest-asyncio provides this automatically

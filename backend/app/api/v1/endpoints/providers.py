@@ -268,6 +268,8 @@ async def save_gmail_credential(
             existing.import_label_templates,
         )  # type: ignore[assignment]
         existing.is_valid = True  # type: ignore[assignment]
+        existing.gmail_user_error_notification_sent = False  # type: ignore[assignment]
+        existing.gmail_admin_error_notification_sent = False  # type: ignore[assignment]
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
@@ -711,6 +713,8 @@ async def gmail_oauth_callback(
             existing.import_label_templates,
         )
         existing.is_valid = True  # type: ignore[assignment]
+        existing.gmail_user_error_notification_sent = False  # type: ignore[assignment]
+        existing.gmail_admin_error_notification_sent = False  # type: ignore[assignment]
         existing.last_verified_at = datetime.now(timezone.utc)  # type: ignore[assignment]
         await db.commit()
         await db.refresh(existing)
