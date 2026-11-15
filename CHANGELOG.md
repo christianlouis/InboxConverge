@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.11.1 (2026-11-15)
+
+### Bug Fixes
+
+- Install SQLAlchemy async extra ([#425](https://github.com/christianlouis/InboxConverge/pull/425),
+  [`ccdd0ad`](https://github.com/christianlouis/InboxConverge/commit/ccdd0ad0a0f24742b8d3542cc2cbecfcd003fbac))
+
+### Chores
+
+- **deps**: Apply compatible InboxConverge updates
+  ([#425](https://github.com/christianlouis/InboxConverge/pull/425),
+  [`ccdd0ad`](https://github.com/christianlouis/InboxConverge/commit/ccdd0ad0a0f24742b8d3542cc2cbecfcd003fbac))
+
+- **deps**: Apply compatible pending updates
+  ([#425](https://github.com/christianlouis/InboxConverge/pull/425),
+  [`ccdd0ad`](https://github.com/christianlouis/InboxConverge/commit/ccdd0ad0a0f24742b8d3542cc2cbecfcd003fbac))
+
+- **deps**: Consolidate compatible backend and frontend updates
+  ([#424](https://github.com/christianlouis/InboxConverge/pull/424),
+  [`33d14e5`](https://github.com/christianlouis/InboxConverge/commit/33d14e5a9fcfea92f7418cab6185ebe4ca0e1519))
+
+### Continuous Integration
+
+- Build frontend after dependency tests
+  ([#424](https://github.com/christianlouis/InboxConverge/pull/424),
+  [`33d14e5`](https://github.com/christianlouis/InboxConverge/commit/33d14e5a9fcfea92f7418cab6185ebe4ca0e1519))
+
+
 ## v0.11.0 (2026-11-15)
 
 ### Bug Fixes
