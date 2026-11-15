@@ -1,7 +1,7 @@
 """Failure-path coverage for the Kubernetes health probes."""
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.core.config import settings
@@ -11,7 +11,7 @@ from app.main import _database_health_check, _redis_health_check
 @pytest.mark.asyncio
 async def test_database_health_check_executes_select_one():
     session = AsyncMock()
-    session_factory = AsyncMock()
+    session_factory = MagicMock()
     session_factory.return_value.__aenter__.return_value = session
 
     with patch("app.core.database.async_session_maker", session_factory):
