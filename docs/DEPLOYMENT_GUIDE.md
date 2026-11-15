@@ -502,6 +502,16 @@ spec:
       targetPort: 6379
 ```
 
+### Backend health probes
+
+The API exposes separate Kubernetes probes:
+
+- `GET /health/live` is a process-level liveness check and stays HTTP 200 when PostgreSQL or Redis is unavailable.
+- `GET /health/ready` checks both PostgreSQL and Redis with bounded timeouts and returns HTTP 503 when either dependency is unavailable.
+- `GET /health` remains the legacy compatibility endpoint and does not mean the service is ready for traffic.
+
+Readiness only describes this process's dependency reachability. It is not a full high-availability guarantee: run multiple replicas, use durable/managed PostgreSQL and Redis, and configure disruption and topology policies separately.
+
 ### Backend API
 
 ```yaml
@@ -549,12 +559,19 @@ spec:
               value: "INFO"
             - name: CORS_ORIGINS
               value: "https://your-domain.com"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 3
           resources:
             requests:
               cpu: 250m

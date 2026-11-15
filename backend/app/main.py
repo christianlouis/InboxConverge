@@ -7,8 +7,9 @@ import os
 import re
 import time
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import logging
@@ -33,6 +34,36 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+# Keep orchestration probes responsive while allowing brief dependency latency.
+HEALTH_CHECK_TIMEOUT_SECONDS = 2.0
+
+
+async def _database_health_check() -> None:
+    from sqlalchemy import text
+    from app.core.database import async_session_maker
+
+    async with async_session_maker() as session:
+        await session.execute(text("SELECT 1"))
+
+
+async def _redis_health_check() -> None:
+    import redis.asyncio as redis
+
+    async with redis.from_url(
+        settings.REDIS_URL,
+        socket_connect_timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        socket_timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+    ) as connection:
+        await connection.ping()
+
+
+async def _bounded_health_check(check: Callable[[], Awaitable[None]]) -> bool:
+    try:
+        await asyncio.wait_for(check(), timeout=HEALTH_CHECK_TIMEOUT_SECONDS)
+    except Exception:
+        return False
+    return True
 
 
 @asynccontextmanager
@@ -182,9 +213,34 @@ def create_application() -> FastAPI:
             "docs": "/api/docs",
         }
 
+    @app.get("/health/live")
+    async def health_live():
+        """Liveness probe: only verifies that the process can serve requests."""
+        return {"status": "alive"}
+
+    @app.get("/health/ready")
+    async def health_ready():
+        """Readiness probe: verifies database and Redis reachability."""
+        database_ok, redis_ok = await asyncio.gather(
+            _bounded_health_check(_database_health_check),
+            _bounded_health_check(_redis_health_check),
+        )
+        if not database_ok or not redis_ok:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "not_ready",
+                    "checks": {
+                        "database": "ok" if database_ok else "unavailable",
+                        "redis": "ok" if redis_ok else "unavailable",
+                    },
+                },
+            )
+        return {"status": "ready", "checks": {"database": "ok", "redis": "ok"}}
+
     @app.get("/health")
     async def health_check():
-        """Health check endpoint for container orchestration"""
+        """Backward-compatible health endpoint."""
         return {"status": "healthy"}
 
     @app.get("/metrics", include_in_schema=False)
