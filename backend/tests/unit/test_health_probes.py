@@ -4,8 +4,6 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import text
-
 from app.core.config import settings
 from app.main import _database_health_check, _redis_health_check
 
