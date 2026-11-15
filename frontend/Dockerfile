@@ -1,5 +1,5 @@
 # Frontend Dockerfile for Next.js
-FROM node:22.23.4-alpine3.24 AS base
+FROM node:22.23.5-alpine3.24 AS base
 
 # Install dependencies only when needed
 FROM base AS deps
