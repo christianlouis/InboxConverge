@@ -7,7 +7,7 @@ import os
 import re
 import time
 from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,7 +58,7 @@ async def _redis_health_check() -> None:
         await connection.ping()
 
 
-async def _bounded_health_check(check) -> bool:
+async def _bounded_health_check(check: Callable[[], Awaitable[None]]) -> bool:
     try:
         await asyncio.wait_for(check(), timeout=HEALTH_CHECK_TIMEOUT_SECONDS)
     except Exception:
