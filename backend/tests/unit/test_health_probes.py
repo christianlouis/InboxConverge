@@ -7,8 +7,9 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_liveness_is_independent_of_dependencies(client):
-    with patch("app.main._database_health_check", side_effect=AssertionError), patch(
-        "app.main._redis_health_check", side_effect=AssertionError
+    with (
+        patch("app.main._database_health_check", side_effect=AssertionError),
+        patch("app.main._redis_health_check", side_effect=AssertionError),
     ):
         response = await client.get("/health/live")
 
@@ -18,8 +19,9 @@ async def test_liveness_is_independent_of_dependencies(client):
 
 @pytest.mark.asyncio
 async def test_readiness_returns_200_when_dependencies_are_available(client):
-    with patch("app.main._database_health_check", new_callable=AsyncMock), patch(
-        "app.main._redis_health_check", new_callable=AsyncMock
+    with (
+        patch("app.main._database_health_check", new_callable=AsyncMock),
+        patch("app.main._redis_health_check", new_callable=AsyncMock),
     ):
         response = await client.get("/health/ready")
 
@@ -34,10 +36,13 @@ async def test_readiness_returns_200_when_dependencies_are_available(client):
 async def test_readiness_returns_503_without_dependency_details_when_database_is_down(
     client,
 ):
-    with patch(
-        "app.main._database_health_check",
-        side_effect=RuntimeError("postgres password=super-secret"),
-    ), patch("app.main._redis_health_check", new_callable=AsyncMock):
+    with (
+        patch(
+            "app.main._database_health_check",
+            side_effect=RuntimeError("postgres password=super-secret"),
+        ),
+        patch("app.main._redis_health_check", new_callable=AsyncMock),
+    ):
         response = await client.get("/health/ready")
 
     assert response.status_code == 503
@@ -50,9 +55,12 @@ async def test_readiness_returns_503_without_dependency_details_when_database_is
 
 @pytest.mark.asyncio
 async def test_readiness_returns_503_when_redis_is_down(client):
-    with patch("app.main._database_health_check", new_callable=AsyncMock), patch(
-        "app.main._redis_health_check",
-        side_effect=RuntimeError("redis://:secret@example"),
+    with (
+        patch("app.main._database_health_check", new_callable=AsyncMock),
+        patch(
+            "app.main._redis_health_check",
+            side_effect=RuntimeError("redis://:secret@example"),
+        ),
     ):
         response = await client.get("/health/ready")
 
