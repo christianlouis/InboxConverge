@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- version list -->
 
+## v0.11.0 (2026-11-15)
+
+### Bug Fixes
+
+- Type bounded health probe callback
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+### Code Style
+
+- Format health probe test fixture
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Format probes for Python 3.12 Black
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Remove unused test import ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+### Documentation
+
+- Allow bounded readiness probe timeout
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Document liveness and readiness semantics
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+### Features
+
+- Add bounded liveness and readiness probes
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+### Testing
+
+- Cover bounded readiness timeout ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Cover concrete database and Redis probe helpers
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Cover health probe success and failure paths
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Keep async client compatible with httpx 0.28
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+- Model async session factory context correctly
+  ([#423](https://github.com/christianlouis/InboxConverge/pull/423),
+  [`d6cae4e`](https://github.com/christianlouis/InboxConverge/commit/d6cae4ef95c3350bf91ff785a4f044183959aebf))
+
+
 ## v0.10.14 (2026-10-21)
 
 ### Bug Fixes
