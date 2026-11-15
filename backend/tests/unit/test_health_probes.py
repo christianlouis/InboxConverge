@@ -4,6 +4,41 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import text
+
+from app.core.config import settings
+from app.main import _database_health_check, _redis_health_check
+
+
+@pytest.mark.asyncio
+async def test_database_health_check_executes_select_one():
+    session = AsyncMock()
+    session_factory = AsyncMock()
+    session_factory.return_value.__aenter__.return_value = session
+
+    with patch("app.core.database.async_session_maker", session_factory):
+        await _database_health_check()
+
+    session.execute.assert_awaited_once()
+    assert str(session.execute.await_args.args[0]) == "SELECT 1"
+
+
+@pytest.mark.asyncio
+async def test_redis_health_check_uses_bounded_timeouts_and_closes():
+    connection = AsyncMock()
+    redis_context = AsyncMock()
+    redis_context.__aenter__.return_value = connection
+
+    with patch("redis.asyncio.from_url", return_value=redis_context) as from_url:
+        await _redis_health_check()
+
+    from_url.assert_called_once_with(
+        settings.REDIS_URL,
+        socket_connect_timeout=2.0,
+        socket_timeout=2.0,
+    )
+    connection.ping.assert_awaited_once()
+    redis_context.__aexit__.assert_awaited_once()
 
 
 @pytest.mark.asyncio
