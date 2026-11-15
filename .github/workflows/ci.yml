@@ -87,7 +87,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
@@ -159,6 +158,57 @@ jobs:
           flags: frontend
           name: frontend-coverage
           fail_ci_if_error: false
+
+  # Keep the production backend image and its Python runtime tested together.
+  # This deliberately runs on pull requests so a Python base-image change
+  # cannot reach the release-only image build without exercising the image.
+  python315-container:
+    name: Python 3.15 backend image
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: inbox_converge_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build Python 3.15 backend image
+        run: docker build --file backend/Dockerfile --tag inboxconverge-backend:py315 backend
+
+      - name: Run backend tests in the image
+        run: |
+          ci_key=$(head -c 32 /dev/zero | tr '\0' x)
+          docker run --rm --network host \
+            -e DATABASE_URL=postgresql+asyncpg://postgres@localhost:5432/inbox_converge_test \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            -e SECRET_KEY="$ci_key" \
+            -e ENCRYPTION_KEY="$ci_key" \
+            inboxconverge-backend:py315 \
+          pytest tests/ -q
 
   # ── Phase 3: Security ──────────────────────────────────────────────────
   security:
@@ -298,7 +348,7 @@ jobs:
 
       - name: Update backend image tag in preprod manifest
         if: steps.pat-check.outputs.available == 'true'
-        uses: mikefarah/yq@v4.54.1
+        uses: mikefarah/yq@v4.54.2
         env:
           IMAGE: ${{ steps.tag.outputs.backend_image }}
         with:
@@ -308,7 +358,7 @@ jobs:
 
       - name: Update frontend image tag in preprod manifest
         if: steps.pat-check.outputs.available == 'true'
-        uses: mikefarah/yq@v4.54.1
+        uses: mikefarah/yq@v4.54.2
         env:
           IMAGE: ${{ steps.tag.outputs.frontend_image }}
         with:
