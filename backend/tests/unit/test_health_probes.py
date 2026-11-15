@@ -1,5 +1,6 @@
 """Failure-path coverage for the Kubernetes health probes."""
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -67,6 +68,22 @@ async def test_readiness_returns_503_when_redis_is_down(client):
     assert response.status_code == 503
     assert response.json()["checks"] == {"database": "ok", "redis": "unavailable"}
     assert "secret" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_readiness_times_out_a_blocked_dependency(client):
+    async def blocked_probe():
+        await asyncio.sleep(0.05)
+
+    with (
+        patch("app.main.HEALTH_CHECK_TIMEOUT_SECONDS", 0.01),
+        patch("app.main._database_health_check", side_effect=blocked_probe),
+        patch("app.main._redis_health_check", new_callable=AsyncMock),
+    ):
+        response = await client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["checks"] == {"database": "unavailable", "redis": "ok"}
 
 
 @pytest.mark.asyncio
