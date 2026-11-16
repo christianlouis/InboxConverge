@@ -24,7 +24,7 @@ stripe==15.5.1
 # Email & Mail Processing
 aiosmtplib==5.1.2
 aiohttp==3.14.4  # Updated: Fixed zip bomb, DoS, and directory traversal vulnerabilities (was 3.9.1)
-aioimaplib==2.0.1
+aioimaplib==2.0.3
 email-validator==2.3.0
 
 # Gmail API (for direct email injection)
